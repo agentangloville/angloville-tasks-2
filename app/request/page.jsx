@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef } from 'react';
-import { CheckCircle, Send, Bold, Italic, Underline, List, ListOrdered, Link2, AlignLeft, AlignCenter, AlignRight, Heading1, Heading2, Undo, Redo, X, Check } from 'lucide-react';
+import { CheckCircle, Send, Bold, Italic, Underline, List, ListOrdered, Link2, AlignLeft, AlignCenter, AlignRight, Heading1, Heading2, Undo, Redo, X, Check, Copy, ExternalLink } from 'lucide-react';
 import { createTask } from '../../lib/supabase';
 
 const TEAM_MEMBERS = [
@@ -36,8 +36,10 @@ export default function RequestPage() {
     assignees: []
   });
   const [submitted, setSubmitted] = useState(false);
+  const [publicToken, setPublicToken] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [copied, setCopied] = useState(false);
   const editorRef = useRef(null);
 
   const execCommand = (command, val = null) => {
@@ -91,7 +93,25 @@ export default function RequestPage() {
       const result = await createTask(newTask);
       
       if (result) {
+        setPublicToken(result.publicToken || result.public_token || '');
         setSubmitted(true);
+        
+        if (form.email.trim() && result.public_token) {
+          try {
+            await fetch('/api/confirm-submission', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                to: form.email.trim(),
+                name: form.submittedBy.trim(),
+                taskTitle: form.title.trim(),
+                publicToken: result.public_token,
+              }),
+            });
+          } catch (emailErr) {
+            console.log('Confirmation email skipped:', emailErr);
+          }
+        }
       } else {
         setError('Failed to submit. Please try again.');
       }
@@ -104,6 +124,15 @@ export default function RequestPage() {
   };
 
   const selectedMarket = MARKETS.find(m => m.id === form.market);
+  const trackingUrl = typeof window !== 'undefined' && publicToken 
+    ? `${window.location.origin}/task/${publicToken}` 
+    : '';
+
+  const copyTrackingLink = () => {
+    navigator.clipboard.writeText(trackingUrl);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   if (submitted) {
     return (
@@ -112,15 +141,61 @@ export default function RequestPage() {
           <div className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6" style={{ background: '#e6f4ea' }}>
             <CheckCircle size={44} style={{ color: '#34a853' }} />
           </div>
-          <h2 className="text-2xl font-semibold mb-3" style={{ color: '#202124' }}>Request sent!</h2>
-          <p className="text-base" style={{ color: '#5f6368' }}>The marketing team will review your request and get back to you soon.</p>
-          <button 
-            onClick={() => window.location.reload()} 
-            className="mt-8 px-8 py-3 rounded-full text-sm font-medium transition-colors hover:bg-gray-200"
-            style={{ background: '#f1f3f4', color: '#202124' }}
-          >
-            Submit another request
-          </button>
+          <h2 className="text-2xl font-semibold mb-3" style={{ color: '#202124' }}>Request Submitted!</h2>
+          <p className="text-base mb-6" style={{ color: '#5f6368' }}>
+            The marketing team will review your request and get back to you soon.
+          </p>
+          
+          {publicToken && (
+            <div className="mb-8 p-5 rounded-xl text-left" style={{ background: '#e8f0fe', border: '1px solid #c2d7f7' }}>
+              <div className="flex items-center gap-2 mb-3">
+                <ExternalLink size={18} style={{ color: '#1a73e8' }} />
+                <p className="font-medium" style={{ color: '#1a73e8' }}>Track Your Request</p>
+              </div>
+              <p className="text-sm mb-3" style={{ color: '#5f6368' }}>
+                Bookmark this link to check status and reply to the team:
+              </p>
+              <div className="flex items-center gap-2">
+                <input 
+                  type="text" 
+                  readOnly 
+                  value={trackingUrl}
+                  className="flex-1 px-3 py-2 rounded-lg text-sm font-mono"
+                  style={{ background: 'white', border: '1px solid #dadce0', color: '#202124' }}
+                />
+                <button 
+                  onClick={copyTrackingLink}
+                  className="px-4 py-2 rounded-lg font-medium text-sm flex items-center gap-2 transition-colors"
+                  style={{ background: '#1a73e8', color: 'white' }}
+                >
+                  {copied ? <Check size={16} /> : <Copy size={16} />}
+                  {copied ? 'Copied!' : 'Copy'}
+                </button>
+              </div>
+              {form.email && (
+                <p className="text-xs mt-3" style={{ color: '#5f6368' }}>
+                  📧 We also sent this link to <strong>{form.email}</strong>
+                </p>
+              )}
+            </div>
+          )}
+          
+          <div className="flex gap-3 justify-center">
+            <a 
+              href={trackingUrl || '#'}
+              className="px-6 py-3 rounded-full text-sm font-medium transition-colors hover:shadow-md"
+              style={{ background: '#1a73e8', color: 'white' }}
+            >
+              View Request Status
+            </a>
+            <button 
+              onClick={() => window.location.reload()} 
+              className="px-6 py-3 rounded-full text-sm font-medium transition-colors hover:bg-gray-200"
+              style={{ background: '#f1f3f4', color: '#202124' }}
+            >
+              Submit Another
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -128,7 +203,6 @@ export default function RequestPage() {
 
   return (
     <div className="min-h-screen" style={{ background: '#f8f9fa' }}>
-      {/* Header - Google style */}
       <header className="bg-white border-b px-8 py-4" style={{ borderColor: '#e8eaed' }}>
         <div className="max-w-4xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -138,7 +212,6 @@ export default function RequestPage() {
         </div>
       </header>
 
-      {/* Main - Google Docs inspired layout */}
       <main className="max-w-4xl mx-auto py-8 px-4">
         <form onSubmit={handleSubmit} className="bg-white rounded-xl overflow-hidden" style={{ boxShadow: '0 1px 3px 0 rgba(60,64,67,.3), 0 4px 8px 3px rgba(60,64,67,.15)' }}>
           
@@ -149,9 +222,7 @@ export default function RequestPage() {
             </div>
           )}
 
-          {/* Header fields - clean Google style */}
           <div className="border-b" style={{ borderColor: '#e8eaed' }}>
-            {/* To field with multi-select */}
             <div className="px-6 py-5 border-b" style={{ borderColor: '#e8eaed' }}>
               <label className="text-sm font-medium block mb-3" style={{ color: '#202124' }}>To (select team members)</label>
               <div className="flex flex-wrap gap-2">
@@ -183,7 +254,6 @@ export default function RequestPage() {
               )}
             </div>
 
-            {/* From + Email row */}
             <div className="px-6 py-4 grid grid-cols-2 gap-6 border-b" style={{ borderColor: '#e8eaed' }}>
               <div>
                 <label className="text-sm font-medium block mb-2" style={{ color: '#202124' }}>From *</label>
@@ -198,7 +268,9 @@ export default function RequestPage() {
                 />
               </div>
               <div>
-                <label className="text-sm font-medium block mb-2" style={{ color: '#202124' }}>Email (optional)</label>
+                <label className="text-sm font-medium block mb-2" style={{ color: '#202124' }}>
+                  Email <span className="font-normal" style={{ color: '#5f6368' }}>(for tracking link)</span>
+                </label>
                 <input 
                   type="email" 
                   value={form.email} 
@@ -210,7 +282,6 @@ export default function RequestPage() {
               </div>
             </div>
 
-            {/* Subject + Market */}
             <div className="px-6 py-4 flex items-end gap-4">
               <div className="flex-1">
                 <label className="text-sm font-medium block mb-2" style={{ color: '#202124' }}>Subject *</label>
@@ -241,22 +312,10 @@ export default function RequestPage() {
             </div>
           </div>
 
-          {/* Google Docs style editor */}
           <div className="border-b" style={{ borderColor: '#e8eaed' }}>
-            {/* Toolbar - Google Docs style */}
             <div className="px-3 py-2 flex items-center gap-0.5 flex-wrap border-b" style={{ background: '#f1f3f4', borderColor: '#e8eaed' }}>
               <button type="button" onClick={() => execCommand('undo')} className="p-2 rounded hover:bg-gray-200" title="Undo"><Undo size={18} style={{ color: '#444746' }} /></button>
               <button type="button" onClick={() => execCommand('redo')} className="p-2 rounded hover:bg-gray-200" title="Redo"><Redo size={18} style={{ color: '#444746' }} /></button>
-              
-              <div className="w-px h-6 mx-2" style={{ background: '#dadce0' }} />
-              
-              <select onChange={(e) => execCommand('fontSize', e.target.value)} className="text-sm px-2 py-1.5 rounded bg-transparent hover:bg-gray-200 cursor-pointer" style={{ color: '#444746' }} defaultValue="3">
-                <option value="1">Small</option>
-                <option value="2">Smaller</option>
-                <option value="3">Normal</option>
-                <option value="4">Larger</option>
-                <option value="5">Large</option>
-              </select>
               
               <div className="w-px h-6 mx-2" style={{ background: '#dadce0' }} />
               
@@ -266,69 +325,30 @@ export default function RequestPage() {
               
               <div className="w-px h-6 mx-2" style={{ background: '#dadce0' }} />
               
-              {/* Text color - Google palette */}
-              <div className="relative group">
-                <button type="button" className="p-2 rounded hover:bg-gray-200 flex items-center" title="Text color">
-                  <span style={{ color: '#444746', fontSize: '16px', fontWeight: '600', borderBottom: '3px solid #000' }}>A</span>
-                </button>
-                <div className="absolute top-full left-0 mt-1 bg-white rounded-lg shadow-xl border p-2 hidden group-hover:grid grid-cols-5 gap-1 z-20" style={{ borderColor: '#dadce0' }}>
-                  {['#000000', '#434343', '#666666', '#1a73e8', '#ea4335', '#fbbc04', '#34a853', '#ff6d01', '#46bdc6', '#7baaf7', '#f07b72', '#fdd663', '#57bb8a', '#9b59b6', '#e91e63'].map(color => (
-                    <button key={color} type="button" onClick={() => execCommand('foreColor', color)} className="w-6 h-6 rounded hover:scale-110 transition-transform" style={{ background: color }} />
-                  ))}
-                </div>
-              </div>
-
-              {/* Highlight */}
-              <div className="relative group">
-                <button type="button" className="p-2 rounded hover:bg-gray-200 flex items-center" title="Highlight">
-                  <span style={{ background: '#fcf3cf', color: '#444746', fontSize: '16px', fontWeight: '600', padding: '0 3px' }}>A</span>
-                </button>
-                <div className="absolute top-full left-0 mt-1 bg-white rounded-lg shadow-xl border p-2 hidden group-hover:grid grid-cols-4 gap-1 z-20" style={{ borderColor: '#dadce0' }}>
-                  {['#ffffff', '#fcf3cf', '#d9ead3', '#c9daf8', '#fce5cd', '#f4cccc', '#d9d2e9', '#cfe2f3'].map(color => (
-                    <button key={color} type="button" onClick={() => execCommand('hiliteColor', color)} className="w-6 h-6 rounded border hover:scale-110 transition-transform" style={{ background: color, borderColor: '#dadce0' }} />
-                  ))}
-                </div>
-              </div>
-              
-              <div className="w-px h-6 mx-2" style={{ background: '#dadce0' }} />
-              
               <button type="button" onClick={insertLink} className="p-2 rounded hover:bg-gray-200" title="Insert link"><Link2 size={18} style={{ color: '#444746' }} /></button>
-              
-              <div className="w-px h-6 mx-2" style={{ background: '#dadce0' }} />
-              
-              <button type="button" onClick={() => execCommand('formatBlock', 'h1')} className="p-2 rounded hover:bg-gray-200" title="Heading 1"><Heading1 size={18} style={{ color: '#444746' }} /></button>
-              <button type="button" onClick={() => execCommand('formatBlock', 'h2')} className="p-2 rounded hover:bg-gray-200" title="Heading 2"><Heading2 size={18} style={{ color: '#444746' }} /></button>
               
               <div className="w-px h-6 mx-2" style={{ background: '#dadce0' }} />
               
               <button type="button" onClick={() => execCommand('insertUnorderedList')} className="p-2 rounded hover:bg-gray-200" title="Bullet list"><List size={18} style={{ color: '#444746' }} /></button>
               <button type="button" onClick={() => execCommand('insertOrderedList')} className="p-2 rounded hover:bg-gray-200" title="Numbered list"><ListOrdered size={18} style={{ color: '#444746' }} /></button>
               
-              <div className="w-px h-6 mx-2" style={{ background: '#dadce0' }} />
-              
-              <button type="button" onClick={() => execCommand('justifyLeft')} className="p-2 rounded hover:bg-gray-200" title="Align left"><AlignLeft size={18} style={{ color: '#444746' }} /></button>
-              <button type="button" onClick={() => execCommand('justifyCenter')} className="p-2 rounded hover:bg-gray-200" title="Center"><AlignCenter size={18} style={{ color: '#444746' }} /></button>
-              <button type="button" onClick={() => execCommand('justifyRight')} className="p-2 rounded hover:bg-gray-200" title="Align right"><AlignRight size={18} style={{ color: '#444746' }} /></button>
-              
               <button type="button" onClick={() => execCommand('removeFormat')} className="p-2 rounded hover:bg-gray-200 ml-auto" title="Clear formatting"><X size={18} style={{ color: '#9aa0a6' }} /></button>
             </div>
 
-            {/* Editor content - Google Docs style */}
             <div 
               ref={editorRef}
               contentEditable
               className="px-6 py-6 text-base overflow-y-auto"
-              style={{ color: '#202124', minHeight: '350px', maxHeight: '500px', lineHeight: '1.6' }}
+              style={{ color: '#202124', minHeight: '250px', maxHeight: '400px', lineHeight: '1.6' }}
               data-placeholder="Describe your request...
 
-• What do you need?
-• What's the goal?
-• Any deadline or priority?"
+- What do you need?
+- What's the goal?
+- Any deadline or priority?"
               suppressContentEditableWarning
             />
           </div>
 
-          {/* Links section */}
           <div className="px-6 py-5 border-b" style={{ borderColor: '#e8eaed' }}>
             <label className="text-sm font-medium block mb-2" style={{ color: '#202124' }}>
               Links (Google Drive, Docs, references)
@@ -343,7 +363,6 @@ export default function RequestPage() {
             />
           </div>
 
-          {/* Submit button - Google style */}
           <div className="px-6 py-5 flex items-center justify-between" style={{ background: '#f8f9fa' }}>
             <p className="text-sm" style={{ color: '#9aa0a6' }}>
               Fields marked with * are required
