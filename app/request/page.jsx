@@ -1,16 +1,16 @@
 'use client';
 
 import React, { useState, useRef } from 'react';
-import { CheckCircle, Send, Bold, Italic, List, Check, X } from 'lucide-react';
+import { CheckCircle, Send, Bold, Italic, Underline, List, ListOrdered, Link2, AlignLeft, AlignCenter, AlignRight, Heading1, Heading2, Undo, Redo, X, Check } from 'lucide-react';
 import { createTask } from '../../lib/supabase';
 
 const TEAM_MEMBERS = [
-  { id: 'edyta', name: 'Edyta Kędzior', color: '#428BCA' },
-  { id: 'aleksandra', name: 'Aleksandra Witkowska', color: '#8b5cf6' },
-  { id: 'damian_l', name: 'Damian Ładak', color: '#10b981' },
-  { id: 'damian_w', name: 'Damian Wójcicki', color: '#f59e0b' },
-  { id: 'wojciech', name: 'Wojciech Pisarski', color: '#ef4444' },
-  { id: 'klaudia', name: 'Klaudia Gołembiowska', color: '#ec4899' },
+  { id: 'edyta', name: 'Edyta Kędzior', color: '#4285f4' },
+  { id: 'aleksandra', name: 'Aleksandra Witkowska', color: '#a142f4' },
+  { id: 'damian_l', name: 'Damian Ładak', color: '#34a853' },
+  { id: 'damian_w', name: 'Damian Wójcicki', color: '#fbbc04' },
+  { id: 'wojciech', name: 'Wojciech Pisarski', color: '#ea4335' },
+  { id: 'klaudia', name: 'Klaudia Gołembiowska', color: '#e91e63' },
 ];
 
 const MARKETS = [
@@ -29,22 +29,25 @@ const getInitials = (name) => {
 export default function RequestPage() {
   const [form, setForm] = useState({ 
     title: '', 
-    description: '', 
     links: '', 
     submittedBy: '', 
     email: '', 
     market: 'ns',
-    assignees: [] 
+    assignees: []
   });
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [showAssigneeDropdown, setShowAssigneeDropdown] = useState(false);
   const editorRef = useRef(null);
 
-  const execCommand = (command) => {
-    document.execCommand(command, false, null);
+  const execCommand = (command, val = null) => {
+    document.execCommand(command, false, val);
     editorRef.current?.focus();
+  };
+
+  const insertLink = () => {
+    const url = prompt('Enter URL:');
+    if (url) execCommand('createLink', url);
   };
 
   const toggleAssignee = (id) => {
@@ -80,7 +83,7 @@ export default function RequestPage() {
         comments: [],
         subtasks: [],
         submittedBy: form.submittedBy.trim(),
-        submitterEmail: form.email.trim() || null,
+        submitterEmail: form.email.trim(),
         isExternal: true,
         language: 'en',
       };
@@ -101,22 +104,20 @@ export default function RequestPage() {
   };
 
   const selectedMarket = MARKETS.find(m => m.id === form.market);
-  const selectedMembers = TEAM_MEMBERS.filter(m => form.assignees.includes(m.id));
 
   if (submitted) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4" style={{ background: '#F5F5F5' }}>
-        <style>{`@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap'); * { font-family: 'Inter', sans-serif; box-sizing: border-box; }`}</style>
-        <div className="bg-white rounded-2xl p-8 max-w-md w-full text-center shadow-xl">
-          <div className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-5" style={{ background: '#ecfdf5' }}>
-            <CheckCircle size={40} style={{ color: '#22c55e' }} />
+      <div className="min-h-screen flex items-center justify-center p-4" style={{ background: '#f8f9fa' }}>
+        <div className="bg-white rounded-2xl p-10 max-w-lg w-full text-center" style={{ boxShadow: '0 1px 3px 0 rgba(60,64,67,.3), 0 4px 8px 3px rgba(60,64,67,.15)' }}>
+          <div className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6" style={{ background: '#e6f4ea' }}>
+            <CheckCircle size={44} style={{ color: '#34a853' }} />
           </div>
-          <h2 className="text-2xl font-bold mb-2" style={{ color: '#232323' }}>Request sent!</h2>
-          <p className="text-base" style={{ color: '#666' }}>The marketing team will review your request and get back to you soon.</p>
+          <h2 className="text-2xl font-semibold mb-3" style={{ color: '#202124' }}>Request sent!</h2>
+          <p className="text-base" style={{ color: '#5f6368' }}>The marketing team will review your request and get back to you soon.</p>
           <button 
             onClick={() => window.location.reload()} 
-            className="mt-6 px-6 py-2.5 rounded-lg text-sm font-medium"
-            style={{ background: '#F5F5F5', color: '#666' }}
+            className="mt-8 px-8 py-3 rounded-full text-sm font-medium transition-colors hover:bg-gray-200"
+            style={{ background: '#f1f3f4', color: '#202124' }}
           >
             Submit another request
           </button>
@@ -126,203 +127,241 @@ export default function RequestPage() {
   }
 
   return (
-    <div className="min-h-screen" style={{ background: '#F5F5F5' }}>
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap'); 
-        * { font-family: 'Inter', sans-serif; box-sizing: border-box; }
-        [contenteditable]:empty:before { content: attr(data-placeholder); color: #999; }
-        [contenteditable]:focus { outline: none; }
-        [contenteditable] ul { list-style-type: disc; padding-left: 1.5rem; }
-        [contenteditable] ol { list-style-type: decimal; padding-left: 1.5rem; }
-      `}</style>
-      
-      {/* Header */}
-      <header className="bg-white border-b px-6 py-4" style={{ borderColor: '#e5e5e5' }}>
-        <div className="max-w-2xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <img src="https://angloville.com/wp-content/themes/angloville/assets/images/logo.svg" alt="Angloville" className="h-7" style={{ filter: 'brightness(0)' }} />
-            <span className="text-sm font-medium" style={{ color: '#666' }}>Marketing Request</span>
+    <div className="min-h-screen" style={{ background: '#f8f9fa' }}>
+      {/* Header - Google style */}
+      <header className="bg-white border-b px-8 py-4" style={{ borderColor: '#e8eaed' }}>
+        <div className="max-w-4xl mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <img src="https://angloville.com/wp-content/themes/angloville/assets/images/logo.svg" alt="Angloville" className="h-8" style={{ filter: 'brightness(0)' }} />
+            <span className="text-sm font-medium px-3 py-1 rounded-full" style={{ background: '#e8f0fe', color: '#1a73e8' }}>Marketing Request</span>
           </div>
         </div>
       </header>
 
-      {/* Main compose area */}
-      <main className="max-w-2xl mx-auto py-6 px-4">
-        <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-lg overflow-hidden">
+      {/* Main - Google Docs inspired layout */}
+      <main className="max-w-4xl mx-auto py-8 px-4">
+        <form onSubmit={handleSubmit} className="bg-white rounded-xl overflow-hidden" style={{ boxShadow: '0 1px 3px 0 rgba(60,64,67,.3), 0 4px 8px 3px rgba(60,64,67,.15)' }}>
           
           {error && (
-            <div className="px-5 py-3 text-sm" style={{ background: '#fef2f2', color: '#dc2626', borderBottom: '1px solid #fecaca' }}>
+            <div className="px-6 py-4 text-sm flex items-center gap-2" style={{ background: '#fce8e6', color: '#c5221f', borderBottom: '1px solid #f5c6cb' }}>
+              <X size={16} />
               {error}
             </div>
           )}
 
-          {/* To field - multi-select */}
-          <div className="px-5 py-3 border-b" style={{ borderColor: '#f0f0f0' }}>
-            <div className="flex items-center gap-3">
-              <span className="text-sm w-12" style={{ color: '#666' }}>To</span>
-              <div className="flex-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  {selectedMembers.map(m => (
-                    <div key={m.id} className="flex items-center gap-1.5 px-2 py-1 rounded-full text-sm" style={{ background: '#e8f4fc', color: '#428BCA' }}>
-                      <div className="w-5 h-5 rounded-full flex items-center justify-center text-white text-xs font-medium" style={{ background: m.color }}>
-                        {getInitials(m.name)}
-                      </div>
-                      <span>{m.name.split(' ')[0]}</span>
-                      <button type="button" onClick={() => toggleAssignee(m.id)} className="hover:text-red-500">
-                        <X size={14} />
-                      </button>
-                    </div>
-                  ))}
-                  <div className="relative">
-                    <button 
-                      type="button"
-                      onClick={() => setShowAssigneeDropdown(!showAssigneeDropdown)}
-                      className="px-3 py-1 rounded-full text-sm border border-dashed hover:bg-gray-50"
-                      style={{ borderColor: '#ccc', color: '#666' }}
+          {/* Header fields - clean Google style */}
+          <div className="border-b" style={{ borderColor: '#e8eaed' }}>
+            {/* To field with multi-select */}
+            <div className="px-6 py-5 border-b" style={{ borderColor: '#e8eaed' }}>
+              <label className="text-sm font-medium block mb-3" style={{ color: '#202124' }}>To (select team members)</label>
+              <div className="flex flex-wrap gap-2">
+                {TEAM_MEMBERS.map(m => (
+                  <button
+                    key={m.id}
+                    type="button"
+                    onClick={() => toggleAssignee(m.id)}
+                    className="flex items-center gap-2 px-3 py-2 rounded-full border text-sm transition-all hover:shadow-sm"
+                    style={{ 
+                      borderColor: form.assignees.includes(m.id) ? '#1a73e8' : '#dadce0',
+                      background: form.assignees.includes(m.id) ? '#e8f0fe' : 'white',
+                      color: form.assignees.includes(m.id) ? '#1a73e8' : '#202124'
+                    }}
+                  >
+                    <div 
+                      className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-medium"
+                      style={{ background: m.color }}
                     >
-                      {selectedMembers.length === 0 ? 'Select team members...' : '+ Add'}
-                    </button>
-                    {showAssigneeDropdown && (
-                      <div className="absolute top-full left-0 mt-1 bg-white rounded-lg shadow-xl border z-10 py-1 min-w-[220px]" style={{ borderColor: '#eee' }}>
-                        {TEAM_MEMBERS.map(m => (
-                          <button
-                            key={m.id}
-                            type="button"
-                            onClick={() => toggleAssignee(m.id)}
-                            className="w-full flex items-center gap-2 px-3 py-2 hover:bg-gray-50 text-left"
-                          >
-                            <div className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-medium" style={{ background: m.color }}>
-                              {getInitials(m.name)}
-                            </div>
-                            <span className="flex-1 text-sm" style={{ color: '#333' }}>{m.name}</span>
-                            {form.assignees.includes(m.id) && <Check size={16} style={{ color: '#428BCA' }} />}
-                          </button>
-                        ))}
-                        <div className="border-t mt-1 pt-1" style={{ borderColor: '#eee' }}>
-                          <button
-                            type="button"
-                            onClick={() => setShowAssigneeDropdown(false)}
-                            className="w-full px-3 py-2 text-sm text-center hover:bg-gray-50"
-                            style={{ color: '#666' }}
-                          >
-                            Done
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
+                      {getInitials(m.name)}
+                    </div>
+                    <span>{m.name}</span>
+                    {form.assignees.includes(m.id) && <Check size={14} />}
+                  </button>
+                ))}
+              </div>
+              {form.assignees.length === 0 && (
+                <p className="text-xs mt-2" style={{ color: '#9aa0a6' }}>No selection = entire Marketing Team</p>
+              )}
+            </div>
+
+            {/* From + Email row */}
+            <div className="px-6 py-4 grid grid-cols-2 gap-6 border-b" style={{ borderColor: '#e8eaed' }}>
+              <div>
+                <label className="text-sm font-medium block mb-2" style={{ color: '#202124' }}>From *</label>
+                <input 
+                  type="text" 
+                  value={form.submittedBy} 
+                  onChange={(e) => setForm({ ...form, submittedBy: e.target.value })} 
+                  className="w-full px-4 py-3 border rounded-lg text-sm transition-all"
+                  style={{ borderColor: '#dadce0', color: '#202124' }}
+                  placeholder="Your name"
+                  required 
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium block mb-2" style={{ color: '#202124' }}>Email (optional)</label>
+                <input 
+                  type="email" 
+                  value={form.email} 
+                  onChange={(e) => setForm({ ...form, email: e.target.value })} 
+                  className="w-full px-4 py-3 border rounded-lg text-sm transition-all"
+                  style={{ borderColor: '#dadce0', color: '#202124' }}
+                  placeholder="your@email.com"
+                />
+              </div>
+            </div>
+
+            {/* Subject + Market */}
+            <div className="px-6 py-4 flex items-end gap-4">
+              <div className="flex-1">
+                <label className="text-sm font-medium block mb-2" style={{ color: '#202124' }}>Subject *</label>
+                <input 
+                  type="text" 
+                  value={form.title} 
+                  onChange={(e) => setForm({ ...form, title: e.target.value })} 
+                  className="w-full px-4 py-3 border rounded-lg text-sm font-medium transition-all"
+                  style={{ borderColor: '#dadce0', color: '#202124' }}
+                  placeholder="What do you need?"
+                  required 
+                />
+              </div>
+              <div className="w-48">
+                <label className="text-sm font-medium block mb-2" style={{ color: '#202124' }}>Market</label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-lg">{selectedMarket?.icon}</span>
+                  <select 
+                    value={form.market} 
+                    onChange={(e) => setForm({ ...form, market: e.target.value })} 
+                    className="w-full pl-10 pr-4 py-3 border rounded-lg text-sm appearance-none cursor-pointer transition-all"
+                    style={{ borderColor: '#dadce0', color: '#202124' }}
+                  >
+                    {MARKETS.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+                  </select>
                 </div>
-                {selectedMembers.length === 0 && (
-                  <p className="text-xs mt-1" style={{ color: '#999' }}>Leave empty to send to entire team</p>
-                )}
               </div>
             </div>
           </div>
 
-          {/* From field - only name required */}
-          <div className="px-5 py-3 flex items-center gap-3 border-b" style={{ borderColor: '#f0f0f0' }}>
-            <span className="text-sm w-12" style={{ color: '#666' }}>From</span>
-            <input 
-              type="text" 
-              value={form.submittedBy} 
-              onChange={(e) => setForm({ ...form, submittedBy: e.target.value })} 
-              className="flex-1 text-sm bg-transparent border-0 focus:outline-none"
-              style={{ color: '#333' }}
-              placeholder="Your name *"
-              required 
-            />
-            <input 
-              type="email" 
-              value={form.email} 
-              onChange={(e) => setForm({ ...form, email: e.target.value })} 
-              className="w-48 text-sm bg-transparent border-0 focus:outline-none text-right"
-              style={{ color: '#666' }}
-              placeholder="email (optional)"
-            />
-          </div>
-
-          {/* Subject field */}
-          <div className="px-5 py-3 flex items-center gap-3 border-b" style={{ borderColor: '#f0f0f0' }}>
-            <span className="text-sm w-12" style={{ color: '#666' }}>Subject</span>
-            <input 
-              type="text" 
-              value={form.title} 
-              onChange={(e) => setForm({ ...form, title: e.target.value })} 
-              className="flex-1 text-sm bg-transparent border-0 focus:outline-none font-medium"
-              style={{ color: '#333' }}
-              placeholder="What do you need?"
-              required 
-            />
-            <div className="flex items-center gap-1 px-2 py-1 rounded-md" style={{ background: '#f5f5f5' }}>
-              <span>{selectedMarket?.icon}</span>
-              <select 
-                value={form.market} 
-                onChange={(e) => setForm({ ...form, market: e.target.value })} 
-                className="text-xs bg-transparent border-0 focus:outline-none cursor-pointer pr-1"
-                style={{ color: '#666' }}
-              >
-                {MARKETS.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+          {/* Google Docs style editor */}
+          <div className="border-b" style={{ borderColor: '#e8eaed' }}>
+            {/* Toolbar - Google Docs style */}
+            <div className="px-3 py-2 flex items-center gap-0.5 flex-wrap border-b" style={{ background: '#f1f3f4', borderColor: '#e8eaed' }}>
+              <button type="button" onClick={() => execCommand('undo')} className="p-2 rounded hover:bg-gray-200" title="Undo"><Undo size={18} style={{ color: '#444746' }} /></button>
+              <button type="button" onClick={() => execCommand('redo')} className="p-2 rounded hover:bg-gray-200" title="Redo"><Redo size={18} style={{ color: '#444746' }} /></button>
+              
+              <div className="w-px h-6 mx-2" style={{ background: '#dadce0' }} />
+              
+              <select onChange={(e) => execCommand('fontSize', e.target.value)} className="text-sm px-2 py-1.5 rounded bg-transparent hover:bg-gray-200 cursor-pointer" style={{ color: '#444746' }} defaultValue="3">
+                <option value="1">Small</option>
+                <option value="2">Smaller</option>
+                <option value="3">Normal</option>
+                <option value="4">Larger</option>
+                <option value="5">Large</option>
               </select>
-            </div>
-          </div>
+              
+              <div className="w-px h-6 mx-2" style={{ background: '#dadce0' }} />
+              
+              <button type="button" onClick={() => execCommand('bold')} className="p-2 rounded hover:bg-gray-200" title="Bold"><Bold size={18} style={{ color: '#444746' }} /></button>
+              <button type="button" onClick={() => execCommand('italic')} className="p-2 rounded hover:bg-gray-200" title="Italic"><Italic size={18} style={{ color: '#444746' }} /></button>
+              <button type="button" onClick={() => execCommand('underline')} className="p-2 rounded hover:bg-gray-200" title="Underline"><Underline size={18} style={{ color: '#444746' }} /></button>
+              
+              <div className="w-px h-6 mx-2" style={{ background: '#dadce0' }} />
+              
+              {/* Text color - Google palette */}
+              <div className="relative group">
+                <button type="button" className="p-2 rounded hover:bg-gray-200 flex items-center" title="Text color">
+                  <span style={{ color: '#444746', fontSize: '16px', fontWeight: '600', borderBottom: '3px solid #000' }}>A</span>
+                </button>
+                <div className="absolute top-full left-0 mt-1 bg-white rounded-lg shadow-xl border p-2 hidden group-hover:grid grid-cols-5 gap-1 z-20" style={{ borderColor: '#dadce0' }}>
+                  {['#000000', '#434343', '#666666', '#1a73e8', '#ea4335', '#fbbc04', '#34a853', '#ff6d01', '#46bdc6', '#7baaf7', '#f07b72', '#fdd663', '#57bb8a', '#9b59b6', '#e91e63'].map(color => (
+                    <button key={color} type="button" onClick={() => execCommand('foreColor', color)} className="w-6 h-6 rounded hover:scale-110 transition-transform" style={{ background: color }} />
+                  ))}
+                </div>
+              </div>
 
-          {/* Message body */}
-          <div 
-            ref={editorRef}
-            contentEditable
-            className="px-5 py-4 min-h-[200px] text-sm leading-relaxed"
-            style={{ color: '#333' }}
-            data-placeholder="Describe your request...
+              {/* Highlight */}
+              <div className="relative group">
+                <button type="button" className="p-2 rounded hover:bg-gray-200 flex items-center" title="Highlight">
+                  <span style={{ background: '#fcf3cf', color: '#444746', fontSize: '16px', fontWeight: '600', padding: '0 3px' }}>A</span>
+                </button>
+                <div className="absolute top-full left-0 mt-1 bg-white rounded-lg shadow-xl border p-2 hidden group-hover:grid grid-cols-4 gap-1 z-20" style={{ borderColor: '#dadce0' }}>
+                  {['#ffffff', '#fcf3cf', '#d9ead3', '#c9daf8', '#fce5cd', '#f4cccc', '#d9d2e9', '#cfe2f3'].map(color => (
+                    <button key={color} type="button" onClick={() => execCommand('hiliteColor', color)} className="w-6 h-6 rounded border hover:scale-110 transition-transform" style={{ background: color, borderColor: '#dadce0' }} />
+                  ))}
+                </div>
+              </div>
+              
+              <div className="w-px h-6 mx-2" style={{ background: '#dadce0' }} />
+              
+              <button type="button" onClick={insertLink} className="p-2 rounded hover:bg-gray-200" title="Insert link"><Link2 size={18} style={{ color: '#444746' }} /></button>
+              
+              <div className="w-px h-6 mx-2" style={{ background: '#dadce0' }} />
+              
+              <button type="button" onClick={() => execCommand('formatBlock', 'h1')} className="p-2 rounded hover:bg-gray-200" title="Heading 1"><Heading1 size={18} style={{ color: '#444746' }} /></button>
+              <button type="button" onClick={() => execCommand('formatBlock', 'h2')} className="p-2 rounded hover:bg-gray-200" title="Heading 2"><Heading2 size={18} style={{ color: '#444746' }} /></button>
+              
+              <div className="w-px h-6 mx-2" style={{ background: '#dadce0' }} />
+              
+              <button type="button" onClick={() => execCommand('insertUnorderedList')} className="p-2 rounded hover:bg-gray-200" title="Bullet list"><List size={18} style={{ color: '#444746' }} /></button>
+              <button type="button" onClick={() => execCommand('insertOrderedList')} className="p-2 rounded hover:bg-gray-200" title="Numbered list"><ListOrdered size={18} style={{ color: '#444746' }} /></button>
+              
+              <div className="w-px h-6 mx-2" style={{ background: '#dadce0' }} />
+              
+              <button type="button" onClick={() => execCommand('justifyLeft')} className="p-2 rounded hover:bg-gray-200" title="Align left"><AlignLeft size={18} style={{ color: '#444746' }} /></button>
+              <button type="button" onClick={() => execCommand('justifyCenter')} className="p-2 rounded hover:bg-gray-200" title="Center"><AlignCenter size={18} style={{ color: '#444746' }} /></button>
+              <button type="button" onClick={() => execCommand('justifyRight')} className="p-2 rounded hover:bg-gray-200" title="Align right"><AlignRight size={18} style={{ color: '#444746' }} /></button>
+              
+              <button type="button" onClick={() => execCommand('removeFormat')} className="p-2 rounded hover:bg-gray-200 ml-auto" title="Clear formatting"><X size={18} style={{ color: '#9aa0a6' }} /></button>
+            </div>
+
+            {/* Editor content - Google Docs style */}
+            <div 
+              ref={editorRef}
+              contentEditable
+              className="px-6 py-6 text-base overflow-y-auto"
+              style={{ color: '#202124', minHeight: '350px', maxHeight: '500px', lineHeight: '1.6' }}
+              data-placeholder="Describe your request...
 
 • What do you need?
 • What's the goal?
-• Any deadline?"
-            suppressContentEditableWarning
-          />
-
-          {/* Links section - always visible */}
-          <div className="px-5 pb-4">
-            <label className="block text-xs font-medium mb-1.5" style={{ color: '#999' }}>Links (Google Drive, Docs, etc.)</label>
-            <textarea 
-              value={form.links} 
-              onChange={(e) => setForm({ ...form, links: e.target.value })} 
-              className="w-full px-3 py-2 rounded-lg text-sm font-mono resize-none focus:outline-none"
-              style={{ background: '#f9f9f9', border: '1px solid #e5e5e5', color: '#666' }}
-              rows={2}
-              placeholder="Paste links here..."
+• Any deadline or priority?"
+              suppressContentEditableWarning
             />
           </div>
 
-          {/* Toolbar */}
-          <div className="px-4 py-3 flex items-center justify-between border-t" style={{ borderColor: '#f0f0f0', background: '#fafafa' }}>
-            <div className="flex items-center gap-1">
-              <button 
-                type="submit" 
-                disabled={loading}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-full font-semibold text-sm disabled:opacity-50"
-                style={{ background: '#428BCA', color: 'white' }}
-              >
-                <Send size={16} />
-                {loading ? 'Sending...' : 'Send'}
-              </button>
-            </div>
-            
-            <div className="flex items-center gap-1">
-              <button type="button" onClick={() => execCommand('bold')} className="p-2 rounded-full hover:bg-gray-200" title="Bold">
-                <Bold size={18} style={{ color: '#666' }} />
-              </button>
-              <button type="button" onClick={() => execCommand('italic')} className="p-2 rounded-full hover:bg-gray-200" title="Italic">
-                <Italic size={18} style={{ color: '#666' }} />
-              </button>
-              <button type="button" onClick={() => execCommand('insertUnorderedList')} className="p-2 rounded-full hover:bg-gray-200" title="Bullet list">
-                <List size={18} style={{ color: '#666' }} />
-              </button>
-            </div>
+          {/* Links section */}
+          <div className="px-6 py-5 border-b" style={{ borderColor: '#e8eaed' }}>
+            <label className="text-sm font-medium block mb-2" style={{ color: '#202124' }}>
+              Links (Google Drive, Docs, references)
+            </label>
+            <textarea 
+              value={form.links} 
+              onChange={(e) => setForm({ ...form, links: e.target.value })} 
+              className="w-full px-4 py-3 rounded-lg text-sm font-mono resize-none transition-all"
+              style={{ background: '#f8f9fa', border: '1px solid #dadce0', color: '#202124' }}
+              rows={3}
+              placeholder="Paste links here, one per line..."
+            />
+          </div>
+
+          {/* Submit button - Google style */}
+          <div className="px-6 py-5 flex items-center justify-between" style={{ background: '#f8f9fa' }}>
+            <p className="text-sm" style={{ color: '#9aa0a6' }}>
+              Fields marked with * are required
+            </p>
+            <button 
+              type="submit" 
+              disabled={loading}
+              className="flex items-center gap-2 px-8 py-3 rounded-full font-medium text-base disabled:opacity-50 transition-all hover:shadow-lg"
+              style={{ background: '#1a73e8', color: 'white' }}
+            >
+              <Send size={18} />
+              {loading ? 'Sending...' : 'Send Request'}
+            </button>
           </div>
         </form>
 
-        <p className="text-center mt-6 text-sm" style={{ color: '#999' }}>
-          Need help? Contact <a href="mailto:e.kedzior@angloville.pl" style={{ color: '#428BCA' }}>e.kedzior@angloville.pl</a>
+        <p className="text-center mt-8 text-sm" style={{ color: '#9aa0a6' }}>
+          Need help? Contact <a href="mailto:e.kedzior@angloville.pl" className="hover:underline" style={{ color: '#1a73e8' }}>e.kedzior@angloville.pl</a>
         </p>
       </main>
     </div>
