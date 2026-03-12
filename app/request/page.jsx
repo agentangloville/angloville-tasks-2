@@ -132,7 +132,7 @@ export default function RequestPage() {
       <header className="bg-white border-b px-8 py-4" style={{ borderColor: '#e8eaed' }}>
         <div className="max-w-4xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <img src="https://angloville.com/wp-content/themes/angloville/assets/images/logo.svg" alt="Angloville" className="h-8" style={{ filter: 'brightness(0)' }} />
+            <img src="https://angloville.com/wp-content/themes/angloville/assets/images/logo.svg" alt="Angloville" className="h-8" />
             <span className="text-sm font-medium px-3 py-1 rounded-full" style={{ background: '#e8f0fe', color: '#1a73e8' }}>Marketing Request</span>
           </div>
         </div>
