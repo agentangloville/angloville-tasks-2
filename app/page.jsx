@@ -105,7 +105,7 @@ function LoginScreen({ onLogin }) {
     <div className="min-h-screen flex items-center justify-center p-4" style={{ background: '#f8f9fa' }}>
       <div className="bg-white rounded-2xl p-8 w-full max-w-sm" style={{ boxShadow: '0 1px 3px 0 rgba(60,64,67,.3), 0 4px 8px 3px rgba(60,64,67,.15)' }}>
         <div className="text-center mb-8">
-          <img src="https://angloville.com/wp-content/themes/angloville/assets/images/logo.svg" alt="Angloville" className="h-10 mx-auto mb-4" style={{ filter: 'brightness(0)' }} />
+          <img src="https://angloville.com/wp-content/themes/angloville/assets/images/logo.svg" alt="Angloville" className="h-10 mx-auto mb-4" />
           <h1 className="text-xl font-semibold" style={{ color: '#202124' }}>Marketing Tasks</h1>
           <p className="text-sm mt-1" style={{ color: '#5f6368' }}>Zaloguj się do panelu</p>
         </div>
@@ -415,7 +415,7 @@ export default function TaskApp() {
       {/* Google-style sidebar */}
       <aside className="w-56 flex flex-col min-h-screen flex-shrink-0 border-r bg-white" style={{ borderColor: '#e8eaed' }}>
         <div className="p-4 border-b" style={{ borderColor: '#e8eaed' }}>
-          <img src="https://angloville.com/wp-content/themes/angloville/assets/images/logo.svg" alt="Angloville" className="h-7" style={{ filter: 'brightness(0)' }} />
+          <img src="https://angloville.com/wp-content/themes/angloville/assets/images/logo.svg" alt="Angloville" className="h-7" />
           <p className="mt-1 text-xs" style={{ color: '#5f6368' }}>Marketing Tasks</p>
         </div>
         
@@ -608,7 +608,7 @@ function TaskDetail({ task, updateTask, deleteTask, onClose, currentUser, isMana
   const updateSubtaskAssignee = (subId, assigneeId) => { updateTask(task.id, { subtasks: subtasks.map(s => s.id === subId ? { ...s, assignee: assigneeId || null } : s) }); };
 
   return (
-    <aside className="w-[540px] bg-white border-l flex flex-col overflow-hidden flex-shrink-0" style={{ borderColor: '#e8eaed' }}>
+    <aside className="w-[640px] bg-white border-l flex flex-col overflow-hidden flex-shrink-0" style={{ borderColor: '#e8eaed' }}>
       <div className="p-4 border-b flex items-center justify-between" style={{ borderColor: '#e8eaed' }}>
         <div className="flex items-center gap-2">
           <span className="text-xl">{market?.icon}</span>
