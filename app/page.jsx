@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Plus, Check, X, Edit3, Trash2, CheckCircle, Circle, Send, MessageSquare, ChevronDown, ChevronRight, Clock, AlertCircle, ExternalLink, Copy, Languages, Loader2, ListTodo, Square, CheckSquare, Bold, Italic, List, ListOrdered, LogOut, Lock } from 'lucide-react';
+import { Plus, Check, X, Edit3, Trash2, CheckCircle, Circle, Send, MessageSquare, ChevronDown, ChevronRight, Clock, AlertCircle, ExternalLink, Copy, Languages, Loader2, ListTodo, Square, CheckSquare, Bold, Italic, List, ListOrdered, LogOut, Lock, GripVertical, User, Filter } from 'lucide-react';
 import { getTasks, createTask, updateTask as updateTaskDb, deleteTask as deleteTaskDb } from '../lib/supabase';
 
 const TEAM_MEMBERS = [
@@ -162,13 +162,26 @@ export default function TaskApp() {
   const [selectedTask, setSelectedTask] = useState(null);
   const [showNewTask, setShowNewTask] = useState(false);
   const [filterMarket, setFilterMarket] = useState('all');
-  const [showClosed, setShowClosed] = useState(false);
+  const [filterPerson, setFilterPerson] = useState('all');
+  const [filterStatus, setFilterStatus] = useState('active'); // 'all', 'active', 'open', 'longterm', 'closed'
   const [activeTab, setActiveTab] = useState('tasks');
   const [copied, setCopied] = useState(false);
   const [checkingAuth, setCheckingAuth] = useState(true);
+  const [draggedTask, setDraggedTask] = useState(null);
 
   useEffect(() => { const savedUser = localStorage.getItem('av_tasks_user'); if (savedUser && TEAM_MEMBERS.find(m => m.id === savedUser)) setCurrentUser(savedUser); setCheckingAuth(false); }, []);
-  const loadTasks = async () => { const data = await getTasks(); setTasks(data); setLoading(false); };
+  
+  const loadTasks = async () => { 
+    const data = await getTasks(); 
+    // Sort by order field if exists, otherwise by createdAt
+    const sorted = data.sort((a, b) => {
+      if (a.order !== undefined && b.order !== undefined) return a.order - b.order;
+      return new Date(b.createdAt) - new Date(a.createdAt);
+    });
+    setTasks(sorted); 
+    setLoading(false); 
+  };
+  
   useEffect(() => { if (currentUser) loadTasks(); }, [currentUser]);
   const handleLogout = () => { localStorage.removeItem('av_tasks_user'); setCurrentUser(null); setTasks([]); setSelectedTask(null); };
 
@@ -178,15 +191,105 @@ export default function TaskApp() {
   const currentMember = TEAM_MEMBERS.find(m => m.id === currentUser);
   const isManager = currentMember?.isManager || false;
   const pendingTasks = tasks.filter(t => t.status === 'pending');
-  const visibleTasks = tasks.filter(t => { if (t.status === 'pending') return false; if (!isManager && !t.assignees?.includes(currentUser) && t.createdBy !== currentUser) return false; if (filterMarket !== 'all' && t.market !== filterMarket) return false; return true; });
+  
+  const visibleTasks = tasks.filter(t => {
+    if (t.status === 'pending') return false;
+    if (!isManager && !t.assignees?.includes(currentUser) && t.createdBy !== currentUser) return false;
+    if (filterMarket !== 'all' && t.market !== filterMarket) return false;
+    if (filterPerson !== 'all' && !t.assignees?.includes(filterPerson)) return false;
+    return true;
+  });
+
+  const getFilteredByStatus = (statusFilter) => {
+    switch (statusFilter) {
+      case 'all': return visibleTasks;
+      case 'active': return visibleTasks.filter(t => t.status === 'open' || t.status === 'longterm');
+      case 'open': return visibleTasks.filter(t => t.status === 'open');
+      case 'longterm': return visibleTasks.filter(t => t.status === 'longterm');
+      case 'closed': return visibleTasks.filter(t => t.status === 'closed');
+      default: return visibleTasks;
+    }
+  };
+
+  const filteredTasks = getFilteredByStatus(filterStatus);
   const openTasks = visibleTasks.filter(t => t.status === 'open');
   const longtermTasks = visibleTasks.filter(t => t.status === 'longterm');
   const closedTasks = visibleTasks.filter(t => t.status === 'closed');
 
-  const updateTask = async (id, updates) => { setTasks(prev => prev.map(t => t.id === id ? { ...t, ...updates } : t)); if (selectedTask?.id === id) setSelectedTask(prev => ({ ...prev, ...updates })); await updateTaskDb(id, updates); };
+  const updateTask = async (id, updates) => { 
+    setTasks(prev => prev.map(t => t.id === id ? { ...t, ...updates } : t)); 
+    if (selectedTask?.id === id) setSelectedTask(prev => ({ ...prev, ...updates })); 
+    await updateTaskDb(id, updates); 
+  };
+  
   const deleteTask = async (id) => { if (confirm('Usunąć?')) { setTasks(prev => prev.filter(t => t.id !== id)); setSelectedTask(null); await deleteTaskDb(id); } };
-  const approveTask = async (task, assignees) => { await updateTask(task.id, { status: 'open', assignees, approvedAt: new Date().toISOString(), approvedBy: currentUser }); for (const aId of assignees) { const m = TEAM_MEMBERS.find(x => x.id === aId); if (m) await sendEmailNotification(m.email, m.name, task.title, currentMember?.name); } setActiveTab('tasks'); };
-  const addTask = async (task) => { const newTask = { ...task, createdAt: new Date().toISOString(), createdBy: currentUser, isExternal: false, subtasks: [], status: task.status || 'open' }; const created = await createTask(newTask); if (created) await loadTasks(); setShowNewTask(false); for (const aId of task.assignees || []) { const m = TEAM_MEMBERS.find(x => x.id === aId); if (m && m.id !== currentUser) await sendEmailNotification(m.email, m.name, task.title, currentMember?.name); } };
+  
+  const approveTask = async (task, assignees) => { 
+    await updateTask(task.id, { status: 'open', assignees, approvedAt: new Date().toISOString(), approvedBy: currentUser }); 
+    for (const aId of assignees) { const m = TEAM_MEMBERS.find(x => x.id === aId); if (m) await sendEmailNotification(m.email, m.name, task.title, currentMember?.name); } 
+    setActiveTab('tasks'); 
+  };
+  
+  const addTask = async (task) => { 
+    const newTask = { ...task, createdAt: new Date().toISOString(), createdBy: currentUser, isExternal: false, subtasks: [], status: task.status || 'open', order: 0 }; 
+    const created = await createTask(newTask); 
+    if (created) await loadTasks(); 
+    setShowNewTask(false); 
+    for (const aId of task.assignees || []) { const m = TEAM_MEMBERS.find(x => x.id === aId); if (m && m.id !== currentUser) await sendEmailNotification(m.email, m.name, task.title, currentMember?.name); } 
+  };
+
+  // Drag and drop handlers
+  const handleDragStart = (e, task) => {
+    setDraggedTask(task);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+
+  const handleDrop = async (e, targetTask) => {
+    e.preventDefault();
+    if (!draggedTask || draggedTask.id === targetTask.id) return;
+    
+    // Only allow reordering within same status
+    if (draggedTask.status !== targetTask.status) return;
+    
+    const statusTasks = tasks.filter(t => t.status === draggedTask.status);
+    const draggedIndex = statusTasks.findIndex(t => t.id === draggedTask.id);
+    const targetIndex = statusTasks.findIndex(t => t.id === targetTask.id);
+    
+    // Reorder
+    const newStatusTasks = [...statusTasks];
+    newStatusTasks.splice(draggedIndex, 1);
+    newStatusTasks.splice(targetIndex, 0, draggedTask);
+    
+    // Update order for all affected tasks
+    const updates = newStatusTasks.map((t, idx) => ({ id: t.id, order: idx }));
+    
+    // Optimistic update
+    setTasks(prev => {
+      const otherTasks = prev.filter(t => t.status !== draggedTask.status);
+      const reorderedTasks = newStatusTasks.map((t, idx) => ({ ...t, order: idx }));
+      return [...otherTasks, ...reorderedTasks].sort((a, b) => {
+        if (a.order !== undefined && b.order !== undefined) return a.order - b.order;
+        return 0;
+      });
+    });
+    
+    // Save to DB
+    for (const u of updates) {
+      await updateTaskDb(u.id, { order: u.order });
+    }
+    
+    setDraggedTask(null);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedTask(null);
+  };
+
   const formUrl = typeof window !== 'undefined' ? `${window.location.origin}/request` : '/request';
   const copyLink = () => { navigator.clipboard.writeText(formUrl); setCopied(true); setTimeout(() => setCopied(false), 2000); };
 
@@ -196,32 +299,145 @@ export default function TaskApp() {
     <div className="min-h-screen flex font-sans" style={{ background: '#F5F5F5' }}>
       <aside className="w-64 flex flex-col min-h-screen" style={{ background: '#232323' }}>
         <div className="p-5 border-b" style={{ borderColor: 'rgba(255,255,255,0.1)' }}><img src="https://angloville.com/wp-content/themes/angloville/assets/images/logo.svg" alt="Angloville" className="h-8" /><p className="mt-1 text-xs" style={{ color: 'rgba(255,255,255,0.52)' }}>Marketing Tasks</p></div>
-        <div className="p-4 border-b" style={{ borderColor: 'rgba(255,255,255,0.1)' }}><label className="block mb-1.5 text-xs" style={{ color: 'rgba(255,255,255,0.52)' }}>Filtruj rynek</label><select value={filterMarket} onChange={(e) => setFilterMarket(e.target.value)} className="w-full rounded-lg px-3 py-2.5 text-sm" style={{ background: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.82)', border: '1px solid rgba(255,255,255,0.15)' }}><option value="all" style={{ background: '#232323' }}>Wszystkie rynki</option>{MARKETS.map(m => <option key={m.id} value={m.id} style={{ background: '#232323' }}>{m.icon} {m.name}</option>)}</select></div>
-        <div className="p-4 flex-1">
-          <div className="space-y-2">
-            {isManager && pendingTasks.length > 0 && <button onClick={() => setActiveTab('pending')} className="w-full flex items-center justify-between p-3 rounded-lg" style={{ background: activeTab === 'pending' ? 'rgba(245,158,11,0.25)' : 'rgba(245,158,11,0.15)' }}><div className="flex items-center gap-2"><AlertCircle size={16} style={{ color: '#f59e0b' }} /><span className="text-sm" style={{ color: 'rgba(255,255,255,0.82)' }}>Oczekujące</span></div><span className="text-lg font-bold" style={{ color: '#f59e0b' }}>{pendingTasks.length}</span></button>}
-            <button onClick={() => setActiveTab('tasks')} className="w-full flex items-center justify-between p-3 rounded-lg" style={{ background: activeTab === 'tasks' ? 'rgba(66,139,202,0.25)' : 'rgba(66,139,202,0.15)' }}><div className="flex items-center gap-2"><Circle size={16} style={{ color: '#428BCA' }} /><span className="text-sm" style={{ color: 'rgba(255,255,255,0.82)' }}>Otwarte</span></div><span className="text-lg font-bold" style={{ color: '#428BCA' }}>{openTasks.length}</span></button>
-            <div className="flex items-center justify-between p-3 rounded-lg" style={{ background: 'rgba(139,92,246,0.15)' }}><div className="flex items-center gap-2"><Clock size={16} style={{ color: '#8b5cf6' }} /><span className="text-sm" style={{ color: 'rgba(255,255,255,0.82)' }}>Long-term</span></div><span className="text-lg font-bold" style={{ color: '#8b5cf6' }}>{longtermTasks.length}</span></div>
-            <div className="flex items-center justify-between p-3 rounded-lg" style={{ background: 'rgba(34,197,94,0.15)' }}><div className="flex items-center gap-2"><CheckCircle size={16} style={{ color: '#22c55e' }} /><span className="text-sm" style={{ color: 'rgba(255,255,255,0.82)' }}>Zamknięte</span></div><span className="text-lg font-bold" style={{ color: '#22c55e' }}>{closedTasks.length}</span></div>
+        
+        {/* Filters */}
+        <div className="p-4 border-b space-y-3" style={{ borderColor: 'rgba(255,255,255,0.1)' }}>
+          <div>
+            <label className="block mb-1.5 text-xs" style={{ color: 'rgba(255,255,255,0.52)' }}>Rynek</label>
+            <select value={filterMarket} onChange={(e) => setFilterMarket(e.target.value)} className="w-full rounded-lg px-3 py-2 text-sm" style={{ background: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.82)', border: '1px solid rgba(255,255,255,0.15)' }}>
+              <option value="all" style={{ background: '#232323' }}>Wszystkie rynki</option>
+              {MARKETS.map(m => <option key={m.id} value={m.id} style={{ background: '#232323' }}>{m.icon} {m.name}</option>)}
+            </select>
           </div>
-          <div className="mt-6 p-3 rounded-lg" style={{ background: 'rgba(255,255,255,0.05)', border: '1px dashed rgba(255,255,255,0.2)' }}><p className="text-xs mb-2" style={{ color: 'rgba(255,255,255,0.52)' }}>Link do formularza (EN):</p><button onClick={copyLink} className="w-full flex items-center gap-2 p-2 rounded text-left hover:bg-white/5"><code className="flex-1 text-xs truncate" style={{ color: '#FCD23A' }}>/request</code>{copied ? <Check size={14} style={{ color: '#22c55e' }} /> : <Copy size={14} style={{ color: 'rgba(255,255,255,0.5)' }} />}</button></div>
+          
+          {isManager && (
+            <div>
+              <label className="block mb-1.5 text-xs" style={{ color: 'rgba(255,255,255,0.52)' }}>Osoba</label>
+              <select value={filterPerson} onChange={(e) => setFilterPerson(e.target.value)} className="w-full rounded-lg px-3 py-2 text-sm" style={{ background: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.82)', border: '1px solid rgba(255,255,255,0.15)' }}>
+                <option value="all" style={{ background: '#232323' }}>Wszyscy</option>
+                {TEAM_MEMBERS.filter(m => !m.isManager).map(m => <option key={m.id} value={m.id} style={{ background: '#232323' }}>{m.name}</option>)}
+              </select>
+            </div>
+          )}
         </div>
-        <div className="p-4 border-t" style={{ borderColor: 'rgba(255,255,255,0.1)' }}><div className="flex items-center gap-3"><div className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-semibold" style={{ background: currentMember?.color, border: isManager ? '2px solid #FCD23A' : 'none' }}>{getInitials(currentMember?.name || '')}</div><div className="flex-1 min-w-0"><div className="text-sm font-medium truncate" style={{ color: 'rgba(255,255,255,0.82)' }}>{currentMember?.name}</div><div className="text-xs" style={{ color: 'rgba(255,255,255,0.52)' }}>{isManager ? '⭐ Manager' : ''}</div></div><button onClick={handleLogout} className="p-2 rounded-lg hover:bg-white/10" style={{ color: 'rgba(255,255,255,0.5)' }} title="Wyloguj"><LogOut size={18} /></button></div></div>
+
+        <div className="p-4 flex-1">
+          {/* Status filters */}
+          <div className="space-y-2">
+            {isManager && pendingTasks.length > 0 && (
+              <button onClick={() => setActiveTab('pending')} className="w-full flex items-center justify-between p-3 rounded-lg" style={{ background: activeTab === 'pending' ? 'rgba(245,158,11,0.25)' : 'rgba(245,158,11,0.15)' }}>
+                <div className="flex items-center gap-2"><AlertCircle size={16} style={{ color: '#f59e0b' }} /><span className="text-sm" style={{ color: 'rgba(255,255,255,0.82)' }}>Oczekujące</span></div>
+                <span className="text-lg font-bold" style={{ color: '#f59e0b' }}>{pendingTasks.length}</span>
+              </button>
+            )}
+            
+            <button onClick={() => { setActiveTab('tasks'); setFilterStatus('active'); }} className="w-full flex items-center justify-between p-3 rounded-lg" style={{ background: activeTab === 'tasks' && filterStatus === 'active' ? 'rgba(66,139,202,0.25)' : 'rgba(66,139,202,0.15)' }}>
+              <div className="flex items-center gap-2"><Filter size={16} style={{ color: '#428BCA' }} /><span className="text-sm" style={{ color: 'rgba(255,255,255,0.82)' }}>Aktywne</span></div>
+              <span className="text-lg font-bold" style={{ color: '#428BCA' }}>{openTasks.length + longtermTasks.length}</span>
+            </button>
+            
+            <button onClick={() => { setActiveTab('tasks'); setFilterStatus('open'); }} className="w-full flex items-center justify-between p-3 rounded-lg" style={{ background: activeTab === 'tasks' && filterStatus === 'open' ? 'rgba(66,139,202,0.25)' : 'transparent' }}>
+              <div className="flex items-center gap-2 pl-2"><Circle size={14} style={{ color: '#428BCA' }} /><span className="text-sm" style={{ color: 'rgba(255,255,255,0.62)' }}>Otwarte</span></div>
+              <span className="text-sm font-medium" style={{ color: 'rgba(255,255,255,0.62)' }}>{openTasks.length}</span>
+            </button>
+            
+            <button onClick={() => { setActiveTab('tasks'); setFilterStatus('longterm'); }} className="w-full flex items-center justify-between p-3 rounded-lg" style={{ background: activeTab === 'tasks' && filterStatus === 'longterm' ? 'rgba(139,92,246,0.25)' : 'transparent' }}>
+              <div className="flex items-center gap-2 pl-2"><Clock size={14} style={{ color: '#8b5cf6' }} /><span className="text-sm" style={{ color: 'rgba(255,255,255,0.62)' }}>Long-term</span></div>
+              <span className="text-sm font-medium" style={{ color: 'rgba(255,255,255,0.62)' }}>{longtermTasks.length}</span>
+            </button>
+            
+            <button onClick={() => { setActiveTab('tasks'); setFilterStatus('closed'); }} className="w-full flex items-center justify-between p-3 rounded-lg" style={{ background: activeTab === 'tasks' && filterStatus === 'closed' ? 'rgba(34,197,94,0.25)' : 'transparent' }}>
+              <div className="flex items-center gap-2 pl-2"><CheckCircle size={14} style={{ color: '#22c55e' }} /><span className="text-sm" style={{ color: 'rgba(255,255,255,0.62)' }}>Zamknięte</span></div>
+              <span className="text-sm font-medium" style={{ color: 'rgba(255,255,255,0.62)' }}>{closedTasks.length}</span>
+            </button>
+            
+            <button onClick={() => { setActiveTab('tasks'); setFilterStatus('all'); }} className="w-full flex items-center justify-between p-3 rounded-lg" style={{ background: activeTab === 'tasks' && filterStatus === 'all' ? 'rgba(255,255,255,0.15)' : 'transparent' }}>
+              <div className="flex items-center gap-2 pl-2"><span className="text-sm" style={{ color: 'rgba(255,255,255,0.52)' }}>Wszystkie</span></div>
+              <span className="text-sm font-medium" style={{ color: 'rgba(255,255,255,0.52)' }}>{visibleTasks.length}</span>
+            </button>
+          </div>
+
+          <div className="mt-6 p-3 rounded-lg" style={{ background: 'rgba(255,255,255,0.05)', border: '1px dashed rgba(255,255,255,0.2)' }}>
+            <p className="text-xs mb-2" style={{ color: 'rgba(255,255,255,0.52)' }}>Link do formularza (EN):</p>
+            <button onClick={copyLink} className="w-full flex items-center gap-2 p-2 rounded text-left hover:bg-white/5">
+              <code className="flex-1 text-xs truncate" style={{ color: '#FCD23A' }}>/request</code>
+              {copied ? <Check size={14} style={{ color: '#22c55e' }} /> : <Copy size={14} style={{ color: 'rgba(255,255,255,0.5)' }} />}
+            </button>
+          </div>
+        </div>
+
+        <div className="p-4 border-t" style={{ borderColor: 'rgba(255,255,255,0.1)' }}>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-semibold" style={{ background: currentMember?.color, border: isManager ? '2px solid #FCD23A' : 'none' }}>{getInitials(currentMember?.name || '')}</div>
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-medium truncate" style={{ color: 'rgba(255,255,255,0.82)' }}>{currentMember?.name}</div>
+              <div className="text-xs" style={{ color: 'rgba(255,255,255,0.52)' }}>{isManager ? '⭐ Manager' : ''}</div>
+            </div>
+            <button onClick={handleLogout} className="p-2 rounded-lg hover:bg-white/10" style={{ color: 'rgba(255,255,255,0.5)' }} title="Wyloguj"><LogOut size={18} /></button>
+          </div>
+        </div>
       </aside>
 
       <main className="flex-1 flex flex-col overflow-hidden">
-        <header className="bg-white border-b px-6 py-4 flex items-center justify-between" style={{ borderColor: '#eee' }}><h2 className="text-lg font-semibold" style={{ color: '#232323' }}>{activeTab === 'pending' ? 'Oczekujące na akceptację' : isManager ? 'Wszystkie zadania' : 'Moje zadania'}</h2><div className="flex items-center gap-3"><button onClick={loadTasks} className="p-2 rounded-lg hover:bg-gray-100" style={{ color: '#666' }} title="Odśwież"><Loader2 size={18} className={loading ? 'animate-spin' : ''} /></button>{activeTab === 'tasks' && <button onClick={() => setShowNewTask(true)} className="btn-primary flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm"><Plus size={18} /> Nowe zadanie</button>}</div></header>
+        <header className="bg-white border-b px-6 py-4 flex items-center justify-between" style={{ borderColor: '#eee' }}>
+          <div>
+            <h2 className="text-lg font-semibold" style={{ color: '#232323' }}>
+              {activeTab === 'pending' ? 'Oczekujące na akceptację' : 
+               filterStatus === 'active' ? 'Aktywne zadania' :
+               filterStatus === 'open' ? 'Otwarte zadania' :
+               filterStatus === 'longterm' ? 'Zadania long-term' :
+               filterStatus === 'closed' ? 'Zamknięte zadania' :
+               'Wszystkie zadania'}
+            </h2>
+            {filterPerson !== 'all' && (
+              <p className="text-sm" style={{ color: '#666' }}>
+                Filtr: {TEAM_MEMBERS.find(m => m.id === filterPerson)?.name}
+              </p>
+            )}
+          </div>
+          <div className="flex items-center gap-3">
+            <button onClick={loadTasks} className="p-2 rounded-lg hover:bg-gray-100" style={{ color: '#666' }} title="Odśwież"><Loader2 size={18} className={loading ? 'animate-spin' : ''} /></button>
+            {activeTab === 'tasks' && <button onClick={() => setShowNewTask(true)} className="btn-primary flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm"><Plus size={18} /> Nowe zadanie</button>}
+          </div>
+        </header>
+        
         <div className="flex-1 overflow-y-auto p-6">
-          {activeTab === 'pending' && isManager ? <PendingView tasks={pendingTasks} approveTask={approveTask} deleteTask={deleteTask} /> : (
-            <div className="max-w-3xl mx-auto space-y-8">
-              <TaskSection title="Otwarte" icon={Circle} color="#428BCA" tasks={openTasks} selected={selectedTask} setSelected={setSelectedTask} updateTask={updateTask} />
-              <TaskSection title="Long-term" icon={Clock} color="#8b5cf6" tasks={longtermTasks} selected={selectedTask} setSelected={setSelectedTask} updateTask={updateTask} />
-              {closedTasks.length > 0 && <div><button onClick={() => setShowClosed(!showClosed)} className="flex items-center gap-2 mb-3" style={{ color: '#666' }}>{showClosed ? <ChevronDown size={18} /> : <ChevronRight size={18} />}<CheckCircle size={16} style={{ color: '#22c55e' }} /><span className="text-sm font-medium">Zamknięte ({closedTasks.length})</span></button>{showClosed && <div className="space-y-2 opacity-60">{closedTasks.map(t => <TaskItem key={t.id} task={t} isSelected={selectedTask?.id === t.id} onClick={() => setSelectedTask(t)} onStatusChange={(s) => updateTask(t.id, { status: s })} />)}</div>}</div>}
-              {openTasks.length === 0 && longtermTasks.length === 0 && <div className="text-center py-16"><CheckCircle size={48} className="mx-auto mb-4" style={{ color: '#22c55e', opacity: 0.4 }} /><p style={{ color: '#666' }}>Brak aktywnych zadań 🎉</p></div>}
+          {activeTab === 'pending' && isManager ? (
+            <PendingView tasks={pendingTasks} approveTask={approveTask} deleteTask={deleteTask} />
+          ) : (
+            <div className="max-w-3xl mx-auto">
+              {filteredTasks.length === 0 ? (
+                <div className="text-center py-16">
+                  <CheckCircle size={48} className="mx-auto mb-4" style={{ color: '#22c55e', opacity: 0.4 }} />
+                  <p style={{ color: '#666' }}>Brak zadań do wyświetlenia</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <p className="text-xs mb-3" style={{ color: '#999' }}>
+                    <GripVertical size={12} className="inline mr-1" />
+                    Przeciągnij zadanie, aby zmienić kolejność
+                  </p>
+                  {filteredTasks.map(t => (
+                    <TaskItem 
+                      key={t.id} 
+                      task={t} 
+                      isSelected={selectedTask?.id === t.id} 
+                      onClick={() => setSelectedTask(t)} 
+                      onStatusChange={(s) => updateTask(t.id, { status: s })}
+                      onDragStart={handleDragStart}
+                      onDragOver={handleDragOver}
+                      onDrop={handleDrop}
+                      onDragEnd={handleDragEnd}
+                      isDragging={draggedTask?.id === t.id}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>
       </main>
+      
       {selectedTask && <TaskDetail task={selectedTask} updateTask={updateTask} deleteTask={deleteTask} onClose={() => setSelectedTask(null)} currentUser={currentUser} isManager={isManager} />}
       {showNewTask && <NewTaskModal onClose={() => setShowNewTask(false)} onSave={addTask} currentUser={currentUser} />}
     </div>
@@ -250,22 +466,54 @@ function PendingView({ tasks, approveTask, deleteTask }) {
   );
 }
 
-function TaskSection({ title, icon: Icon, color, tasks, selected, setSelected, updateTask }) {
-  if (!tasks.length) return null;
-  return <div><div className="flex items-center gap-2 mb-3"><Icon size={18} style={{ color }} /><span className="text-sm font-semibold" style={{ color: '#444' }}>{title}</span><span className="text-xs px-2 py-0.5 rounded-full" style={{ background: '#F5F5F5', color: '#666' }}>{tasks.length}</span></div><div className="space-y-2">{tasks.map(t => <TaskItem key={t.id} task={t} isSelected={selected?.id === t.id} onClick={() => setSelected(t)} onStatusChange={(s) => updateTask(t.id, { status: s })} />)}</div></div>;
-}
-
-function TaskItem({ task, isSelected, onClick, onStatusChange }) {
+function TaskItem({ task, isSelected, onClick, onStatusChange, onDragStart, onDragOver, onDrop, onDragEnd, isDragging }) {
   const market = MARKETS.find(m => m.id === task.market);
   const status = STATUSES.find(s => s.id === task.status);
   const Icon = status?.icon || Circle;
   const cycle = (e) => { e.stopPropagation(); onStatusChange(task.status === 'open' ? 'closed' : 'open'); };
   const plainDescription = task.description?.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+  
   return (
-    <div onClick={onClick} className="card p-4 cursor-pointer transition-all hover:shadow-md" style={{ border: isSelected ? '2px solid #428BCA' : '2px solid transparent' }}>
+    <div 
+      onClick={onClick} 
+      draggable
+      onDragStart={(e) => onDragStart(e, task)}
+      onDragOver={onDragOver}
+      onDrop={(e) => onDrop(e, task)}
+      onDragEnd={onDragEnd}
+      className="card p-4 cursor-pointer transition-all hover:shadow-md"
+      style={{ 
+        border: isSelected ? '2px solid #428BCA' : '2px solid transparent',
+        opacity: isDragging ? 0.5 : 1,
+      }}
+    >
       <div className="flex items-start gap-3">
-        <button onClick={cycle} className="mt-0.5 hover:scale-110 transition-transform"><Icon size={22} style={{ color: status?.color }} className={task.status === 'closed' ? 'fill-current' : ''} /></button>
-        <div className="flex-1 min-w-0"><div className="flex items-center gap-2 mb-1"><span className="text-base">{market?.icon}</span><h4 className="font-medium" style={{ color: task.status === 'closed' ? '#999' : '#232323', textDecoration: task.status === 'closed' ? 'line-through' : 'none' }}>{task.title}</h4>{task.isExternal && <ExternalLink size={14} style={{ color: '#f59e0b' }} />}{task.language === 'en' && <TranslateButton task={task} size="small" />}</div>{plainDescription && <p className="text-sm line-clamp-1 mb-2" style={{ color: '#666' }}>{plainDescription}</p>}<div className="flex items-center gap-3 flex-wrap"><div className="flex -space-x-1.5">{task.assignees?.slice(0, 4).map(aId => { const m = TEAM_MEMBERS.find(x => x.id === aId); return m && <div key={aId} className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-medium border-2 border-white" style={{ background: m.color }} title={m.name}>{getInitials(m.name)}</div>; })}</div>{task.comments?.length > 0 && <div className="flex items-center gap-1" style={{ color: '#999' }}><MessageSquare size={14} /><span className="text-xs">{task.comments.length}</span></div>}<SubtaskProgress subtasks={task.subtasks} />{task.status === 'longterm' && <span className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: '#f3f0ff', color: '#8b5cf6' }}>Long-term</span>}</div></div>
+        <div className="flex items-center gap-1">
+          <GripVertical size={16} style={{ color: '#ccc' }} className="cursor-grab active:cursor-grabbing" />
+          <button onClick={cycle} className="hover:scale-110 transition-transform">
+            <Icon size={22} style={{ color: status?.color }} className={task.status === 'closed' ? 'fill-current' : ''} />
+          </button>
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-base">{market?.icon}</span>
+            <h4 className="font-medium" style={{ color: task.status === 'closed' ? '#999' : '#232323', textDecoration: task.status === 'closed' ? 'line-through' : 'none' }}>{task.title}</h4>
+            {task.isExternal && <ExternalLink size={14} style={{ color: '#f59e0b' }} />}
+            {task.language === 'en' && <TranslateButton task={task} size="small" />}
+            {task.status === 'longterm' && <span className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: '#f3f0ff', color: '#8b5cf6' }}>Long-term</span>}
+          </div>
+          {plainDescription && <p className="text-sm line-clamp-1 mb-2" style={{ color: '#666' }}>{plainDescription}</p>}
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex -space-x-1.5">
+              {task.assignees?.slice(0, 4).map(aId => { 
+                const m = TEAM_MEMBERS.find(x => x.id === aId); 
+                return m && <div key={aId} className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-medium border-2 border-white" style={{ background: m.color }} title={m.name}>{getInitials(m.name)}</div>; 
+              })}
+            </div>
+            {task.comments?.length > 0 && <div className="flex items-center gap-1" style={{ color: '#999' }}><MessageSquare size={14} /><span className="text-xs">{task.comments.length}</span></div>}
+            <SubtaskProgress subtasks={task.subtasks} />
+          </div>
+        </div>
         <ChevronRight size={18} style={{ color: '#ccc' }} />
       </div>
     </div>
@@ -279,12 +527,44 @@ function TaskDetail({ task, updateTask, deleteTask, onClose, currentUser, isMana
   const [newSubtask, setNewSubtask] = useState('');
   const [subtaskAssignee, setSubtaskAssignee] = useState('');
   const [showSubtaskForm, setShowSubtaskForm] = useState(false);
+  const [editingCommentId, setEditingCommentId] = useState(null);
+  const [editingCommentText, setEditingCommentText] = useState('');
+  
   const market = MARKETS.find(m => m.id === task.market);
   const me = TEAM_MEMBERS.find(m => m.id === currentUser);
   const subtasks = task.subtasks || [];
   const canEdit = isManager || task.createdBy === currentUser;
 
-  const addComment = () => { if (!comment.trim()) return; updateTask(task.id, { comments: [...(task.comments || []), { id: generateId(), text: comment.trim(), author: currentUser, createdAt: new Date().toISOString() }] }); setComment(''); };
+  const addComment = () => { 
+    if (!comment.trim()) return; 
+    updateTask(task.id, { comments: [...(task.comments || []), { id: generateId(), text: comment.trim(), author: currentUser, createdAt: new Date().toISOString() }] }); 
+    setComment(''); 
+  };
+  
+  const editComment = (commentId) => {
+    const c = task.comments?.find(x => x.id === commentId);
+    if (c) {
+      setEditingCommentId(commentId);
+      setEditingCommentText(c.text);
+    }
+  };
+  
+  const saveCommentEdit = () => {
+    if (!editingCommentText.trim()) return;
+    const updatedComments = (task.comments || []).map(c => 
+      c.id === editingCommentId ? { ...c, text: editingCommentText.trim(), editedAt: new Date().toISOString() } : c
+    );
+    updateTask(task.id, { comments: updatedComments });
+    setEditingCommentId(null);
+    setEditingCommentText('');
+  };
+  
+  const deleteComment = (commentId) => {
+    if (confirm('Usunąć komentarz?')) {
+      updateTask(task.id, { comments: (task.comments || []).filter(c => c.id !== commentId) });
+    }
+  };
+  
   const save = () => { updateTask(task.id, { title: form.title, description: form.description }); setEditing(false); };
   const addSubtask = () => { if (!newSubtask.trim()) return; updateTask(task.id, { subtasks: [...subtasks, { id: generateId(), title: newSubtask.trim(), assignee: subtaskAssignee || null, status: 'open', createdAt: new Date().toISOString() }] }); setNewSubtask(''); setSubtaskAssignee(''); setShowSubtaskForm(false); };
   const toggleSubtask = (subId) => { updateTask(task.id, { subtasks: subtasks.map(s => s.id === subId ? { ...s, status: s.status === 'open' ? 'closed' : 'open' } : s) }); };
@@ -293,16 +573,178 @@ function TaskDetail({ task, updateTask, deleteTask, onClose, currentUser, isMana
 
   return (
     <aside className="w-[420px] bg-white border-l flex flex-col overflow-hidden" style={{ borderColor: '#eee' }}>
-      <div className="p-4 border-b flex items-center justify-between" style={{ borderColor: '#eee' }}><div className="flex items-center gap-2"><span className="text-xl">{market?.icon}</span><span className="text-sm font-medium" style={{ color: '#555' }}>{market?.name}</span>{task.isExternal && <ExternalLink size={14} style={{ color: '#f59e0b' }} />}{task.language === 'en' && <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: '#e8f4fc', color: '#428BCA' }}>🇬🇧 EN</span>}</div><div className="flex items-center gap-1">{task.language === 'en' && <TranslateButton task={task} />}{canEdit && <><button onClick={() => setEditing(!editing)} className="p-2 rounded-lg hover:bg-gray-100" style={{ color: '#666' }}><Edit3 size={16} /></button><button onClick={() => deleteTask(task.id)} className="p-2 rounded-lg hover:bg-red-50" style={{ color: '#666' }}><Trash2 size={16} /></button></>}<button onClick={onClose} className="p-2 rounded-lg hover:bg-gray-100" style={{ color: '#666' }}><X size={16} /></button></div></div>
+      <div className="p-4 border-b flex items-center justify-between" style={{ borderColor: '#eee' }}>
+        <div className="flex items-center gap-2">
+          <span className="text-xl">{market?.icon}</span>
+          <span className="text-sm font-medium" style={{ color: '#555' }}>{market?.name}</span>
+          {task.isExternal && <ExternalLink size={14} style={{ color: '#f59e0b' }} />}
+          {task.language === 'en' && <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: '#e8f4fc', color: '#428BCA' }}>🇬🇧 EN</span>}
+        </div>
+        <div className="flex items-center gap-1">
+          {task.language === 'en' && <TranslateButton task={task} />}
+          {canEdit && <>
+            <button onClick={() => setEditing(!editing)} className="p-2 rounded-lg hover:bg-gray-100" style={{ color: '#666' }}><Edit3 size={16} /></button>
+            <button onClick={() => deleteTask(task.id)} className="p-2 rounded-lg hover:bg-red-50" style={{ color: '#666' }}><Trash2 size={16} /></button>
+          </>}
+          <button onClick={onClose} className="p-2 rounded-lg hover:bg-gray-100" style={{ color: '#666' }}><X size={16} /></button>
+        </div>
+      </div>
+      
       <div className="flex-1 overflow-y-auto p-5 space-y-5">
         {task.isExternal && <div className="p-3 rounded-lg" style={{ background: '#fef3c7', border: '1px solid #fcd34d' }}><p className="text-xs font-medium" style={{ color: '#92400e' }}>Zgłoszone przez: {task.submittedBy}</p>{task.submitterEmail && <p className="text-xs" style={{ color: '#92400e' }}>{task.submitterEmail}</p>}</div>}
-        {editing ? <div className="space-y-3"><input type="text" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="w-full px-3 py-2 border rounded-lg text-sm" style={{ borderColor: '#ddd' }} /><RichTextEditor value={form.description} onChange={(v) => setForm({ ...form, description: v })} placeholder="Opis zadania..." /><div className="flex gap-2"><button onClick={save} className="btn-primary flex-1 py-2 rounded-lg text-sm">Zapisz</button><button onClick={() => setEditing(false)} className="flex-1 py-2 rounded-lg text-sm" style={{ background: '#F5F5F5', color: '#555' }}>Anuluj</button></div></div> : <div><h3 className="font-semibold text-lg mb-2" style={{ color: '#232323' }}>{task.title}</h3><RichTextDisplay html={task.description} /></div>}
+        
+        {editing ? (
+          <div className="space-y-3">
+            <input type="text" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="w-full px-3 py-2 border rounded-lg text-sm" style={{ borderColor: '#ddd' }} />
+            <RichTextEditor value={form.description} onChange={(v) => setForm({ ...form, description: v })} placeholder="Opis zadania..." />
+            <div className="flex gap-2">
+              <button onClick={save} className="btn-primary flex-1 py-2 rounded-lg text-sm">Zapisz</button>
+              <button onClick={() => setEditing(false)} className="flex-1 py-2 rounded-lg text-sm" style={{ background: '#F5F5F5', color: '#555' }}>Anuluj</button>
+            </div>
+          </div>
+        ) : (
+          <div>
+            <h3 className="font-semibold text-lg mb-2" style={{ color: '#232323' }}>{task.title}</h3>
+            <RichTextDisplay html={task.description} />
+          </div>
+        )}
+        
         {task.links && <div><label className="block mb-2 text-xs font-medium" style={{ color: '#999' }}>Linki</label><div className="p-3 rounded-lg" style={{ background: '#F5F5F5' }}><pre className="text-sm whitespace-pre-wrap break-all" style={{ color: '#428BCA' }}>{task.links}</pre></div></div>}
-        <div><div className="flex items-center justify-between mb-3"><div className="flex items-center gap-2"><ListTodo size={16} style={{ color: '#666' }} /><label className="text-xs font-medium" style={{ color: '#999' }}>Subtaski ({subtasks.filter(s => s.status === 'closed').length}/{subtasks.length})</label></div>{!showSubtaskForm && <button onClick={() => setShowSubtaskForm(true)} className="text-xs flex items-center gap-1 px-2 py-1 rounded hover:bg-gray-100" style={{ color: '#428BCA' }}><Plus size={14} /> Dodaj</button>}</div><div className="space-y-2">{subtasks.map(sub => { const assignee = TEAM_MEMBERS.find(m => m.id === sub.assignee); const isDone = sub.status === 'closed'; return <div key={sub.id} className="flex items-center gap-2 p-2 rounded-lg group" style={{ background: '#F9F9F9' }}><button onClick={() => toggleSubtask(sub.id)} className="flex-shrink-0">{isDone ? <CheckSquare size={18} style={{ color: '#22c55e' }} /> : <Square size={18} style={{ color: '#ccc' }} />}</button><span className="flex-1 text-sm" style={{ color: isDone ? '#999' : '#444', textDecoration: isDone ? 'line-through' : 'none' }}>{sub.title}</span>{assignee ? <div className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-medium" style={{ background: assignee.color }} title={assignee.name}>{getInitials(assignee.name)}</div> : <select onChange={(e) => updateSubtaskAssignee(sub.id, e.target.value)} className="text-xs px-1 py-0.5 rounded border opacity-0 group-hover:opacity-100 transition-opacity" style={{ borderColor: '#ddd', color: '#666' }} value=""><option value="">+ Przypisz</option>{TEAM_MEMBERS.filter(m => !m.isManager).map(m => <option key={m.id} value={m.id}>{m.name}</option>)}</select>}<button onClick={() => deleteSubtask(sub.id)} className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-red-50 rounded" style={{ color: '#ef4444' }}><X size={14} /></button></div>; })}</div>{showSubtaskForm && <div className="mt-3 p-3 rounded-lg border" style={{ borderColor: '#428BCA', background: '#f8fbff' }}><input type="text" value={newSubtask} onChange={(e) => setNewSubtask(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addSubtask()} placeholder="Nazwa subtaska..." className="w-full px-3 py-2 border rounded-lg text-sm mb-2" style={{ borderColor: '#ddd' }} autoFocus /><div className="flex items-center gap-2"><select value={subtaskAssignee} onChange={(e) => setSubtaskAssignee(e.target.value)} className="flex-1 px-2 py-1.5 border rounded-lg text-sm" style={{ borderColor: '#ddd' }}><option value="">Bez przypisania</option>{TEAM_MEMBERS.filter(m => !m.isManager).map(m => <option key={m.id} value={m.id}>{m.name}</option>)}</select><button onClick={addSubtask} className="btn-primary px-3 py-1.5 rounded-lg text-sm">Dodaj</button><button onClick={() => { setShowSubtaskForm(false); setNewSubtask(''); }} className="px-2 py-1.5 rounded-lg text-sm" style={{ color: '#666' }}>Anuluj</button></div></div>}</div>
-        <div><label className="block mb-2 text-xs font-medium" style={{ color: '#999' }}>Status</label><div className="flex flex-wrap gap-2">{STATUSES.filter(s => s.id !== 'pending').map(s => <button key={s.id} onClick={() => updateTask(task.id, { status: s.id })} className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium" style={{ background: task.status === s.id ? s.bg : '#F5F5F5', color: task.status === s.id ? s.color : '#666', border: task.status === s.id ? `2px solid ${s.color}` : '2px solid transparent' }}><s.icon size={16} /> {s.name}</button>)}</div></div>
-        <div><label className="block mb-2 text-xs font-medium" style={{ color: '#999' }}>Przypisani</label><div className="flex flex-wrap gap-2">{task.assignees?.map(aId => { const m = TEAM_MEMBERS.find(x => x.id === aId); return m && <div key={aId} className="flex items-center gap-2 rounded-full px-3 py-1.5" style={{ background: '#F5F5F5' }}><div className="w-5 h-5 rounded-full flex items-center justify-center text-white text-xs font-medium" style={{ background: m.color }}>{getInitials(m.name)}</div><span className="text-sm" style={{ color: '#444' }}>{m.name}</span>{canEdit && <button onClick={() => updateTask(task.id, { assignees: task.assignees.filter(a => a !== aId) })} className="hover:text-red-500" style={{ color: '#999' }}><X size={14} /></button>}</div>; })}{canEdit && <select onChange={(e) => { if (e.target.value && !task.assignees?.includes(e.target.value)) { updateTask(task.id, { assignees: [...(task.assignees || []), e.target.value] }); const m = TEAM_MEMBERS.find(x => x.id === e.target.value); if (m) sendEmailNotification(m.email, m.name, task.title, me?.name); } e.target.value = ''; }} className="rounded-full px-3 py-1.5 text-sm" style={{ background: '#F5F5F5', border: '1px dashed #ccc', color: '#666' }} defaultValue=""><option value="">+ Dodaj osobę</option>{TEAM_MEMBERS.filter(m => !task.assignees?.includes(m.id)).map(m => <option key={m.id} value={m.id}>{m.name}</option>)}</select>}</div></div>
-        <div><label className="block mb-3 text-xs font-medium" style={{ color: '#999' }}>Komentarze ({task.comments?.length || 0})</label><div className="space-y-3 mb-4">{task.comments?.map(c => { const author = TEAM_MEMBERS.find(m => m.id === c.author); return <div key={c.id} className="flex gap-3"><div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-medium flex-shrink-0" style={{ background: author?.color || '#999' }}>{getInitials(author?.name || '?')}</div><div className="flex-1"><div className="rounded-xl p-3" style={{ background: '#F5F5F5' }}><div className="flex items-center gap-2 mb-1"><span className="text-sm font-medium" style={{ color: '#444' }}>{author?.name || 'Nieznany'}</span><span className="text-xs" style={{ color: '#999' }}>{formatDateTime(c.createdAt)}</span></div><p className="text-sm" style={{ color: '#555' }}>{c.text}</p></div></div></div>; })}</div><div className="flex gap-2"><input type="text" value={comment} onChange={(e) => setComment(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addComment()} placeholder="Napisz komentarz..." className="flex-1 px-4 py-2.5 rounded-xl text-sm" style={{ background: '#F5F5F5', border: '1px solid #eee' }} /><button onClick={addComment} className="btn-primary p-2.5 rounded-xl"><Send size={18} /></button></div></div>
-        <div className="pt-4 border-t text-xs" style={{ borderColor: '#eee', color: '#999' }}><p>Utworzono: {formatDateTime(task.createdAt)}</p>{task.createdBy && <p>Przez: {TEAM_MEMBERS.find(m => m.id === task.createdBy)?.name}</p>}</div>
+        
+        {/* Subtasks */}
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2"><ListTodo size={16} style={{ color: '#666' }} /><label className="text-xs font-medium" style={{ color: '#999' }}>Subtaski ({subtasks.filter(s => s.status === 'closed').length}/{subtasks.length})</label></div>
+            {!showSubtaskForm && <button onClick={() => setShowSubtaskForm(true)} className="text-xs flex items-center gap-1 px-2 py-1 rounded hover:bg-gray-100" style={{ color: '#428BCA' }}><Plus size={14} /> Dodaj</button>}
+          </div>
+          <div className="space-y-2">
+            {subtasks.map(sub => { 
+              const assignee = TEAM_MEMBERS.find(m => m.id === sub.assignee); 
+              const isDone = sub.status === 'closed'; 
+              return (
+                <div key={sub.id} className="flex items-center gap-2 p-2 rounded-lg group" style={{ background: '#F9F9F9' }}>
+                  <button onClick={() => toggleSubtask(sub.id)} className="flex-shrink-0">{isDone ? <CheckSquare size={18} style={{ color: '#22c55e' }} /> : <Square size={18} style={{ color: '#ccc' }} />}</button>
+                  <span className="flex-1 text-sm" style={{ color: isDone ? '#999' : '#444', textDecoration: isDone ? 'line-through' : 'none' }}>{sub.title}</span>
+                  {assignee ? <div className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-medium" style={{ background: assignee.color }} title={assignee.name}>{getInitials(assignee.name)}</div> : 
+                    <select onChange={(e) => updateSubtaskAssignee(sub.id, e.target.value)} className="text-xs px-1 py-0.5 rounded border opacity-0 group-hover:opacity-100 transition-opacity" style={{ borderColor: '#ddd', color: '#666' }} value=""><option value="">+ Przypisz</option>{TEAM_MEMBERS.filter(m => !m.isManager).map(m => <option key={m.id} value={m.id}>{m.name}</option>)}</select>}
+                  <button onClick={() => deleteSubtask(sub.id)} className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-red-50 rounded" style={{ color: '#ef4444' }}><X size={14} /></button>
+                </div>
+              ); 
+            })}
+          </div>
+          {showSubtaskForm && (
+            <div className="mt-3 p-3 rounded-lg border" style={{ borderColor: '#428BCA', background: '#f8fbff' }}>
+              <input type="text" value={newSubtask} onChange={(e) => setNewSubtask(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addSubtask()} placeholder="Nazwa subtaska..." className="w-full px-3 py-2 border rounded-lg text-sm mb-2" style={{ borderColor: '#ddd' }} autoFocus />
+              <div className="flex items-center gap-2">
+                <select value={subtaskAssignee} onChange={(e) => setSubtaskAssignee(e.target.value)} className="flex-1 px-2 py-1.5 border rounded-lg text-sm" style={{ borderColor: '#ddd' }}><option value="">Bez przypisania</option>{TEAM_MEMBERS.filter(m => !m.isManager).map(m => <option key={m.id} value={m.id}>{m.name}</option>)}</select>
+                <button onClick={addSubtask} className="btn-primary px-3 py-1.5 rounded-lg text-sm">Dodaj</button>
+                <button onClick={() => { setShowSubtaskForm(false); setNewSubtask(''); }} className="px-2 py-1.5 rounded-lg text-sm" style={{ color: '#666' }}>Anuluj</button>
+              </div>
+            </div>
+          )}
+        </div>
+        
+        {/* Status */}
+        <div>
+          <label className="block mb-2 text-xs font-medium" style={{ color: '#999' }}>Status</label>
+          <div className="flex flex-wrap gap-2">
+            {STATUSES.filter(s => s.id !== 'pending').map(s => (
+              <button key={s.id} onClick={() => updateTask(task.id, { status: s.id })} className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium" style={{ background: task.status === s.id ? s.bg : '#F5F5F5', color: task.status === s.id ? s.color : '#666', border: task.status === s.id ? `2px solid ${s.color}` : '2px solid transparent' }}>
+                <s.icon size={16} /> {s.name}
+              </button>
+            ))}
+          </div>
+        </div>
+        
+        {/* Assignees */}
+        <div>
+          <label className="block mb-2 text-xs font-medium" style={{ color: '#999' }}>Przypisani</label>
+          <div className="flex flex-wrap gap-2">
+            {task.assignees?.map(aId => { 
+              const m = TEAM_MEMBERS.find(x => x.id === aId); 
+              return m && (
+                <div key={aId} className="flex items-center gap-2 rounded-full px-3 py-1.5" style={{ background: '#F5F5F5' }}>
+                  <div className="w-5 h-5 rounded-full flex items-center justify-center text-white text-xs font-medium" style={{ background: m.color }}>{getInitials(m.name)}</div>
+                  <span className="text-sm" style={{ color: '#444' }}>{m.name}</span>
+                  {canEdit && <button onClick={() => updateTask(task.id, { assignees: task.assignees.filter(a => a !== aId) })} className="hover:text-red-500" style={{ color: '#999' }}><X size={14} /></button>}
+                </div>
+              ); 
+            })}
+            {canEdit && (
+              <select onChange={(e) => { if (e.target.value && !task.assignees?.includes(e.target.value)) { updateTask(task.id, { assignees: [...(task.assignees || []), e.target.value] }); const m = TEAM_MEMBERS.find(x => x.id === e.target.value); if (m) sendEmailNotification(m.email, m.name, task.title, me?.name); } e.target.value = ''; }} className="rounded-full px-3 py-1.5 text-sm" style={{ background: '#F5F5F5', border: '1px dashed #ccc', color: '#666' }} defaultValue="">
+                <option value="">+ Dodaj osobę</option>
+                {TEAM_MEMBERS.filter(m => !task.assignees?.includes(m.id)).map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+              </select>
+            )}
+          </div>
+        </div>
+        
+        {/* Comments with edit */}
+        <div>
+          <label className="block mb-3 text-xs font-medium" style={{ color: '#999' }}>Komentarze ({task.comments?.length || 0})</label>
+          <div className="space-y-3 mb-4">
+            {task.comments?.map(c => { 
+              const author = TEAM_MEMBERS.find(m => m.id === c.author);
+              const isMyComment = c.author === currentUser;
+              
+              if (editingCommentId === c.id) {
+                return (
+                  <div key={c.id} className="flex gap-3">
+                    <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-medium flex-shrink-0" style={{ background: author?.color || '#999' }}>{getInitials(author?.name || '?')}</div>
+                    <div className="flex-1">
+                      <input 
+                        type="text" 
+                        value={editingCommentText} 
+                        onChange={(e) => setEditingCommentText(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && saveCommentEdit()}
+                        className="w-full px-3 py-2 border rounded-lg text-sm mb-2"
+                        style={{ borderColor: '#428BCA' }}
+                        autoFocus
+                      />
+                      <div className="flex gap-2">
+                        <button onClick={saveCommentEdit} className="text-xs px-2 py-1 rounded" style={{ background: '#428BCA', color: 'white' }}>Zapisz</button>
+                        <button onClick={() => { setEditingCommentId(null); setEditingCommentText(''); }} className="text-xs px-2 py-1 rounded" style={{ color: '#666' }}>Anuluj</button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              }
+              
+              return (
+                <div key={c.id} className="flex gap-3 group">
+                  <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-medium flex-shrink-0" style={{ background: author?.color || '#999' }}>{getInitials(author?.name || '?')}</div>
+                  <div className="flex-1">
+                    <div className="rounded-xl p-3" style={{ background: '#F5F5F5' }}>
+                      <div className="flex items-center justify-between mb-1">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium" style={{ color: '#444' }}>{author?.name || 'Nieznany'}</span>
+                          <span className="text-xs" style={{ color: '#999' }}>{formatDateTime(c.createdAt)}</span>
+                          {c.editedAt && <span className="text-xs italic" style={{ color: '#999' }}>(edytowano)</span>}
+                        </div>
+                        {isMyComment && (
+                          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button onClick={() => editComment(c.id)} className="p-1 rounded hover:bg-gray-200" style={{ color: '#666' }}><Edit3 size={12} /></button>
+                            <button onClick={() => deleteComment(c.id)} className="p-1 rounded hover:bg-red-50" style={{ color: '#ef4444' }}><Trash2 size={12} /></button>
+                          </div>
+                        )}
+                      </div>
+                      <p className="text-sm" style={{ color: '#555' }}>{c.text}</p>
+                    </div>
+                  </div>
+                </div>
+              ); 
+            })}
+          </div>
+          <div className="flex gap-2">
+            <input type="text" value={comment} onChange={(e) => setComment(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addComment()} placeholder="Napisz komentarz..." className="flex-1 px-4 py-2.5 rounded-xl text-sm" style={{ background: '#F5F5F5', border: '1px solid #eee' }} />
+            <button onClick={addComment} className="btn-primary p-2.5 rounded-xl"><Send size={18} /></button>
+          </div>
+        </div>
+        
+        <div className="pt-4 border-t text-xs" style={{ borderColor: '#eee', color: '#999' }}>
+          <p>Utworzono: {formatDateTime(task.createdAt)}</p>
+          {task.createdBy && <p>Przez: {TEAM_MEMBERS.find(m => m.id === task.createdBy)?.name}</p>}
+        </div>
       </div>
     </aside>
   );
@@ -312,6 +754,7 @@ function NewTaskModal({ onClose, onSave, currentUser }) {
   const [form, setForm] = useState({ title: '', description: '', market: 'pl', status: 'open', assignees: [currentUser], comments: [] });
   const toggle = (id) => setForm(p => ({ ...p, assignees: p.assignees.includes(id) ? p.assignees.filter(a => a !== id) : [...p.assignees, id] }));
   const save = () => { if (form.title.trim()) onSave(form); };
+  
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
@@ -319,7 +762,10 @@ function NewTaskModal({ onClose, onSave, currentUser }) {
         <div className="p-5 space-y-4">
           <div><label className="text-sm font-medium block mb-1.5" style={{ color: '#444' }}>Tytuł *</label><input type="text" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="w-full px-4 py-2.5 border rounded-xl text-sm" style={{ borderColor: '#ddd' }} placeholder="Co trzeba zrobić?" autoFocus /></div>
           <div><label className="text-sm font-medium block mb-1.5" style={{ color: '#444' }}>Opis</label><RichTextEditor value={form.description} onChange={(v) => setForm({ ...form, description: v })} placeholder="Szczegóły zadania..." /></div>
-          <div className="grid grid-cols-2 gap-4"><div><label className="text-sm font-medium block mb-1.5" style={{ color: '#444' }}>Rynek</label><select value={form.market} onChange={(e) => setForm({ ...form, market: e.target.value })} className="w-full px-4 py-2.5 border rounded-xl text-sm" style={{ borderColor: '#ddd' }}>{MARKETS.map(m => <option key={m.id} value={m.id}>{m.icon} {m.name}</option>)}</select></div><div><label className="text-sm font-medium block mb-1.5" style={{ color: '#444' }}>Typ</label><select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })} className="w-full px-4 py-2.5 border rounded-xl text-sm" style={{ borderColor: '#ddd' }}><option value="open">Otwarte</option><option value="longterm">Long-term</option></select></div></div>
+          <div className="grid grid-cols-2 gap-4">
+            <div><label className="text-sm font-medium block mb-1.5" style={{ color: '#444' }}>Rynek</label><select value={form.market} onChange={(e) => setForm({ ...form, market: e.target.value })} className="w-full px-4 py-2.5 border rounded-xl text-sm" style={{ borderColor: '#ddd' }}>{MARKETS.map(m => <option key={m.id} value={m.id}>{m.icon} {m.name}</option>)}</select></div>
+            <div><label className="text-sm font-medium block mb-1.5" style={{ color: '#444' }}>Typ</label><select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })} className="w-full px-4 py-2.5 border rounded-xl text-sm" style={{ borderColor: '#ddd' }}><option value="open">Otwarte</option><option value="longterm">Long-term</option></select></div>
+          </div>
           <div><label className="text-sm font-medium block mb-2" style={{ color: '#444' }}>Przypisz do</label><div className="flex flex-wrap gap-2">{TEAM_MEMBERS.map(m => <button key={m.id} onClick={() => toggle(m.id)} className="flex items-center gap-2 px-3 py-2 rounded-xl border text-sm" style={{ borderColor: form.assignees.includes(m.id) ? '#428BCA' : '#ddd', background: form.assignees.includes(m.id) ? '#e8f4fc' : 'white', color: form.assignees.includes(m.id) ? '#428BCA' : '#555' }}><div className="w-5 h-5 rounded-full flex items-center justify-center text-white text-xs font-medium" style={{ background: m.color }}>{getInitials(m.name)}</div><span>{m.name}</span>{form.assignees.includes(m.id) && <Check size={14} />}</button>)}</div></div>
         </div>
         <div className="p-5 border-t flex justify-end gap-3" style={{ borderColor: '#eee' }}><button onClick={onClose} className="px-5 py-2.5 rounded-xl text-sm font-medium hover:bg-gray-100" style={{ color: '#666' }}>Anuluj</button><button onClick={save} className="btn-primary px-5 py-2.5 rounded-xl text-sm font-medium">Utwórz zadanie</button></div>
