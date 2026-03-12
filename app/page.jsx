@@ -608,13 +608,52 @@ function TaskDetail({ task, updateTask, deleteTask, onClose, currentUser, isMana
   const [showSubtaskForm, setShowSubtaskForm] = useState(false);
   const [editingCommentId, setEditingCommentId] = useState(null);
   const [editingCommentText, setEditingCommentText] = useState('');
+  const [notifyRequester, setNotifyRequester] = useState(true);
+  const [sendingNotification, setSendingNotification] = useState(false);
   
   const market = MARKETS.find(m => m.id === task.market);
   const me = TEAM_MEMBERS.find(m => m.id === currentUser);
   const subtasks = task.subtasks || [];
   const canEdit = isManager || task.createdBy === currentUser;
+  const hasExternalRequester = task.isExternal && task.submitterEmail;
+  const externalComments = (task.comments || []).filter(c => c.isExternal || c.author === 'external');
 
-  const addComment = () => { if (!comment.trim()) return; updateTask(task.id, { comments: [...(task.comments || []), { id: generateId(), text: comment.trim(), author: currentUser, createdAt: new Date().toISOString() }] }); setComment(''); };
+  const addComment = async () => { 
+    if (!comment.trim()) return; 
+    
+    const newComment = { 
+      id: generateId(), 
+      text: comment.trim(), 
+      author: currentUser, 
+      createdAt: new Date().toISOString() 
+    };
+    
+    updateTask(task.id, { comments: [...(task.comments || []), newComment] }); 
+    
+    // Notify external requester if enabled
+    if (hasExternalRequester && notifyRequester && task.publicToken) {
+      setSendingNotification(true);
+      try {
+        await fetch('/api/notify-requester', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            to: task.submitterEmail,
+            requesterName: task.submittedBy,
+            taskTitle: task.title,
+            commentText: comment.trim(),
+            commenterName: me?.name,
+            publicToken: task.publicToken,
+          }),
+        });
+      } catch (err) {
+        console.log('Notification skipped:', err);
+      }
+      setSendingNotification(false);
+    }
+    
+    setComment(''); 
+  };
   const editComment = (commentId) => { const c = task.comments?.find(x => x.id === commentId); if (c) { setEditingCommentId(commentId); setEditingCommentText(c.text); } };
   const saveCommentEdit = () => { if (!editingCommentText.trim()) return; updateTask(task.id, { comments: (task.comments || []).map(c => c.id === editingCommentId ? { ...c, text: editingCommentText.trim(), editedAt: new Date().toISOString() } : c) }); setEditingCommentId(null); setEditingCommentText(''); };
   const deleteComment = (commentId) => { if (confirm('Usunąć?')) updateTask(task.id, { comments: (task.comments || []).filter(c => c.id !== commentId) }); };
@@ -700,9 +739,94 @@ function TaskDetail({ task, updateTask, deleteTask, onClose, currentUser, isMana
         
         {/* Comments */}
         <div>
-          <label className="block mb-3 text-sm font-medium" style={{ color: '#202124' }}>Komentarze ({task.comments?.length || 0})</label>
-          <div className="space-y-3 mb-4">{task.comments?.map(c => { const author = TEAM_MEMBERS.find(m => m.id === c.author); const isMyComment = c.author === currentUser; if (editingCommentId === c.id) return <div key={c.id} className="flex gap-3"><div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-medium flex-shrink-0" style={{ background: author?.color || '#9aa0a6' }}>{getInitials(author?.name || '?')}</div><div className="flex-1"><input type="text" value={editingCommentText} onChange={(e) => setEditingCommentText(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && saveCommentEdit()} className="w-full px-3 py-2 border rounded-lg text-sm mb-2 transition-colors focus:border-blue-500" style={{ borderColor: '#1a73e8' }} autoFocus /><div className="flex gap-2"><button onClick={saveCommentEdit} className="text-xs px-3 py-1 rounded-full font-medium" style={{ background: '#1a73e8', color: 'white' }}>Zapisz</button><button onClick={() => { setEditingCommentId(null); setEditingCommentText(''); }} className="text-xs px-3 py-1 rounded-full" style={{ color: '#5f6368' }}>Anuluj</button></div></div></div>; return <div key={c.id} className="flex gap-3 group"><div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-medium flex-shrink-0" style={{ background: author?.color || '#9aa0a6' }}>{getInitials(author?.name || '?')}</div><div className="flex-1"><div className="rounded-2xl px-4 py-2" style={{ background: '#f1f3f4' }}><div className="flex items-center justify-between mb-1"><div className="flex items-center gap-2"><span className="text-sm font-medium" style={{ color: '#202124' }}>{author?.name || 'Nieznany'}</span><span className="text-xs" style={{ color: '#9aa0a6' }}>{formatDateTime(c.createdAt)}</span>{c.editedAt && <span className="text-xs italic" style={{ color: '#9aa0a6' }}>(edytowano)</span>}</div>{isMyComment && <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"><button onClick={() => editComment(c.id)} className="p-1 rounded-full hover:bg-gray-200" style={{ color: '#5f6368' }}><Edit3 size={14} /></button><button onClick={() => deleteComment(c.id)} className="p-1 rounded-full hover:bg-red-50" style={{ color: '#ea4335' }}><Trash2 size={14} /></button></div>}</div><p className="text-sm" style={{ color: '#3c4043' }}>{c.text}</p></div></div></div>; })}</div>
-          <div className="flex gap-2"><input type="text" value={comment} onChange={(e) => setComment(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addComment()} placeholder="Napisz komentarz..." className="flex-1 px-4 py-2.5 rounded-full text-sm transition-colors focus:border-blue-500" style={{ background: '#f1f3f4', border: '1px solid #e8eaed' }} /><button onClick={addComment} className="p-2.5 rounded-full transition-colors hover:shadow-md" style={{ background: '#1a73e8', color: 'white' }}><Send size={18} /></button></div>
+          <div className="flex items-center justify-between mb-3">
+            <label className="text-sm font-medium" style={{ color: '#202124' }}>
+              Komentarze ({task.comments?.length || 0})
+              {externalComments.length > 0 && (
+                <span className="ml-2 text-xs px-2 py-0.5 rounded-full" style={{ background: '#fef7e0', color: '#b06000' }}>
+                  {externalComments.length} od {task.submittedBy || 'zewnętrznego'}
+                </span>
+              )}
+            </label>
+            {task.publicToken && (
+              <a 
+                href={`/task/${task.publicToken}`} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-xs flex items-center gap-1 px-2 py-1 rounded hover:bg-gray-100"
+                style={{ color: '#1a73e8' }}
+              >
+                <ExternalLink size={12} /> Link publiczny
+              </a>
+            )}
+          </div>
+          <div className="space-y-3 mb-4">{task.comments?.map(c => { 
+            const isExternal = c.isExternal || c.author === 'external';
+            const author = !isExternal ? TEAM_MEMBERS.find(m => m.id === c.author) : null; 
+            const isMyComment = c.author === currentUser; 
+            
+            if (editingCommentId === c.id) return <div key={c.id} className="flex gap-3"><div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-medium flex-shrink-0" style={{ background: author?.color || '#9aa0a6' }}>{getInitials(author?.name || '?')}</div><div className="flex-1"><input type="text" value={editingCommentText} onChange={(e) => setEditingCommentText(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && saveCommentEdit()} className="w-full px-3 py-2 border rounded-lg text-sm mb-2 transition-colors focus:border-blue-500" style={{ borderColor: '#1a73e8' }} autoFocus /><div className="flex gap-2"><button onClick={saveCommentEdit} className="text-xs px-3 py-1 rounded-full font-medium" style={{ background: '#1a73e8', color: 'white' }}>Zapisz</button><button onClick={() => { setEditingCommentId(null); setEditingCommentText(''); }} className="text-xs px-3 py-1 rounded-full" style={{ color: '#5f6368' }}>Anuluj</button></div></div></div>; 
+            
+            return (
+              <div key={c.id} className={`flex gap-3 group ${isExternal ? 'flex-row-reverse' : ''}`}>
+                <div 
+                  className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-medium flex-shrink-0" 
+                  style={{ background: isExternal ? '#f59e0b' : (author?.color || '#9aa0a6') }}
+                >
+                  {isExternal ? '👤' : getInitials(author?.name || '?')}
+                </div>
+                <div className={`flex-1 ${isExternal ? 'text-right' : ''}`}>
+                  <div 
+                    className={`inline-block rounded-2xl px-4 py-2 max-w-[85%] ${isExternal ? 'rounded-tr-sm' : 'rounded-tl-sm'}`} 
+                    style={{ background: isExternal ? '#fef7e0' : '#f1f3f4' }}
+                  >
+                    <div className="flex items-center justify-between mb-1 gap-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium" style={{ color: '#202124' }}>
+                          {isExternal ? (c.authorName || task.submittedBy || 'Zewnętrzny') : (author?.name || 'Nieznany')}
+                        </span>
+                        {isExternal && (
+                          <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: '#fcd34d', color: '#92400e' }}>Zewnętrzny</span>
+                        )}
+                        <span className="text-xs" style={{ color: '#9aa0a6' }}>{formatDateTime(c.createdAt)}</span>
+                        {c.editedAt && <span className="text-xs italic" style={{ color: '#9aa0a6' }}>(edytowano)</span>}
+                      </div>
+                      {isMyComment && !isExternal && (
+                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button onClick={() => editComment(c.id)} className="p-1 rounded-full hover:bg-gray-200" style={{ color: '#5f6368' }}><Edit3 size={14} /></button>
+                          <button onClick={() => deleteComment(c.id)} className="p-1 rounded-full hover:bg-red-50" style={{ color: '#ea4335' }}><Trash2 size={14} /></button>
+                        </div>
+                      )}
+                    </div>
+                    <p className="text-sm" style={{ color: '#3c4043' }}>{c.text}</p>
+                  </div>
+                </div>
+              </div>
+            ); 
+          })}</div>
+          
+          {/* Comment input */}
+          <div className="space-y-2">
+            <div className="flex gap-2">
+              <input type="text" value={comment} onChange={(e) => setComment(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && addComment()} placeholder="Napisz komentarz..." className="flex-1 px-4 py-2.5 rounded-full text-sm transition-colors focus:border-blue-500" style={{ background: '#f1f3f4', border: '1px solid #e8eaed' }} />
+              <button onClick={addComment} disabled={sendingNotification} className="p-2.5 rounded-full transition-colors hover:shadow-md disabled:opacity-50" style={{ background: '#1a73e8', color: 'white' }}>
+                {sendingNotification ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
+              </button>
+            </div>
+            
+            {/* Notify requester checkbox for external tasks */}
+            {hasExternalRequester && (
+              <label className="flex items-center gap-2 text-xs cursor-pointer select-none" style={{ color: '#5f6368' }}>
+                <input 
+                  type="checkbox" 
+                  checked={notifyRequester} 
+                  onChange={(e) => setNotifyRequester(e.target.checked)}
+                  className="rounded"
+                />
+                <span>📧 Powiadom {task.submittedBy || 'zewnętrznego'} mailem ({task.submitterEmail})</span>
+              </label>
+            )}
+          </div>
         </div>
         
         <div className="pt-4 border-t text-xs" style={{ borderColor: '#e8eaed', color: '#9aa0a6' }}><p>Utworzono: {formatDateTime(task.createdAt)}</p>{task.createdBy && <p>Przez: {TEAM_MEMBERS.find(m => m.id === task.createdBy)?.name}</p>}</div>
