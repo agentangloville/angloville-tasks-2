@@ -33,40 +33,24 @@ const getInitials = (name) => {
   return name[0];
 };
 
-// Helper to clean HTML entities and convert to plain text
-function htmlToPlainText(html) {
-  if (!html) return '';
-  return html
-    .replace(/<[^>]*>/g, ' ')      // Remove HTML tags
-    .replace(/&nbsp;/g, ' ')        // Convert &nbsp; to space
-    .replace(/&amp;/g, '&')         // Convert &amp; to &
-    .replace(/&lt;/g, '<')          // Convert &lt; to <
-    .replace(/&gt;/g, '>')          // Convert &gt; to >
-    .replace(/&quot;/g, '"')        // Convert &quot; to "
-    .replace(/&#39;/g, "'")         // Convert &#39; to '
-    .replace(/\s+/g, ' ')           // Collapse multiple spaces
-    .trim();
+// Helper to make links clickable
+function linkify(text) {
+  if (!text) return '';
+  const urlRegex = /(https?:\/\/[^\s<]+)/g;
+  return text.replace(urlRegex, (url) => `<a href="${url}" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:underline">${url}</a>`);
 }
 
 // Component to display clickable links
 function ClickableLinks({ text }) {
   if (!text) return null;
-  // Clean the text from HTML entities first
-  const cleanText = text
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'");
-  
-  const lines = cleanText.split('\n');
+  const lines = text.split('\n');
   return (
     <div className="space-y-1">
       {lines.map((line, i) => {
         const urlMatch = line.match(/(https?:\/\/[^\s]+)/);
         if (urlMatch) {
           const url = urlMatch[1];
+          // Try to extract a nice label from the URL
           let label = url;
           try {
             const urlObj = new URL(url);
@@ -264,7 +248,7 @@ function RichTextDisplay({ html }) {
 const translationCache = {};
 async function translateToPolish(text) {
   if (!text) return '';
-  const plainText = htmlToPlainText(text);
+  const plainText = text.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
   if (!plainText) return '';
   if (translationCache[plainText]) return translationCache[plainText];
   try {
@@ -567,7 +551,7 @@ function TaskItem({ task, isSelected, onClick, onStatusChange, onDragStart, onDr
   const status = STATUSES.find(s => s.id === task.status);
   const Icon = status?.icon || Circle;
   const cycle = (e) => { e.stopPropagation(); onStatusChange(task.status === 'open' ? 'closed' : 'open'); };
-  const plainDescription = htmlToPlainText(task.description);
+  const plainDescription = task.description?.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
   
   return (
     <div onClick={onClick} draggable onDragStart={(e) => onDragStart(e, task)} onDragOver={onDragOver} onDrop={(e) => onDrop(e, task)} onDragEnd={onDragEnd} className="bg-white rounded-xl p-4 cursor-pointer transition-all hover:shadow-md border" style={{ borderColor: isSelected ? '#1a73e8' : '#e8eaed', opacity: isDragging ? 0.5 : 1 }}>
@@ -589,7 +573,6 @@ function TaskItem({ task, isSelected, onClick, onStatusChange, onDragStart, onDr
             <div className="flex -space-x-1">{task.assignees?.slice(0, 4).map(aId => { const m = TEAM_MEMBERS.find(x => x.id === aId); return m && <div key={aId} className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-medium border-2 border-white" style={{ background: m.color }} title={m.name}>{getInitials(m.name)}</div>; })}</div>
             {task.comments?.length > 0 && <div className="flex items-center gap-1" style={{ color: '#9aa0a6' }}><MessageSquare size={14} /><span className="text-xs">{task.comments.length}</span></div>}
             <SubtaskProgress subtasks={task.subtasks} />
-            {task.links && <div className="flex items-center gap-1" style={{ color: '#1a73e8' }}><Link2 size={14} /></div>}
           </div>
         </div>
         <ChevronRight size={18} style={{ color: '#dadce0' }} />
@@ -602,71 +585,27 @@ function TaskItem({ task, isSelected, onClick, onStatusChange, onDragStart, onDr
 function TaskDetail({ task, updateTask, deleteTask, onClose, currentUser, isManager }) {
   const [comment, setComment] = useState('');
   const [editing, setEditing] = useState(false);
-  const [form, setForm] = useState({ title: task.title, description: task.description || '', links: task.links || '' });
+  const [form, setForm] = useState({ title: task.title, description: task.description || '' });
   const [newSubtask, setNewSubtask] = useState('');
   const [subtaskAssignee, setSubtaskAssignee] = useState('');
   const [showSubtaskForm, setShowSubtaskForm] = useState(false);
   const [editingCommentId, setEditingCommentId] = useState(null);
   const [editingCommentText, setEditingCommentText] = useState('');
-  const [notifyRequester, setNotifyRequester] = useState(true);
-  const [sendingNotification, setSendingNotification] = useState(false);
   
   const market = MARKETS.find(m => m.id === task.market);
   const me = TEAM_MEMBERS.find(m => m.id === currentUser);
   const subtasks = task.subtasks || [];
   const canEdit = isManager || task.createdBy === currentUser;
-  const hasExternalRequester = task.isExternal && task.submitterEmail;
-  const externalComments = (task.comments || []).filter(c => c.isExternal || c.author === 'external');
 
-  const addComment = async () => { 
-    if (!comment.trim()) return; 
-    
-    const newComment = { 
-      id: generateId(), 
-      text: comment.trim(), 
-      author: currentUser, 
-      createdAt: new Date().toISOString() 
-    };
-    
-    updateTask(task.id, { comments: [...(task.comments || []), newComment] }); 
-    
-    // Notify external requester if enabled
-    if (hasExternalRequester && notifyRequester && task.publicToken) {
-      setSendingNotification(true);
-      try {
-        await fetch('/api/notify-requester', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            to: task.submitterEmail,
-            requesterName: task.submittedBy,
-            taskTitle: task.title,
-            commentText: comment.trim(),
-            commenterName: me?.name,
-            publicToken: task.publicToken,
-          }),
-        });
-      } catch (err) {
-        console.log('Notification skipped:', err);
-      }
-      setSendingNotification(false);
-    }
-    
-    setComment(''); 
-  };
+  const addComment = () => { if (!comment.trim()) return; updateTask(task.id, { comments: [...(task.comments || []), { id: generateId(), text: comment.trim(), author: currentUser, createdAt: new Date().toISOString() }] }); setComment(''); };
   const editComment = (commentId) => { const c = task.comments?.find(x => x.id === commentId); if (c) { setEditingCommentId(commentId); setEditingCommentText(c.text); } };
   const saveCommentEdit = () => { if (!editingCommentText.trim()) return; updateTask(task.id, { comments: (task.comments || []).map(c => c.id === editingCommentId ? { ...c, text: editingCommentText.trim(), editedAt: new Date().toISOString() } : c) }); setEditingCommentId(null); setEditingCommentText(''); };
   const deleteComment = (commentId) => { if (confirm('Usunąć?')) updateTask(task.id, { comments: (task.comments || []).filter(c => c.id !== commentId) }); };
-  const save = () => { updateTask(task.id, { title: form.title, description: form.description, links: form.links }); setEditing(false); };
+  const save = () => { updateTask(task.id, { title: form.title, description: form.description }); setEditing(false); };
   const addSubtask = () => { if (!newSubtask.trim()) return; updateTask(task.id, { subtasks: [...subtasks, { id: generateId(), title: newSubtask.trim(), assignee: subtaskAssignee || null, status: 'open', createdAt: new Date().toISOString() }] }); setNewSubtask(''); setSubtaskAssignee(''); setShowSubtaskForm(false); };
   const toggleSubtask = (subId) => { updateTask(task.id, { subtasks: subtasks.map(s => s.id === subId ? { ...s, status: s.status === 'open' ? 'closed' : 'open' } : s) }); };
   const deleteSubtask = (subId) => { updateTask(task.id, { subtasks: subtasks.filter(s => s.id !== subId) }); };
   const updateSubtaskAssignee = (subId, assigneeId) => { updateTask(task.id, { subtasks: subtasks.map(s => s.id === subId ? { ...s, assignee: assigneeId || null } : s) }); };
-
-  // Update form when task changes
-  useEffect(() => {
-    setForm({ title: task.title, description: task.description || '', links: task.links || '' });
-  }, [task.id, task.title, task.description, task.links]);
 
   return (
     <aside className="w-[640px] bg-white border-l flex flex-col overflow-hidden flex-shrink-0" style={{ borderColor: '#e8eaed' }}>
@@ -691,17 +630,6 @@ function TaskDetail({ task, updateTask, deleteTask, onClose, currentUser, isMana
           <div className="space-y-3">
             <input type="text" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="w-full px-3 py-2 border rounded-lg text-lg font-medium transition-colors focus:border-blue-500" style={{ borderColor: '#dadce0', color: '#202124' }} />
             <RichTextEditor value={form.description} onChange={(v) => setForm({ ...form, description: v })} placeholder="Opis zadania..." minHeight="200px" />
-            <div>
-              <label className="text-sm font-medium block mb-1.5" style={{ color: '#202124' }}>Linki</label>
-              <textarea 
-                value={form.links} 
-                onChange={(e) => setForm({ ...form, links: e.target.value })} 
-                className="w-full px-3 py-2 border rounded-lg text-sm font-mono resize-none transition-colors focus:border-blue-500" 
-                style={{ borderColor: '#dadce0', color: '#202124' }}
-                rows={3}
-                placeholder="Wklej linki, jeden na linię..."
-              />
-            </div>
             <div className="flex gap-2">
               <button onClick={save} className="flex-1 py-2 rounded-lg font-medium text-sm" style={{ background: '#1a73e8', color: 'white' }}>Zapisz</button>
               <button onClick={() => setEditing(false)} className="flex-1 py-2 rounded-lg text-sm" style={{ background: '#f1f3f4', color: '#5f6368' }}>Anuluj</button>
@@ -715,7 +643,7 @@ function TaskDetail({ task, updateTask, deleteTask, onClose, currentUser, isMana
         )}
         
         {/* Clickable links */}
-        {task.links && !editing && (
+        {task.links && (
           <div>
             <label className="block mb-2 text-xs font-medium" style={{ color: '#5f6368' }}>Linki</label>
             <div className="rounded-lg border p-1" style={{ background: '#f8f9fa', borderColor: '#e8eaed' }}>
@@ -739,94 +667,9 @@ function TaskDetail({ task, updateTask, deleteTask, onClose, currentUser, isMana
         
         {/* Comments */}
         <div>
-          <div className="flex items-center justify-between mb-3">
-            <label className="text-sm font-medium" style={{ color: '#202124' }}>
-              Komentarze ({task.comments?.length || 0})
-              {externalComments.length > 0 && (
-                <span className="ml-2 text-xs px-2 py-0.5 rounded-full" style={{ background: '#fef7e0', color: '#b06000' }}>
-                  {externalComments.length} od {task.submittedBy || 'zewnętrznego'}
-                </span>
-              )}
-            </label>
-            {task.publicToken && (
-              <a 
-                href={`/task/${task.publicToken}`} 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="text-xs flex items-center gap-1 px-2 py-1 rounded hover:bg-gray-100"
-                style={{ color: '#1a73e8' }}
-              >
-                <ExternalLink size={12} /> Link publiczny
-              </a>
-            )}
-          </div>
-          <div className="space-y-3 mb-4">{task.comments?.map(c => { 
-            const isExternal = c.isExternal || c.author === 'external';
-            const author = !isExternal ? TEAM_MEMBERS.find(m => m.id === c.author) : null; 
-            const isMyComment = c.author === currentUser; 
-            
-            if (editingCommentId === c.id) return <div key={c.id} className="flex gap-3"><div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-medium flex-shrink-0" style={{ background: author?.color || '#9aa0a6' }}>{getInitials(author?.name || '?')}</div><div className="flex-1"><input type="text" value={editingCommentText} onChange={(e) => setEditingCommentText(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && saveCommentEdit()} className="w-full px-3 py-2 border rounded-lg text-sm mb-2 transition-colors focus:border-blue-500" style={{ borderColor: '#1a73e8' }} autoFocus /><div className="flex gap-2"><button onClick={saveCommentEdit} className="text-xs px-3 py-1 rounded-full font-medium" style={{ background: '#1a73e8', color: 'white' }}>Zapisz</button><button onClick={() => { setEditingCommentId(null); setEditingCommentText(''); }} className="text-xs px-3 py-1 rounded-full" style={{ color: '#5f6368' }}>Anuluj</button></div></div></div>; 
-            
-            return (
-              <div key={c.id} className={`flex gap-3 group ${isExternal ? 'flex-row-reverse' : ''}`}>
-                <div 
-                  className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-medium flex-shrink-0" 
-                  style={{ background: isExternal ? '#f59e0b' : (author?.color || '#9aa0a6') }}
-                >
-                  {isExternal ? '👤' : getInitials(author?.name || '?')}
-                </div>
-                <div className={`flex-1 ${isExternal ? 'text-right' : ''}`}>
-                  <div 
-                    className={`inline-block rounded-2xl px-4 py-2 max-w-[85%] ${isExternal ? 'rounded-tr-sm' : 'rounded-tl-sm'}`} 
-                    style={{ background: isExternal ? '#fef7e0' : '#f1f3f4' }}
-                  >
-                    <div className="flex items-center justify-between mb-1 gap-2">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium" style={{ color: '#202124' }}>
-                          {isExternal ? (c.authorName || task.submittedBy || 'Zewnętrzny') : (author?.name || 'Nieznany')}
-                        </span>
-                        {isExternal && (
-                          <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: '#fcd34d', color: '#92400e' }}>Zewnętrzny</span>
-                        )}
-                        <span className="text-xs" style={{ color: '#9aa0a6' }}>{formatDateTime(c.createdAt)}</span>
-                        {c.editedAt && <span className="text-xs italic" style={{ color: '#9aa0a6' }}>(edytowano)</span>}
-                      </div>
-                      {isMyComment && !isExternal && (
-                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button onClick={() => editComment(c.id)} className="p-1 rounded-full hover:bg-gray-200" style={{ color: '#5f6368' }}><Edit3 size={14} /></button>
-                          <button onClick={() => deleteComment(c.id)} className="p-1 rounded-full hover:bg-red-50" style={{ color: '#ea4335' }}><Trash2 size={14} /></button>
-                        </div>
-                      )}
-                    </div>
-                    <p className="text-sm" style={{ color: '#3c4043' }}>{c.text}</p>
-                  </div>
-                </div>
-              </div>
-            ); 
-          })}</div>
-          
-          {/* Comment input */}
-          <div className="space-y-2">
-            <div className="flex gap-2">
-              <input type="text" value={comment} onChange={(e) => setComment(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && addComment()} placeholder="Napisz komentarz..." className="flex-1 px-4 py-2.5 rounded-full text-sm transition-colors focus:border-blue-500" style={{ background: '#f1f3f4', border: '1px solid #e8eaed' }} />
-              <button onClick={addComment} disabled={sendingNotification} className="p-2.5 rounded-full transition-colors hover:shadow-md disabled:opacity-50" style={{ background: '#1a73e8', color: 'white' }}>
-                {sendingNotification ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
-              </button>
-            </div>
-            
-            {/* Notify requester checkbox for external tasks */}
-            {hasExternalRequester && (
-              <label className="flex items-center gap-2 text-xs cursor-pointer select-none" style={{ color: '#5f6368' }}>
-                <input 
-                  type="checkbox" 
-                  checked={notifyRequester} 
-                  onChange={(e) => setNotifyRequester(e.target.checked)}
-                  className="rounded"
-                />
-                <span>📧 Powiadom {task.submittedBy || 'zewnętrznego'} mailem ({task.submitterEmail})</span>
-              </label>
-            )}
-          </div>
+          <label className="block mb-3 text-sm font-medium" style={{ color: '#202124' }}>Komentarze ({task.comments?.length || 0})</label>
+          <div className="space-y-3 mb-4">{task.comments?.map(c => { const author = TEAM_MEMBERS.find(m => m.id === c.author); const isMyComment = c.author === currentUser; if (editingCommentId === c.id) return <div key={c.id} className="flex gap-3"><div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-medium flex-shrink-0" style={{ background: author?.color || '#9aa0a6' }}>{getInitials(author?.name || '?')}</div><div className="flex-1"><input type="text" value={editingCommentText} onChange={(e) => setEditingCommentText(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && saveCommentEdit()} className="w-full px-3 py-2 border rounded-lg text-sm mb-2 transition-colors focus:border-blue-500" style={{ borderColor: '#1a73e8' }} autoFocus /><div className="flex gap-2"><button onClick={saveCommentEdit} className="text-xs px-3 py-1 rounded-full font-medium" style={{ background: '#1a73e8', color: 'white' }}>Zapisz</button><button onClick={() => { setEditingCommentId(null); setEditingCommentText(''); }} className="text-xs px-3 py-1 rounded-full" style={{ color: '#5f6368' }}>Anuluj</button></div></div></div>; return <div key={c.id} className="flex gap-3 group"><div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-medium flex-shrink-0" style={{ background: author?.color || '#9aa0a6' }}>{getInitials(author?.name || '?')}</div><div className="flex-1"><div className="rounded-2xl px-4 py-2" style={{ background: '#f1f3f4' }}><div className="flex items-center justify-between mb-1"><div className="flex items-center gap-2"><span className="text-sm font-medium" style={{ color: '#202124' }}>{author?.name || 'Nieznany'}</span><span className="text-xs" style={{ color: '#9aa0a6' }}>{formatDateTime(c.createdAt)}</span>{c.editedAt && <span className="text-xs italic" style={{ color: '#9aa0a6' }}>(edytowano)</span>}</div>{isMyComment && <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"><button onClick={() => editComment(c.id)} className="p-1 rounded-full hover:bg-gray-200" style={{ color: '#5f6368' }}><Edit3 size={14} /></button><button onClick={() => deleteComment(c.id)} className="p-1 rounded-full hover:bg-red-50" style={{ color: '#ea4335' }}><Trash2 size={14} /></button></div>}</div><p className="text-sm" style={{ color: '#3c4043' }}>{c.text}</p></div></div></div>; })}</div>
+          <div className="flex gap-2"><input type="text" value={comment} onChange={(e) => setComment(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addComment()} placeholder="Napisz komentarz..." className="flex-1 px-4 py-2.5 rounded-full text-sm transition-colors focus:border-blue-500" style={{ background: '#f1f3f4', border: '1px solid #e8eaed' }} /><button onClick={addComment} className="p-2.5 rounded-full transition-colors hover:shadow-md" style={{ background: '#1a73e8', color: 'white' }}><Send size={18} /></button></div>
         </div>
         
         <div className="pt-4 border-t text-xs" style={{ borderColor: '#e8eaed', color: '#9aa0a6' }}><p>Utworzono: {formatDateTime(task.createdAt)}</p>{task.createdBy && <p>Przez: {TEAM_MEMBERS.find(m => m.id === task.createdBy)?.name}</p>}</div>
@@ -836,7 +679,7 @@ function TaskDetail({ task, updateTask, deleteTask, onClose, currentUser, isMana
 }
 
 function NewTaskModal({ onClose, onSave, currentUser }) {
-  const [form, setForm] = useState({ title: '', description: '', links: '', market: 'pl', status: 'open', assignees: [currentUser], comments: [] });
+  const [form, setForm] = useState({ title: '', description: '', market: 'pl', status: 'open', assignees: [currentUser], comments: [] });
   const toggle = (id) => setForm(p => ({ ...p, assignees: p.assignees.includes(id) ? p.assignees.filter(a => a !== id) : [...p.assignees, id] }));
   const save = () => { if (form.title.trim()) onSave(form); };
   
@@ -846,26 +689,7 @@ function NewTaskModal({ onClose, onSave, currentUser }) {
         <div className="p-5 border-b flex items-center justify-between" style={{ borderColor: '#e8eaed' }}><h3 className="text-lg font-medium" style={{ color: '#202124' }}>Nowe zadanie</h3><button onClick={onClose} className="p-1 rounded-full hover:bg-gray-100" style={{ color: '#5f6368' }}><X size={22} /></button></div>
         <div className="p-5 space-y-4">
           <div><label className="text-sm font-medium block mb-1.5" style={{ color: '#202124' }}>Tytuł *</label><input type="text" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="w-full px-4 py-2.5 border rounded-lg text-sm transition-colors focus:border-blue-500" style={{ borderColor: '#dadce0' }} placeholder="Co trzeba zrobić?" autoFocus /></div>
-          <div><label className="text-sm font-medium block mb-1.5" style={{ color: '#202124' }}>Opis</label><RichTextEditor value={form.description} onChange={(v) => setForm({ ...form, description: v })} placeholder="Szczegóły zadania..." minHeight="150px" /></div>
-          
-          {/* NEW: Links field */}
-          <div>
-            <label className="text-sm font-medium block mb-1.5" style={{ color: '#202124' }}>
-              <span className="flex items-center gap-2">
-                <Link2 size={16} style={{ color: '#5f6368' }} />
-                Linki
-              </span>
-            </label>
-            <textarea 
-              value={form.links} 
-              onChange={(e) => setForm({ ...form, links: e.target.value })} 
-              className="w-full px-4 py-2.5 border rounded-lg text-sm font-mono resize-none transition-colors focus:border-blue-500" 
-              style={{ borderColor: '#dadce0', color: '#202124' }}
-              rows={3}
-              placeholder="Wklej linki (Google Drive, Docs, Figma...), jeden na linię"
-            />
-          </div>
-          
+          <div><label className="text-sm font-medium block mb-1.5" style={{ color: '#202124' }}>Opis</label><RichTextEditor value={form.description} onChange={(v) => setForm({ ...form, description: v })} placeholder="Szczegóły zadania..." minHeight="200px" /></div>
           <div className="grid grid-cols-2 gap-4"><div><label className="text-sm font-medium block mb-1.5" style={{ color: '#202124' }}>Rynek</label><select value={form.market} onChange={(e) => setForm({ ...form, market: e.target.value })} className="w-full px-4 py-2.5 border rounded-lg text-sm" style={{ borderColor: '#dadce0' }}>{MARKETS.map(m => <option key={m.id} value={m.id}>{m.icon} {m.name}</option>)}</select></div><div><label className="text-sm font-medium block mb-1.5" style={{ color: '#202124' }}>Typ</label><select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })} className="w-full px-4 py-2.5 border rounded-lg text-sm" style={{ borderColor: '#dadce0' }}><option value="open">Otwarte</option><option value="longterm">Long-term</option></select></div></div>
           <div><label className="text-sm font-medium block mb-2" style={{ color: '#202124' }}>Przypisz do</label><div className="flex flex-wrap gap-2">{TEAM_MEMBERS.map(m => <button key={m.id} onClick={() => toggle(m.id)} className="flex items-center gap-2 px-3 py-2 rounded-full border text-sm transition-all" style={{ borderColor: form.assignees.includes(m.id) ? '#1a73e8' : '#dadce0', background: form.assignees.includes(m.id) ? '#e8f0fe' : 'white', color: form.assignees.includes(m.id) ? '#1a73e8' : '#202124' }}><div className="w-5 h-5 rounded-full flex items-center justify-center text-white text-xs font-medium" style={{ background: m.color }}>{getInitials(m.name)}</div><span>{m.name}</span>{form.assignees.includes(m.id) && <Check size={14} />}</button>)}</div></div>
         </div>
