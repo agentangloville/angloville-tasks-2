@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Plus, Check, X, Edit3, Trash2, CheckCircle, Circle, Send, MessageSquare, ChevronDown, ChevronRight, Clock, AlertCircle, ExternalLink, Copy, Languages, Loader2, ListTodo, Square, CheckSquare, Bold, Italic, List, ListOrdered, LogOut, Lock, GripVertical, Filter, Underline, AlignLeft, AlignCenter, AlignRight, Link2, Undo, Redo, Bell, BellOff } from 'lucide-react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { Plus, Check, X, Edit3, Trash2, CheckCircle, Circle, Send, MessageSquare, ChevronDown, ChevronRight, Clock, AlertCircle, ExternalLink, Copy, Languages, Loader2, ListTodo, Square, CheckSquare, Bold, Italic, List, ListOrdered, LogOut, Lock, GripVertical, Filter, Underline, AlignLeft, AlignCenter, AlignRight, Link2, Undo, Redo, Bell, BellOff, Inbox } from 'lucide-react';
 import { getTasks, createTask, updateTask as updateTaskDb, deleteTask as deleteTaskDb, getQuickLinks, createQuickLink, updateQuickLink, deleteQuickLink } from '../lib/supabase';
 
 const TEAM_MEMBERS = [
@@ -33,6 +33,53 @@ const getInitials = (name) => {
   return name[0];
 };
 
+// =============================================
+// UNREAD COMMENTS SYSTEM
+// =============================================
+const getReadTimestamps = (userId) => {
+  if (typeof window === 'undefined') return {};
+  try {
+    return JSON.parse(localStorage.getItem(`av_tasks_read_${userId}`) || '{}');
+  } catch { return {}; }
+};
+
+const setTaskRead = (taskId, userId) => {
+  if (typeof window === 'undefined') return;
+  const key = `av_tasks_read_${userId}`;
+  try {
+    const timestamps = JSON.parse(localStorage.getItem(key) || '{}');
+    timestamps[taskId] = new Date().toISOString();
+    localStorage.setItem(key, JSON.stringify(timestamps));
+  } catch {}
+};
+
+const getUnreadComments = (task, userId) => {
+  if (!task.comments || task.comments.length === 0) return [];
+  if (typeof window === 'undefined') return [];
+  
+  const key = `av_tasks_read_${userId}`;
+  try {
+    const timestamps = JSON.parse(localStorage.getItem(key) || '{}');
+    const lastRead = timestamps[task.id];
+    
+    if (!lastRead) {
+      // Never read - return comments from others
+      return task.comments.filter(c => c.author !== userId);
+    }
+    
+    const lastReadDate = new Date(lastRead);
+    return task.comments.filter(c => {
+      if (c.author === userId) return false;
+      const commentDate = new Date(c.createdAt);
+      return commentDate > lastReadDate;
+    });
+  } catch { return []; }
+};
+
+const getUnreadCount = (task, userId) => {
+  return getUnreadComments(task, userId).length;
+};
+
 // Push notification helpers
 const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
 
@@ -48,36 +95,22 @@ function urlBase64ToUint8Array(base64String) {
 }
 
 async function subscribeToPush(userId) {
-  if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-    console.log('Push notifications not supported');
-    return false;
-  }
-
-  if (!vapidPublicKey) {
-    console.log('VAPID key not configured');
-    return false;
-  }
-
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return false;
+  if (!vapidPublicKey) return false;
   try {
     const registration = await navigator.serviceWorker.ready;
-    
-    // Check existing subscription
     let subscription = await registration.pushManager.getSubscription();
-    
     if (!subscription) {
       subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
       });
     }
-
-    // Send subscription to server
     await fetch('/api/push/subscribe', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ userId, subscription: subscription.toJSON() }),
     });
-
     return true;
   } catch (error) {
     console.error('Push subscription error:', error);
@@ -89,7 +122,6 @@ async function unsubscribeFromPush(userId) {
   try {
     const registration = await navigator.serviceWorker.ready;
     const subscription = await registration.pushManager.getSubscription();
-    
     if (subscription) {
       await subscription.unsubscribe();
       await fetch('/api/push/subscribe', {
@@ -103,13 +135,6 @@ async function unsubscribeFromPush(userId) {
     console.error('Push unsubscribe error:', error);
     return false;
   }
-}
-
-// Helper to make links clickable
-function linkify(text) {
-  if (!text) return '';
-  const urlRegex = /(https?:\/\/[^\s<]+)/g;
-  return text.replace(urlRegex, (url) => `<a href="${url}" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:underline">${url}</a>`);
 }
 
 function ClickableLinks({ text }) {
@@ -131,10 +156,6 @@ function ClickableLinks({ text }) {
             else if (urlObj.hostname.includes('figma.com')) label = '🎨 Figma';
             else if (urlObj.hostname.includes('canva.com')) label = '🖼️ Canva';
             else if (urlObj.hostname.includes('notion.so')) label = '📝 Notion';
-            else if (urlObj.hostname.includes('trello.com')) label = '📋 Trello';
-            else if (urlObj.hostname.includes('asana.com')) label = '✅ Asana';
-            else if (urlObj.hostname.includes('github.com')) label = '💻 GitHub';
-            else if (urlObj.hostname.includes('youtube.com') || urlObj.hostname.includes('youtu.be')) label = '▶️ YouTube';
             else label = urlObj.hostname.replace('www.', '');
           } catch {}
           return (
@@ -192,7 +213,6 @@ function LoginScreen({ onLogin }) {
   );
 }
 
-// Google Docs style editor
 function RichTextEditor({ value, onChange, placeholder, minHeight = '150px' }) {
   const editorRef = useRef(null);
   
@@ -223,46 +243,14 @@ function RichTextEditor({ value, onChange, placeholder, minHeight = '150px' }) {
         <button type="button" onClick={() => execCommand('undo')} className="p-1.5 rounded hover:bg-gray-200" title="Cofnij"><Undo size={18} style={{ color: '#444746' }} /></button>
         <button type="button" onClick={() => execCommand('redo')} className="p-1.5 rounded hover:bg-gray-200" title="Ponów"><Redo size={18} style={{ color: '#444746' }} /></button>
         <div className="w-px h-5 mx-1.5" style={{ background: '#dadce0' }} />
-        <select onChange={(e) => execCommand('fontSize', e.target.value)} className="text-sm px-2 py-1 rounded bg-transparent hover:bg-gray-200 cursor-pointer" style={{ color: '#444746' }} defaultValue="3">
-          <option value="1">Mały</option>
-          <option value="2">Mniejszy</option>
-          <option value="3">Normalny</option>
-          <option value="4">Większy</option>
-          <option value="5">Duży</option>
-        </select>
-        <div className="w-px h-5 mx-1.5" style={{ background: '#dadce0' }} />
         <button type="button" onClick={() => execCommand('bold')} className="p-1.5 rounded hover:bg-gray-200" title="Pogrubienie"><Bold size={18} style={{ color: '#444746' }} /></button>
         <button type="button" onClick={() => execCommand('italic')} className="p-1.5 rounded hover:bg-gray-200" title="Kursywa"><Italic size={18} style={{ color: '#444746' }} /></button>
         <button type="button" onClick={() => execCommand('underline')} className="p-1.5 rounded hover:bg-gray-200" title="Podkreślenie"><Underline size={18} style={{ color: '#444746' }} /></button>
-        <div className="w-px h-5 mx-1.5" style={{ background: '#dadce0' }} />
-        <div className="relative group">
-          <button type="button" className="p-1.5 rounded hover:bg-gray-200 flex items-center" title="Kolor tekstu">
-            <span style={{ color: '#444746', fontSize: '16px', fontWeight: '600', borderBottom: '3px solid #000' }}>A</span>
-          </button>
-          <div className="absolute top-full left-0 mt-1 bg-white rounded-lg shadow-xl border p-2 hidden group-hover:grid grid-cols-5 gap-1 z-20" style={{ borderColor: '#dadce0' }}>
-            {['#000000', '#434343', '#666666', '#999999', '#1a73e8', '#ea4335', '#fbbc04', '#34a853', '#ff6d01', '#46bdc6', '#7baaf7', '#f07b72', '#fdd663', '#57bb8a', '#ff8a65', '#4dd0e1'].map(color => (
-              <button key={color} type="button" onClick={() => execCommand('foreColor', color)} className="w-6 h-6 rounded hover:scale-110 transition-transform" style={{ background: color }} />
-            ))}
-          </div>
-        </div>
-        <div className="relative group">
-          <button type="button" className="p-1.5 rounded hover:bg-gray-200 flex items-center" title="Wyróżnienie">
-            <span style={{ background: '#fcf3cf', color: '#444746', fontSize: '16px', fontWeight: '600', padding: '0 3px' }}>A</span>
-          </button>
-          <div className="absolute top-full left-0 mt-1 bg-white rounded-lg shadow-xl border p-2 hidden group-hover:grid grid-cols-4 gap-1 z-20" style={{ borderColor: '#dadce0' }}>
-            {['#ffffff', '#fcf3cf', '#d9ead3', '#c9daf8', '#fce5cd', '#f4cccc', '#d9d2e9', '#cfe2f3', '#ead1dc', '#fff2cc', '#d0e0e3', '#fce8e6'].map(color => (
-              <button key={color} type="button" onClick={() => execCommand('hiliteColor', color)} className="w-6 h-6 rounded border hover:scale-110 transition-transform" style={{ background: color, borderColor: '#dadce0' }} />
-            ))}
-          </div>
-        </div>
         <div className="w-px h-5 mx-1.5" style={{ background: '#dadce0' }} />
         <button type="button" onClick={insertLink} className="p-1.5 rounded hover:bg-gray-200" title="Wstaw link"><Link2 size={18} style={{ color: '#444746' }} /></button>
         <div className="w-px h-5 mx-1.5" style={{ background: '#dadce0' }} />
         <button type="button" onClick={() => execCommand('insertUnorderedList')} className="p-1.5 rounded hover:bg-gray-200" title="Lista punktowana"><List size={18} style={{ color: '#444746' }} /></button>
         <button type="button" onClick={() => execCommand('insertOrderedList')} className="p-1.5 rounded hover:bg-gray-200" title="Lista numerowana"><ListOrdered size={18} style={{ color: '#444746' }} /></button>
-        <div className="w-px h-5 mx-1.5" style={{ background: '#dadce0' }} />
-        <button type="button" onClick={() => execCommand('justifyLeft')} className="p-1.5 rounded hover:bg-gray-200" title="Do lewej"><AlignLeft size={18} style={{ color: '#444746' }} /></button>
-        <button type="button" onClick={() => execCommand('justifyCenter')} className="p-1.5 rounded hover:bg-gray-200" title="Wyśrodkuj"><AlignCenter size={18} style={{ color: '#444746' }} /></button>
         <button type="button" onClick={() => execCommand('removeFormat')} className="p-1.5 rounded hover:bg-gray-200 ml-auto" title="Usuń formatowanie"><X size={18} style={{ color: '#9aa0a6' }} /></button>
       </div>
       <div ref={editorRef} contentEditable onInput={handleChange} onBlur={handleChange} className="px-4 py-3 text-sm focus:outline-none overflow-y-auto" style={{ color: '#202124', minHeight, maxHeight: '400px', lineHeight: '1.6' }} data-placeholder={placeholder} suppressContentEditableWarning />
@@ -325,6 +313,19 @@ function SubtaskProgress({ subtasks }) {
 
 const generateId = () => Math.random().toString(36).substr(2, 9);
 const formatDateTime = (date) => new Date(date).toLocaleString('pl-PL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+const formatTimeAgo = (date) => {
+  const now = new Date();
+  const d = new Date(date);
+  const diffMs = now - d;
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+  if (diffMins < 1) return 'teraz';
+  if (diffMins < 60) return `${diffMins} min`;
+  if (diffHours < 24) return `${diffHours} godz.`;
+  if (diffDays < 7) return `${diffDays} dni`;
+  return d.toLocaleDateString('pl-PL', { day: 'numeric', month: 'short' });
+};
 
 async function sendEmailNotification(to, assigneeName, taskTitle, assignedBy) {
   try { await fetch('/api/notify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ to, assigneeName, taskTitle, assignedBy }) }); } catch (e) { console.log('Email skipped:', e); }
@@ -338,6 +339,109 @@ async function sendPushNotification(userIds, title, body, url = '/') {
       body: JSON.stringify({ userIds, title, body, url }) 
     }); 
   } catch (e) { console.log('Push skipped:', e); }
+}
+
+// =============================================
+// UNREAD COMMENTS SECTION
+// =============================================
+function UnreadCommentsSection({ tasks, currentUser, onSelectTask }) {
+  const [expanded, setExpanded] = useState(true);
+  
+  // Get tasks with unread comments for current user
+  const tasksWithUnread = useMemo(() => {
+    return tasks
+      .filter(task => {
+        // Only show tasks where user is assigned or created
+        const isInvolved = task.assignees?.includes(currentUser) || task.createdBy === currentUser;
+        if (!isInvolved) return false;
+        return getUnreadCount(task, currentUser) > 0;
+      })
+      .map(task => ({
+        ...task,
+        unreadComments: getUnreadComments(task, currentUser),
+        unreadCount: getUnreadCount(task, currentUser),
+      }))
+      .sort((a, b) => {
+        // Sort by most recent unread comment
+        const aLatest = a.unreadComments[a.unreadComments.length - 1]?.createdAt || '';
+        const bLatest = b.unreadComments[b.unreadComments.length - 1]?.createdAt || '';
+        return new Date(bLatest) - new Date(aLatest);
+      });
+  }, [tasks, currentUser]);
+
+  const totalUnread = tasksWithUnread.reduce((sum, t) => sum + t.unreadCount, 0);
+
+  if (totalUnread === 0) return null;
+
+  return (
+    <div className="mx-2 mt-3 rounded-lg overflow-hidden" style={{ background: '#fef7e0', border: '1px solid #feefc3' }}>
+      <button 
+        onClick={() => setExpanded(!expanded)} 
+        className="w-full px-3 py-2 flex items-center justify-between text-xs font-medium hover:bg-yellow-100 transition-colors"
+        style={{ color: '#b06000' }}
+      >
+        <div className="flex items-center gap-2">
+          <Inbox size={14} />
+          <span>Nieodczytane</span>
+          <span className="px-1.5 py-0.5 rounded-full text-xs font-bold" style={{ background: '#fbbc04', color: 'white' }}>
+            {totalUnread}
+          </span>
+        </div>
+        <ChevronDown size={14} className={`transition-transform ${expanded ? '' : '-rotate-90'}`} />
+      </button>
+      
+      {expanded && (
+        <div className="px-2 pb-2 max-h-64 overflow-y-auto">
+          <div className="space-y-1">
+            {tasksWithUnread.map(task => {
+              const latestComment = task.unreadComments[task.unreadComments.length - 1];
+              const author = TEAM_MEMBERS.find(m => m.id === latestComment?.author);
+              const authorName = latestComment?.author === 'external' 
+                ? (latestComment?.authorName || task.submittedBy || 'Zewnętrzny')
+                : (author?.name?.split(' ')[0] || 'Ktoś');
+              
+              return (
+                <button
+                  key={task.id}
+                  onClick={() => onSelectTask(task)}
+                  className="w-full text-left p-2 rounded-lg bg-white hover:bg-yellow-50 transition-colors group"
+                  style={{ border: '1px solid #feefc3' }}
+                >
+                  <div className="flex items-start gap-2">
+                    <div 
+                      className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-medium flex-shrink-0 mt-0.5"
+                      style={{ background: author?.color || '#5f6368' }}
+                    >
+                      {latestComment?.author === 'external' ? '👤' : getInitials(author?.name || '?')}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1 mb-0.5">
+                        <span className="text-xs font-medium truncate" style={{ color: '#202124' }}>
+                          {task.title}
+                        </span>
+                        {task.unreadCount > 1 && (
+                          <span className="text-xs px-1 rounded" style={{ background: '#fef7e0', color: '#b06000' }}>
+                            +{task.unreadCount}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs truncate" style={{ color: '#5f6368' }}>
+                        <span className="font-medium">{authorName}:</span>{' '}
+                        {latestComment?.text?.substring(0, 50)}{latestComment?.text?.length > 50 ? '...' : ''}
+                      </p>
+                      <p className="text-xs mt-0.5" style={{ color: '#9aa0a6' }}>
+                        {formatTimeAgo(latestComment?.createdAt)}
+                      </p>
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 // Quick Links Manager Component
@@ -382,17 +486,9 @@ function QuickLinksSection() {
       if (hostname.includes('sheets.google.com')) return '📊';
       if (hostname.includes('slides.google.com')) return '📽️';
       if (hostname.includes('drive.google.com')) return '📁';
-      if (hostname.includes('notion.so')) return '📝';
-      if (hostname.includes('figma.com')) return '🎨';
-      if (hostname.includes('miro.com')) return '🎯';
-      if (hostname.includes('trello.com')) return '📋';
-      if (hostname.includes('asana.com')) return '✅';
-      if (hostname.includes('slack.com')) return '💬';
-      if (hostname.includes('hubspot')) return '🟠';
       if (hostname.includes('lookerstudio') || hostname.includes('datastudio')) return '📈';
+      if (hostname.includes('hubspot')) return '🟠';
       if (hostname.includes('pipedrive')) return '🟢';
-      if (hostname.includes('mailchimp')) return '🐵';
-      if (hostname.includes('canva')) return '🎨';
       return '🔗';
     } catch { return '🔗'; }
   };
@@ -455,7 +551,6 @@ function QuickLinksSection() {
   );
 }
 
-// Push Notification Toggle Component
 function PushNotificationToggle({ userId }) {
   const [enabled, setEnabled] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -465,68 +560,42 @@ function PushNotificationToggle({ userId }) {
     const checkSupport = async () => {
       const isSupported = 'serviceWorker' in navigator && 'PushManager' in window && vapidPublicKey;
       setSupported(isSupported);
-      
       if (isSupported) {
         try {
-          // Register service worker
           await navigator.serviceWorker.register('/sw.js');
-          
           const registration = await navigator.serviceWorker.ready;
           const subscription = await registration.pushManager.getSubscription();
           setEnabled(!!subscription);
-        } catch (err) {
-          console.error('Error checking push status:', err);
-        }
+        } catch (err) { console.error('Error checking push status:', err); }
       }
       setLoading(false);
     };
-    
     checkSupport();
   }, []);
 
   const toggle = async () => {
     if (loading) return;
     setLoading(true);
-    
     try {
       if (enabled) {
         await unsubscribeFromPush(userId);
         setEnabled(false);
       } else {
-        // Request permission
         const permission = await Notification.requestPermission();
         if (permission === 'granted') {
           const success = await subscribeToPush(userId);
           setEnabled(success);
         }
       }
-    } catch (err) {
-      console.error('Toggle error:', err);
-    }
-    
+    } catch (err) { console.error('Toggle error:', err); }
     setLoading(false);
   };
 
   if (!supported) return null;
 
   return (
-    <button 
-      onClick={toggle}
-      disabled={loading}
-      className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs transition-colors w-full"
-      style={{ 
-        background: enabled ? '#e6f4ea' : '#f1f3f4',
-        color: enabled ? '#137333' : '#5f6368'
-      }}
-      title={enabled ? 'Wyłącz powiadomienia push' : 'Włącz powiadomienia push'}
-    >
-      {loading ? (
-        <Loader2 size={14} className="animate-spin" />
-      ) : enabled ? (
-        <Bell size={14} />
-      ) : (
-        <BellOff size={14} />
-      )}
+    <button onClick={toggle} disabled={loading} className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs transition-colors w-full" style={{ background: enabled ? '#e6f4ea' : '#f1f3f4', color: enabled ? '#137333' : '#5f6368' }} title={enabled ? 'Wyłącz powiadomienia push' : 'Włącz powiadomienia push'}>
+      {loading ? <Loader2 size={14} className="animate-spin" /> : enabled ? <Bell size={14} /> : <BellOff size={14} />}
       <span>{enabled ? 'Powiadomienia włączone' : 'Włącz powiadomienia'}</span>
     </button>
   );
@@ -546,6 +615,7 @@ export default function TaskApp() {
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [draggedTask, setDraggedTask] = useState(null);
   const [dragOverId, setDragOverId] = useState(null);
+  const [, forceUpdate] = useState(0); // For re-render after marking as read
 
   useEffect(() => { const savedUser = localStorage.getItem('av_tasks_user'); if (savedUser && TEAM_MEMBERS.find(m => m.id === savedUser)) setCurrentUser(savedUser); setCheckingAuth(false); }, []);
   
@@ -561,7 +631,6 @@ export default function TaskApp() {
   
   useEffect(() => { if (currentUser) loadTasks(); }, [currentUser]);
   
-  // Register service worker on login
   useEffect(() => {
     if (currentUser && 'serviceWorker' in navigator) {
       navigator.serviceWorker.register('/sw.js').catch(err => console.log('SW registration failed:', err));
@@ -569,6 +638,16 @@ export default function TaskApp() {
   }, [currentUser]);
   
   const handleLogout = () => { localStorage.removeItem('av_tasks_user'); setCurrentUser(null); setTasks([]); setSelectedTask(null); };
+
+  // Mark task as read when opening detail
+  const handleSelectTask = useCallback((task) => {
+    setSelectedTask(task);
+    if (currentUser && task) {
+      setTaskRead(task.id, currentUser);
+      // Force re-render to update unread counts
+      setTimeout(() => forceUpdate(n => n + 1), 100);
+    }
+  }, [currentUser]);
 
   if (checkingAuth) return <div className="min-h-screen flex items-center justify-center" style={{ background: '#f8f9fa' }}><Loader2 className="animate-spin" size={32} style={{ color: '#1a73e8' }} /></div>;
   if (!currentUser) return <LoginScreen onLogin={setCurrentUser} />;
@@ -611,7 +690,6 @@ export default function TaskApp() {
   
   const approveTask = async (task, assignees) => { 
     await updateTask(task.id, { status: 'open', assignees, approvedAt: new Date().toISOString(), approvedBy: currentUser }); 
-    // Send email only when task is assigned (per user request)
     for (const aId of assignees) { 
       const m = TEAM_MEMBERS.find(x => x.id === aId); 
       if (m) await sendEmailNotification(m.email, m.name, task.title, currentMember?.name); 
@@ -624,7 +702,6 @@ export default function TaskApp() {
     const created = await createTask(newTask); 
     if (created) await loadTasks(); 
     setShowNewTask(false); 
-    // Send email only when task is assigned (per user request)
     for (const aId of task.assignees || []) { 
       const m = TEAM_MEMBERS.find(x => x.id === aId); 
       if (m && m.id !== currentUser) await sendEmailNotification(m.email, m.name, task.title, currentMember?.name); 
@@ -682,6 +759,13 @@ export default function TaskApp() {
           )}
         </div>
 
+        {/* UNREAD COMMENTS SECTION */}
+        <UnreadCommentsSection 
+          tasks={tasks} 
+          currentUser={currentUser} 
+          onSelectTask={handleSelectTask}
+        />
+
         <div className="p-2 flex-1">
           <div className="space-y-0.5">
             {isManager && pendingTasks.length > 0 && (
@@ -718,7 +802,6 @@ export default function TaskApp() {
 
           {isManager && <QuickLinksSection />}
           
-          {/* Push Notification Toggle */}
           <div className="mx-2 mt-3">
             <PushNotificationToggle userId={currentUser} />
           </div>
@@ -765,7 +848,7 @@ export default function TaskApp() {
               ) : (
                 <div className="space-y-1">
                   {filteredTasks.map(t => (
-                    <TaskItem key={t.id} task={t} isSelected={selectedTask?.id === t.id} onClick={() => setSelectedTask(t)} onStatusChange={(s) => updateTask(t.id, { status: s })} onDragStart={handleDragStart} onDragOver={handleDragOver} onDrop={handleDrop} onDragEnd={handleDragEnd} isDragging={draggedTask?.id === t.id} dragOverId={dragOverId} />
+                    <TaskItem key={t.id} task={t} isSelected={selectedTask?.id === t.id} onClick={() => handleSelectTask(t)} onStatusChange={(s) => updateTask(t.id, { status: s })} onDragStart={handleDragStart} onDragOver={handleDragOver} onDrop={handleDrop} onDragEnd={handleDragEnd} isDragging={draggedTask?.id === t.id} dragOverId={dragOverId} currentUser={currentUser} />
                   ))}
                 </div>
               )}
@@ -774,7 +857,7 @@ export default function TaskApp() {
         </div>
       </main>
       
-      {selectedTask && <TaskDetail task={selectedTask} updateTask={updateTask} deleteTask={deleteTask} onClose={() => setSelectedTask(null)} currentUser={currentUser} isManager={isManager} />}
+      {selectedTask && <TaskDetail task={selectedTask} updateTask={updateTask} deleteTask={deleteTask} onClose={() => setSelectedTask(null)} currentUser={currentUser} isManager={isManager} onCommentAdded={() => forceUpdate(n => n + 1)} />}
       {showNewTask && <NewTaskModal onClose={() => setShowNewTask(false)} onSave={addTask} currentUser={currentUser} />}
     </div>
   );
@@ -802,12 +885,13 @@ function PendingView({ tasks, approveTask, deleteTask }) {
   );
 }
 
-function TaskItem({ task, isSelected, onClick, onStatusChange, onDragStart, onDragOver, onDrop, onDragEnd, isDragging, dragOverId }) {
+function TaskItem({ task, isSelected, onClick, onStatusChange, onDragStart, onDragOver, onDrop, onDragEnd, isDragging, dragOverId, currentUser }) {
   const market = MARKETS.find(m => m.id === task.market);
   const status = STATUSES.find(s => s.id === task.status);
   const Icon = status?.icon || Circle;
   const cycle = (e) => { e.stopPropagation(); onStatusChange(task.status === 'open' ? 'closed' : 'open'); };
   const isDropTarget = dragOverId === task.id;
+  const unreadCount = getUnreadCount(task, currentUser);
   
   return (
     <div onClick={onClick} draggable onDragStart={(e) => onDragStart(e, task)} onDragOver={(e) => onDragOver(e, task)} onDrop={(e) => onDrop(e, task)} onDragEnd={onDragEnd} className="bg-white rounded-lg px-3 py-2.5 cursor-pointer transition-all hover:shadow-sm border" style={{ borderColor: isSelected ? '#1a73e8' : isDropTarget ? '#4285f4' : '#e8eaed', opacity: isDragging ? 0.4 : 1, borderTopWidth: isDropTarget ? '3px' : '1px', borderTopColor: isDropTarget ? '#4285f4' : undefined }}>
@@ -817,6 +901,13 @@ function TaskItem({ task, isSelected, onClick, onStatusChange, onDragStart, onDr
         <span className="flex-shrink-0">{market?.icon}</span>
         <h4 className="font-medium text-sm flex-1 min-w-0 truncate" style={{ color: task.status === 'closed' ? '#9aa0a6' : '#202124', textDecoration: task.status === 'closed' ? 'line-through' : 'none' }}>{task.title}</h4>
         <div className="flex items-center gap-2 flex-shrink-0">
+          {/* Unread indicator */}
+          {unreadCount > 0 && (
+            <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs font-medium" style={{ background: '#fbbc04', color: 'white' }}>
+              <MessageSquare size={10} />
+              {unreadCount}
+            </span>
+          )}
           {task.isExternal && <ExternalLink size={12} style={{ color: '#fbbc04' }} />}
           {task.language === 'en' && <TranslateButton task={task} size="small" />}
           {task.status === 'longterm' && <span className="text-xs px-1.5 py-0.5 rounded-full" style={{ background: '#f3e8fd', color: '#a142f4' }}>LT</span>}
@@ -824,7 +915,7 @@ function TaskItem({ task, isSelected, onClick, onStatusChange, onDragStart, onDr
             {task.assignees?.slice(0, 3).map(aId => { const m = TEAM_MEMBERS.find(x => x.id === aId); return m && <div key={aId} className="w-5 h-5 rounded-full flex items-center justify-center text-white text-xs font-medium border border-white" style={{ background: m.color }} title={m.name}>{getInitials(m.name)}</div>; })}
             {task.assignees?.length > 3 && <div className="w-5 h-5 rounded-full flex items-center justify-center text-xs font-medium border border-white" style={{ background: '#e8eaed', color: '#5f6368' }}>+{task.assignees.length - 3}</div>}
           </div>
-          {task.comments?.length > 0 && <div className="flex items-center gap-0.5" style={{ color: '#9aa0a6' }}><MessageSquare size={12} /><span className="text-xs">{task.comments.length}</span></div>}
+          {task.comments?.length > 0 && !unreadCount && <div className="flex items-center gap-0.5" style={{ color: '#9aa0a6' }}><MessageSquare size={12} /><span className="text-xs">{task.comments.length}</span></div>}
           <SubtaskProgress subtasks={task.subtasks} />
           <ChevronRight size={16} style={{ color: '#dadce0' }} />
         </div>
@@ -833,7 +924,7 @@ function TaskItem({ task, isSelected, onClick, onStatusChange, onDragStart, onDr
   );
 }
 
-function TaskDetail({ task, updateTask, deleteTask, onClose, currentUser, isManager }) {
+function TaskDetail({ task, updateTask, deleteTask, onClose, currentUser, isManager, onCommentAdded }) {
   const [comment, setComment] = useState('');
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({ title: task.title, description: task.description || '' });
@@ -853,7 +944,6 @@ function TaskDetail({ task, updateTask, deleteTask, onClose, currentUser, isMana
 
   const generatePublicLink = async () => {
     if (task.publicToken) {
-      // Already has token, just copy
       const link = `${window.location.origin}/task/${task.publicToken}`;
       setPublicLink(link);
       navigator.clipboard.writeText(link);
@@ -861,7 +951,6 @@ function TaskDetail({ task, updateTask, deleteTask, onClose, currentUser, isMana
       setTimeout(() => setLinkCopied(false), 2000);
       return;
     }
-    
     setGeneratingLink(true);
     const newToken = Math.random().toString(36).substr(2, 12);
     await updateTask(task.id, { publicToken: newToken });
@@ -878,7 +967,6 @@ function TaskDetail({ task, updateTask, deleteTask, onClose, currentUser, isMana
     const newCommentObj = { id: generateId(), text: comment.trim(), author: currentUser, createdAt: new Date().toISOString() };
     updateTask(task.id, { comments: [...(task.comments || []), newCommentObj] }); 
     
-    // Send push notification to other assignees
     const otherAssignees = (task.assignees || []).filter(a => a !== currentUser);
     if (otherAssignees.length > 0) {
       sendPushNotification(
@@ -890,6 +978,7 @@ function TaskDetail({ task, updateTask, deleteTask, onClose, currentUser, isMana
     }
     
     setComment(''); 
+    if (onCommentAdded) onCommentAdded();
   };
   
   const editComment = (commentId) => { const c = task.comments?.find(x => x.id === commentId); if (c) { setEditingCommentId(commentId); setEditingCommentText(c.text); } };
