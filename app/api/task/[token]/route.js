@@ -5,42 +5,52 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
 );
 
-export async function GET(request, { params }) {
+export async function POST(request, { params }) {
   const { token } = params;
+  const { text } = await request.json();
 
-  if (!token) {
-    return Response.json({ error: 'Token required' }, { status: 400 });
+  if (!token || !text) {
+    return Response.json({ error: 'Token and text required' }, { status: 400 });
   }
 
   try {
-    const { data, error } = await supabase
+    // Get the task
+    const { data: task, error: fetchError } = await supabase
       .from('tasks')
       .select('*')
       .eq('public_token', token)
       .single();
 
-    if (error || !data) {
+    if (fetchError || !task) {
       return Response.json({ error: 'Task not found' }, { status: 404 });
     }
 
-    // Only return necessary fields for public view
-    const publicTask = {
-      id: data.id,
-      title: data.title,
-      description: data.description,
-      links: data.links,
-      market: data.market,
-      status: data.status,
-      assignees: data.assignees || [],
-      comments: data.comments || [],
-      submittedBy: data.submitted_by,
-      submitterEmail: data.submitter_email,
-      createdAt: data.created_at,
+    // Create new comment
+    const newComment = {
+      id: Math.random().toString(36).substr(2, 9),
+      text: text.trim(),
+      author: 'external',
+      authorName: task.submitted_by || 'External',
+      isExternal: true,
+      createdAt: new Date().toISOString(),
     };
 
-    return Response.json(publicTask);
+    // Update task with new comment
+    const updatedComments = [...(task.comments || []), newComment];
+    
+    const { error: updateError } = await supabase
+      .from('tasks')
+      .update({ comments: updatedComments })
+      .eq('id', task.id);
+
+    if (updateError) {
+      console.error('Error updating task:', updateError);
+      return Response.json({ error: 'Failed to add comment' }, { status: 500 });
+    }
+
+    return Response.json({ success: true });
   } catch (err) {
-    console.error('Error fetching task:', err);
+    console.error('Error adding comment:', err);
     return Response.json({ error: 'Server error' }, { status: 500 });
   }
 }
