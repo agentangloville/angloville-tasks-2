@@ -17,7 +17,12 @@ const MARKETS = [
   { id: 'pl', name: 'Polska', icon: '🇵🇱' },
   { id: 'ns', name: 'Native Speakers', icon: '🇬🇧' },
   { id: 'it', name: 'Włochy', icon: '🇮🇹' },
-  { id: 'exchange', name: 'Wymiana', icon: '🇺🇸' },
+  { id: 'exchange', name: 'Wymiana', icon: '🎓' },
+];
+
+const PL_SUBCATEGORIES = [
+  { id: 'adult', name: 'Adult', color: '#1a73e8', bg: '#e8f0fe' },
+  { id: 'junior', name: 'Junior', color: '#e91e63', bg: '#fce4ec' },
 ];
 
 const STATUSES = [
@@ -1076,6 +1081,10 @@ function TaskItem({ task, isSelected, onClick, onStatusChange, onDragStart, onDr
           {task.isExternal && <ExternalLink size={12} style={{ color: '#fbbc04' }} />}
           {task.language === 'en' && <TranslateButton task={task} size="small" />}
           {task.status === 'longterm' && <span className="text-xs px-1.5 py-0.5 rounded-full" style={{ background: '#f3e8fd', color: '#a142f4' }}>LT</span>}
+          {task.market === 'pl' && task.subcategory && (() => {
+            const subcat = PL_SUBCATEGORIES.find(s => s.id === task.subcategory);
+            return subcat && <span className="text-xs px-1.5 py-0.5 rounded-full font-medium" style={{ background: subcat.bg, color: subcat.color }}>{subcat.name}</span>;
+          })()}
           <div className="flex -space-x-1">
             {task.assignees?.slice(0, 3).map(aId => { const m = TEAM_MEMBERS.find(x => x.id === aId); return m && <div key={aId} className="w-5 h-5 rounded-full flex items-center justify-center text-white text-xs font-medium border border-white" style={{ background: m.color }} title={m.name}>{getInitials(m.name)}</div>; })}
             {task.assignees?.length > 3 && <div className="w-5 h-5 rounded-full flex items-center justify-center text-xs font-medium border border-white" style={{ background: '#e8eaed', color: '#5f6368' }}>+{task.assignees.length - 3}</div>}
@@ -1220,6 +1229,18 @@ function TaskDetail({ task, updateTask, deleteTask, onClose, currentUser, isMana
         
         <div><label className="block mb-2 text-sm font-medium" style={{ color: '#202124' }}>Status</label><div className="flex flex-wrap gap-2">{STATUSES.filter(s => s.id !== 'pending').map(s => <button key={s.id} onClick={() => updateTask(task.id, { status: s.id })} className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all" style={{ background: task.status === s.id ? s.bg : '#f1f3f4', color: task.status === s.id ? s.color : '#5f6368', border: task.status === s.id ? `2px solid ${s.color}` : '2px solid transparent' }}><s.icon size={16} /> {s.name}</button>)}</div></div>
         
+        {task.market === 'pl' && (
+          <div>
+            <label className="block mb-2 text-sm font-medium" style={{ color: '#202124' }}>Podkategoria</label>
+            <div className="flex flex-wrap gap-2">
+              <button onClick={() => updateTask(task.id, { subcategory: null })} className="px-4 py-2 rounded-full text-sm font-medium transition-all" style={{ background: !task.subcategory ? '#f1f3f4' : 'white', color: '#5f6368', border: !task.subcategory ? '2px solid #5f6368' : '2px solid #dadce0' }}>Brak</button>
+              {PL_SUBCATEGORIES.map(s => (
+                <button key={s.id} onClick={() => updateTask(task.id, { subcategory: s.id })} className="px-4 py-2 rounded-full text-sm font-medium transition-all" style={{ background: task.subcategory === s.id ? s.bg : 'white', color: task.subcategory === s.id ? s.color : '#5f6368', border: task.subcategory === s.id ? `2px solid ${s.color}` : '2px solid #dadce0' }}>{s.name}</button>
+              ))}
+            </div>
+          </div>
+        )}
+        
         <div><label className="block mb-2 text-sm font-medium" style={{ color: '#202124' }}>Przypisani</label><div className="flex flex-wrap gap-2">{task.assignees?.map(aId => { const m = TEAM_MEMBERS.find(x => x.id === aId); return m && <div key={aId} className="flex items-center gap-2 rounded-full px-3 py-1.5" style={{ background: '#f1f3f4' }}><div className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-medium" style={{ background: m.color }}>{getInitials(m.name)}</div><span className="text-sm" style={{ color: '#202124' }}>{m.name}</span>{canEdit && <button onClick={() => updateTask(task.id, { assignees: task.assignees.filter(a => a !== aId) })} className="hover:text-red-500 transition-colors" style={{ color: '#9aa0a6' }}><X size={14} /></button>}</div>; })}{canEdit && <select onChange={(e) => { if (e.target.value && !task.assignees?.includes(e.target.value)) { updateTask(task.id, { assignees: [...(task.assignees || []), e.target.value] }); const m = TEAM_MEMBERS.find(x => x.id === e.target.value); if (m) sendEmailNotification(m.email, m.name, task.title, me?.name); } e.target.value = ''; }} className="rounded-full px-3 py-1.5 text-sm cursor-pointer" style={{ background: '#f1f3f4', border: '1px dashed #dadce0', color: '#5f6368' }} defaultValue=""><option value="">+ Dodaj</option>{TEAM_MEMBERS.filter(m => !task.assignees?.includes(m.id)).map(m => <option key={m.id} value={m.id}>{m.name}</option>)}</select>}</div></div>
         
         <div>
@@ -1248,7 +1269,7 @@ function TaskDetail({ task, updateTask, deleteTask, onClose, currentUser, isMana
 }
 
 function NewTaskModal({ onClose, onSave, currentUser }) {
-  const [form, setForm] = useState({ title: '', description: '', market: 'pl', status: 'open', assignees: [currentUser], comments: [] });
+  const [form, setForm] = useState({ title: '', description: '', market: 'pl', subcategory: '', status: 'open', assignees: [currentUser], comments: [] });
   const toggle = (id) => setForm(p => ({ ...p, assignees: p.assignees.includes(id) ? p.assignees.filter(a => a !== id) : [...p.assignees, id] }));
   const save = () => { if (form.title.trim()) onSave(form); };
   
@@ -1259,7 +1280,27 @@ function NewTaskModal({ onClose, onSave, currentUser }) {
         <div className="p-5 space-y-4">
           <div><label className="text-sm font-medium block mb-1.5" style={{ color: '#202124' }}>Tytuł *</label><input type="text" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="w-full px-4 py-2.5 border rounded-lg text-sm transition-colors focus:border-blue-500" style={{ borderColor: '#dadce0' }} placeholder="Co trzeba zrobić?" autoFocus /></div>
           <div><label className="text-sm font-medium block mb-1.5" style={{ color: '#202124' }}>Opis</label><RichTextEditor value={form.description} onChange={(v) => setForm({ ...form, description: v })} placeholder="Szczegóły zadania..." minHeight="200px" /></div>
-          <div className="grid grid-cols-2 gap-4"><div><label className="text-sm font-medium block mb-1.5" style={{ color: '#202124' }}>Rynek</label><select value={form.market} onChange={(e) => setForm({ ...form, market: e.target.value })} className="w-full px-4 py-2.5 border rounded-lg text-sm" style={{ borderColor: '#dadce0' }}>{MARKETS.map(m => <option key={m.id} value={m.id}>{m.icon} {m.name}</option>)}</select></div><div><label className="text-sm font-medium block mb-1.5" style={{ color: '#202124' }}>Typ</label><select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })} className="w-full px-4 py-2.5 border rounded-lg text-sm" style={{ borderColor: '#dadce0' }}><option value="open">Otwarte</option><option value="longterm">Long-term</option></select></div></div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="text-sm font-medium block mb-1.5" style={{ color: '#202124' }}>Rynek</label>
+              <select value={form.market} onChange={(e) => setForm({ ...form, market: e.target.value, subcategory: e.target.value === 'pl' ? form.subcategory : '' })} className="w-full px-4 py-2.5 border rounded-lg text-sm" style={{ borderColor: '#dadce0' }}>{MARKETS.map(m => <option key={m.id} value={m.id}>{m.icon} {m.name}</option>)}</select>
+            </div>
+            <div>
+              <label className="text-sm font-medium block mb-1.5" style={{ color: '#202124' }}>Typ</label>
+              <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })} className="w-full px-4 py-2.5 border rounded-lg text-sm" style={{ borderColor: '#dadce0' }}><option value="open">Otwarte</option><option value="longterm">Long-term</option></select>
+            </div>
+          </div>
+          {form.market === 'pl' && (
+            <div>
+              <label className="text-sm font-medium block mb-1.5" style={{ color: '#202124' }}>Podkategoria</label>
+              <div className="flex gap-2">
+                <button type="button" onClick={() => setForm({ ...form, subcategory: '' })} className="px-4 py-2 rounded-full text-sm font-medium transition-all" style={{ background: !form.subcategory ? '#f1f3f4' : 'white', color: '#5f6368', border: !form.subcategory ? '2px solid #5f6368' : '2px solid #dadce0' }}>Brak</button>
+                {PL_SUBCATEGORIES.map(s => (
+                  <button key={s.id} type="button" onClick={() => setForm({ ...form, subcategory: s.id })} className="px-4 py-2 rounded-full text-sm font-medium transition-all" style={{ background: form.subcategory === s.id ? s.bg : 'white', color: form.subcategory === s.id ? s.color : '#5f6368', border: form.subcategory === s.id ? `2px solid ${s.color}` : '2px solid #dadce0' }}>{s.name}</button>
+                ))}
+              </div>
+            </div>
+          )}
           <div><label className="text-sm font-medium block mb-2" style={{ color: '#202124' }}>Przypisz do</label><div className="flex flex-wrap gap-2">
             {/* All team members can be assigned (including manager) */}
             {TEAM_MEMBERS.map(m => <button key={m.id} onClick={() => toggle(m.id)} className="flex items-center gap-2 px-3 py-2 rounded-full border text-sm transition-all" style={{ borderColor: form.assignees.includes(m.id) ? '#1a73e8' : '#dadce0', background: form.assignees.includes(m.id) ? '#e8f0fe' : 'white', color: form.assignees.includes(m.id) ? '#1a73e8' : '#202124' }}><div className="w-5 h-5 rounded-full flex items-center justify-center text-white text-xs font-medium" style={{ background: m.color }}>{getInitials(m.name)}</div><span>{m.name}</span>{form.assignees.includes(m.id) && <Check size={14} />}</button>)}
