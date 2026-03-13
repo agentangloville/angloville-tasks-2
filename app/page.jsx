@@ -53,13 +53,23 @@ const setTaskRead = (taskId, userId) => {
   } catch {}
 };
 
-const getUnreadComments = (task, userId) => {
-  if (!task.comments || task.comments.length === 0) return [];
-  if (typeof window === 'undefined') return [];
-  
+const setTaskUnread = (taskId, userId) => {
+  if (typeof window === 'undefined') return;
   const key = `av_tasks_read_${userId}`;
   try {
     const timestamps = JSON.parse(localStorage.getItem(key) || '{}');
+    // Set to very old date so all comments appear unread
+    delete timestamps[taskId];
+    localStorage.setItem(key, JSON.stringify(timestamps));
+  } catch {}
+};
+
+const getUnreadComments = (task, userId, readTimestamps = null) => {
+  if (!task.comments || task.comments.length === 0) return [];
+  if (typeof window === 'undefined') return [];
+  
+  try {
+    const timestamps = readTimestamps || getReadTimestamps(userId);
     const lastRead = timestamps[task.id];
     
     if (!lastRead) {
@@ -76,8 +86,8 @@ const getUnreadComments = (task, userId) => {
   } catch { return []; }
 };
 
-const getUnreadCount = (task, userId) => {
-  return getUnreadComments(task, userId).length;
+const getUnreadCount = (task, userId, readTimestamps = null) => {
+  return getUnreadComments(task, userId, readTimestamps).length;
 };
 
 // Push notification helpers
@@ -344,7 +354,7 @@ async function sendPushNotification(userIds, title, body, url = '/') {
 // =============================================
 // UNREAD COMMENTS SECTION
 // =============================================
-function UnreadCommentsSection({ tasks, currentUser, onSelectTask }) {
+function UnreadCommentsSection({ tasks, currentUser, onSelectTask, readTimestamps }) {
   const [expanded, setExpanded] = useState(true);
   
   // Get tasks with unread comments for current user
@@ -354,12 +364,12 @@ function UnreadCommentsSection({ tasks, currentUser, onSelectTask }) {
         // Only show tasks where user is assigned or created
         const isInvolved = task.assignees?.includes(currentUser) || task.createdBy === currentUser;
         if (!isInvolved) return false;
-        return getUnreadCount(task, currentUser) > 0;
+        return getUnreadCount(task, currentUser, readTimestamps) > 0;
       })
       .map(task => ({
         ...task,
-        unreadComments: getUnreadComments(task, currentUser),
-        unreadCount: getUnreadCount(task, currentUser),
+        unreadComments: getUnreadComments(task, currentUser, readTimestamps),
+        unreadCount: getUnreadCount(task, currentUser, readTimestamps),
       }))
       .sort((a, b) => {
         // Sort by most recent unread comment
@@ -367,7 +377,7 @@ function UnreadCommentsSection({ tasks, currentUser, onSelectTask }) {
         const bLatest = b.unreadComments[b.unreadComments.length - 1]?.createdAt || '';
         return new Date(bLatest) - new Date(aLatest);
       });
-  }, [tasks, currentUser]);
+  }, [tasks, currentUser, readTimestamps]);
 
   const totalUnread = tasksWithUnread.reduce((sum, t) => sum + t.unreadCount, 0);
 
@@ -615,7 +625,14 @@ export default function TaskApp() {
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [draggedTask, setDraggedTask] = useState(null);
   const [dragOverId, setDragOverId] = useState(null);
-  const [, forceUpdate] = useState(0); // For re-render after marking as read
+  const [readTimestamps, setReadTimestamps] = useState({});
+
+  // Load read timestamps on mount
+  useEffect(() => {
+    if (currentUser) {
+      setReadTimestamps(getReadTimestamps(currentUser));
+    }
+  }, [currentUser]);
 
   useEffect(() => { const savedUser = localStorage.getItem('av_tasks_user'); if (savedUser && TEAM_MEMBERS.find(m => m.id === savedUser)) setCurrentUser(savedUser); setCheckingAuth(false); }, []);
   
@@ -644,8 +661,24 @@ export default function TaskApp() {
     setSelectedTask(task);
     if (currentUser && task) {
       setTaskRead(task.id, currentUser);
-      // Force re-render to update unread counts
-      setTimeout(() => forceUpdate(n => n + 1), 100);
+      // Immediately update state to reflect the change
+      setReadTimestamps(prev => ({
+        ...prev,
+        [task.id]: new Date().toISOString()
+      }));
+    }
+  }, [currentUser]);
+
+  // Mark task as unread
+  const handleMarkUnread = useCallback((taskId) => {
+    if (currentUser) {
+      setTaskUnread(taskId, currentUser);
+      // Immediately update state
+      setReadTimestamps(prev => {
+        const newState = { ...prev };
+        delete newState[taskId];
+        return newState;
+      });
     }
   }, [currentUser]);
 
@@ -764,6 +797,7 @@ export default function TaskApp() {
           tasks={tasks} 
           currentUser={currentUser} 
           onSelectTask={handleSelectTask}
+          readTimestamps={readTimestamps}
         />
 
         <div className="p-2 flex-1">
@@ -848,7 +882,7 @@ export default function TaskApp() {
               ) : (
                 <div className="space-y-1">
                   {filteredTasks.map(t => (
-                    <TaskItem key={t.id} task={t} isSelected={selectedTask?.id === t.id} onClick={() => handleSelectTask(t)} onStatusChange={(s) => updateTask(t.id, { status: s })} onDragStart={handleDragStart} onDragOver={handleDragOver} onDrop={handleDrop} onDragEnd={handleDragEnd} isDragging={draggedTask?.id === t.id} dragOverId={dragOverId} currentUser={currentUser} />
+                    <TaskItem key={t.id} task={t} isSelected={selectedTask?.id === t.id} onClick={() => handleSelectTask(t)} onStatusChange={(s) => updateTask(t.id, { status: s })} onDragStart={handleDragStart} onDragOver={handleDragOver} onDrop={handleDrop} onDragEnd={handleDragEnd} isDragging={draggedTask?.id === t.id} dragOverId={dragOverId} currentUser={currentUser} readTimestamps={readTimestamps} />
                   ))}
                 </div>
               )}
@@ -857,7 +891,7 @@ export default function TaskApp() {
         </div>
       </main>
       
-      {selectedTask && <TaskDetail task={selectedTask} updateTask={updateTask} deleteTask={deleteTask} onClose={() => setSelectedTask(null)} currentUser={currentUser} isManager={isManager} onCommentAdded={() => forceUpdate(n => n + 1)} />}
+      {selectedTask && <TaskDetail task={selectedTask} updateTask={updateTask} deleteTask={deleteTask} onClose={() => setSelectedTask(null)} currentUser={currentUser} isManager={isManager} onMarkUnread={handleMarkUnread} readTimestamps={readTimestamps} />}
       {showNewTask && <NewTaskModal onClose={() => setShowNewTask(false)} onSave={addTask} currentUser={currentUser} />}
     </div>
   );
@@ -885,13 +919,13 @@ function PendingView({ tasks, approveTask, deleteTask }) {
   );
 }
 
-function TaskItem({ task, isSelected, onClick, onStatusChange, onDragStart, onDragOver, onDrop, onDragEnd, isDragging, dragOverId, currentUser }) {
+function TaskItem({ task, isSelected, onClick, onStatusChange, onDragStart, onDragOver, onDrop, onDragEnd, isDragging, dragOverId, currentUser, readTimestamps }) {
   const market = MARKETS.find(m => m.id === task.market);
   const status = STATUSES.find(s => s.id === task.status);
   const Icon = status?.icon || Circle;
   const cycle = (e) => { e.stopPropagation(); onStatusChange(task.status === 'open' ? 'closed' : 'open'); };
   const isDropTarget = dragOverId === task.id;
-  const unreadCount = getUnreadCount(task, currentUser);
+  const unreadCount = getUnreadCount(task, currentUser, readTimestamps);
   
   return (
     <div onClick={onClick} draggable onDragStart={(e) => onDragStart(e, task)} onDragOver={(e) => onDragOver(e, task)} onDrop={(e) => onDrop(e, task)} onDragEnd={onDragEnd} className="bg-white rounded-lg px-3 py-2.5 cursor-pointer transition-all hover:shadow-sm border" style={{ borderColor: isSelected ? '#1a73e8' : isDropTarget ? '#4285f4' : '#e8eaed', opacity: isDragging ? 0.4 : 1, borderTopWidth: isDropTarget ? '3px' : '1px', borderTopColor: isDropTarget ? '#4285f4' : undefined }}>
@@ -924,7 +958,7 @@ function TaskItem({ task, isSelected, onClick, onStatusChange, onDragStart, onDr
   );
 }
 
-function TaskDetail({ task, updateTask, deleteTask, onClose, currentUser, isManager, onCommentAdded }) {
+function TaskDetail({ task, updateTask, deleteTask, onClose, currentUser, isManager, onMarkUnread, readTimestamps }) {
   const [comment, setComment] = useState('');
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({ title: task.title, description: task.description || '' });
@@ -941,6 +975,7 @@ function TaskDetail({ task, updateTask, deleteTask, onClose, currentUser, isMana
   const me = TEAM_MEMBERS.find(m => m.id === currentUser);
   const subtasks = task.subtasks || [];
   const canEdit = isManager || task.createdBy === currentUser;
+  const hasUnread = getUnreadCount(task, currentUser, readTimestamps) > 0;
 
   const generatePublicLink = async () => {
     if (task.publicToken) {
@@ -978,7 +1013,6 @@ function TaskDetail({ task, updateTask, deleteTask, onClose, currentUser, isMana
     }
     
     setComment(''); 
-    if (onCommentAdded) onCommentAdded();
   };
   
   const editComment = (commentId) => { const c = task.comments?.find(x => x.id === commentId); if (c) { setEditingCommentId(commentId); setEditingCommentText(c.text); } };
@@ -1058,7 +1092,20 @@ function TaskDetail({ task, updateTask, deleteTask, onClose, currentUser, isMana
         <div><label className="block mb-2 text-sm font-medium" style={{ color: '#202124' }}>Przypisani</label><div className="flex flex-wrap gap-2">{task.assignees?.map(aId => { const m = TEAM_MEMBERS.find(x => x.id === aId); return m && <div key={aId} className="flex items-center gap-2 rounded-full px-3 py-1.5" style={{ background: '#f1f3f4' }}><div className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-medium" style={{ background: m.color }}>{getInitials(m.name)}</div><span className="text-sm" style={{ color: '#202124' }}>{m.name}</span>{canEdit && <button onClick={() => updateTask(task.id, { assignees: task.assignees.filter(a => a !== aId) })} className="hover:text-red-500 transition-colors" style={{ color: '#9aa0a6' }}><X size={14} /></button>}</div>; })}{canEdit && <select onChange={(e) => { if (e.target.value && !task.assignees?.includes(e.target.value)) { updateTask(task.id, { assignees: [...(task.assignees || []), e.target.value] }); const m = TEAM_MEMBERS.find(x => x.id === e.target.value); if (m) sendEmailNotification(m.email, m.name, task.title, me?.name); } e.target.value = ''; }} className="rounded-full px-3 py-1.5 text-sm cursor-pointer" style={{ background: '#f1f3f4', border: '1px dashed #dadce0', color: '#5f6368' }} defaultValue=""><option value="">+ Dodaj</option>{TEAM_MEMBERS.filter(m => !task.assignees?.includes(m.id)).map(m => <option key={m.id} value={m.id}>{m.name}</option>)}</select>}</div></div>
         
         <div>
-          <label className="block mb-3 text-sm font-medium" style={{ color: '#202124' }}>Komentarze ({task.comments?.length || 0})</label>
+          <div className="flex items-center justify-between mb-3">
+            <label className="text-sm font-medium" style={{ color: '#202124' }}>Komentarze ({task.comments?.length || 0})</label>
+            {!hasUnread && task.comments?.length > 0 && (
+              <button 
+                onClick={() => onMarkUnread(task.id)} 
+                className="text-xs flex items-center gap-1 px-2 py-1 rounded hover:bg-yellow-50 transition-colors"
+                style={{ color: '#b06000' }}
+                title="Oznacz jako nieprzeczytane"
+              >
+                <Inbox size={14} />
+                Oznacz nieprzeczytane
+              </button>
+            )}
+          </div>
           <div className="space-y-3 mb-4">{task.comments?.map(c => { const author = TEAM_MEMBERS.find(m => m.id === c.author); const isMyComment = c.author === currentUser; const isExternal = c.author === 'external' || c.isExternal; if (editingCommentId === c.id) return <div key={c.id} className="flex gap-3"><div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-medium flex-shrink-0" style={{ background: author?.color || '#9aa0a6' }}>{getInitials(author?.name || '?')}</div><div className="flex-1"><input type="text" value={editingCommentText} onChange={(e) => setEditingCommentText(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && saveCommentEdit()} className="w-full px-3 py-2 border rounded-lg text-sm mb-2 transition-colors focus:border-blue-500" style={{ borderColor: '#1a73e8' }} autoFocus /><div className="flex gap-2"><button onClick={saveCommentEdit} className="text-xs px-3 py-1 rounded-full font-medium" style={{ background: '#1a73e8', color: 'white' }}>Zapisz</button><button onClick={() => { setEditingCommentId(null); setEditingCommentText(''); }} className="text-xs px-3 py-1 rounded-full" style={{ color: '#5f6368' }}>Anuluj</button></div></div></div>; return <div key={c.id} className="flex gap-3 group"><div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-medium flex-shrink-0" style={{ background: isExternal ? '#5f6368' : (author?.color || '#9aa0a6') }}>{isExternal ? '👤' : getInitials(author?.name || '?')}</div><div className="flex-1"><div className="rounded-2xl px-4 py-2" style={{ background: isExternal ? '#e8f0fe' : '#f1f3f4' }}><div className="flex items-center justify-between mb-1"><div className="flex items-center gap-2"><span className="text-sm font-medium" style={{ color: '#202124' }}>{isExternal ? (c.authorName || task.submittedBy || 'Zewnętrzny') : (author?.name || 'Nieznany')}</span>{isExternal && <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: '#fbbc04', color: '#fff' }}>Zewnętrzny</span>}<span className="text-xs" style={{ color: '#9aa0a6' }}>{formatDateTime(c.createdAt)}</span>{c.editedAt && <span className="text-xs italic" style={{ color: '#9aa0a6' }}>(edytowano)</span>}</div>{isMyComment && <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"><button onClick={() => editComment(c.id)} className="p-1 rounded-full hover:bg-gray-200" style={{ color: '#5f6368' }}><Edit3 size={14} /></button><button onClick={() => deleteComment(c.id)} className="p-1 rounded-full hover:bg-red-50" style={{ color: '#ea4335' }}><Trash2 size={14} /></button></div>}</div><p className="text-sm" style={{ color: '#3c4043' }}>{c.text}</p></div></div></div>; })}</div>
           <div className="flex gap-2"><input type="text" value={comment} onChange={(e) => setComment(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addComment()} placeholder="Napisz komentarz..." className="flex-1 px-4 py-2.5 rounded-full text-sm transition-colors focus:border-blue-500" style={{ background: '#f1f3f4', border: '1px solid #e8eaed' }} /><button onClick={addComment} className="p-2.5 rounded-full transition-colors hover:shadow-md" style={{ background: '#1a73e8', color: 'white' }}><Send size={18} /></button></div>
         </div>
