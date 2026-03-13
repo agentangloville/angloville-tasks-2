@@ -50,7 +50,6 @@ function ClickableLinks({ text }) {
         const urlMatch = line.match(/(https?:\/\/[^\s]+)/);
         if (urlMatch) {
           const url = urlMatch[1];
-          // Try to extract a nice label from the URL
           let label = url;
           try {
             const urlObj = new URL(url);
@@ -156,7 +155,6 @@ function RichTextEditor({ value, onChange, placeholder, minHeight = '150px' }) {
   
   return (
     <div className="border rounded-lg overflow-hidden bg-white" style={{ borderColor: '#dadce0' }}>
-      {/* Google Docs style toolbar */}
       <div className="flex items-center gap-0.5 px-2 py-1.5 border-b flex-wrap" style={{ background: '#f1f3f4', borderColor: '#dadce0' }}>
         <button type="button" onClick={() => execCommand('undo')} className="p-1.5 rounded hover:bg-gray-200" title="Cofnij"><Undo size={18} style={{ color: '#444746' }} /></button>
         <button type="button" onClick={() => execCommand('redo')} className="p-1.5 rounded hover:bg-gray-200" title="Ponów"><Redo size={18} style={{ color: '#444746' }} /></button>
@@ -179,7 +177,6 @@ function RichTextEditor({ value, onChange, placeholder, minHeight = '150px' }) {
         
         <div className="w-px h-5 mx-1.5" style={{ background: '#dadce0' }} />
         
-        {/* Text color - Google style */}
         <div className="relative group">
           <button type="button" className="p-1.5 rounded hover:bg-gray-200 flex items-center" title="Kolor tekstu">
             <span style={{ color: '#444746', fontSize: '16px', fontWeight: '600', borderBottom: '3px solid #000' }}>A</span>
@@ -191,7 +188,6 @@ function RichTextEditor({ value, onChange, placeholder, minHeight = '150px' }) {
           </div>
         </div>
 
-        {/* Highlight - Google style */}
         <div className="relative group">
           <button type="button" className="p-1.5 rounded hover:bg-gray-200 flex items-center" title="Wyróżnienie">
             <span style={{ background: '#fcf3cf', color: '#444746', fontSize: '16px', fontWeight: '600', padding: '0 3px' }}>A</span>
@@ -283,14 +279,14 @@ function TranslationPopup({ title, description, onClose }) {
 function TranslateButton({ task, size = 'normal' }) {
   const [showPopup, setShowPopup] = useState(false);
   if (task.language !== 'en') return null;
-  return <><button onClick={(e) => { e.stopPropagation(); setShowPopup(true); }} className={`${size === 'small' ? 'p-1' : 'p-1.5'} rounded-full hover:bg-blue-50 transition-colors`} style={{ color: '#1a73e8' }} title="Przetłumacz na polski"><Languages size={size === 'small' ? 14 : 16} /></button>{showPopup && <TranslationPopup title={task.title} description={task.description} onClose={() => setShowPopup(false)} />}</>;
+  return <><button onClick={(e) => { e.stopPropagation(); setShowPopup(true); }} className={`${size === 'small' ? 'p-0.5' : 'p-1.5'} rounded-full hover:bg-blue-50 transition-colors`} style={{ color: '#1a73e8' }} title="Przetłumacz na polski"><Languages size={size === 'small' ? 14 : 16} /></button>{showPopup && <TranslationPopup title={task.title} description={task.description} onClose={() => setShowPopup(false)} />}</>;
 }
 
 function SubtaskProgress({ subtasks }) {
   if (!subtasks || subtasks.length === 0) return null;
   const done = subtasks.filter(s => s.status === 'closed').length;
   const total = subtasks.length;
-  return <div className="flex items-center gap-2" title={`${done}/${total} subtasków`}><div className="flex items-center gap-1" style={{ color: '#5f6368' }}><ListTodo size={14} /><span className="text-xs font-medium">{done}/{total}</span></div><div className="w-12 h-1.5 rounded-full overflow-hidden" style={{ background: '#e8eaed' }}><div className="h-full rounded-full transition-all" style={{ width: `${Math.round((done / total) * 100)}%`, background: done === total ? '#34a853' : '#1a73e8' }} /></div></div>;
+  return <div className="flex items-center gap-1.5" title={`${done}/${total} subtasków`}><ListTodo size={12} style={{ color: '#5f6368' }} /><span className="text-xs" style={{ color: '#5f6368' }}>{done}/{total}</span></div>;
 }
 
 const generateId = () => Math.random().toString(36).substr(2, 9);
@@ -313,6 +309,7 @@ export default function TaskApp() {
   const [copied, setCopied] = useState(false);
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [draggedTask, setDraggedTask] = useState(null);
+  const [dragOverId, setDragOverId] = useState(null);
 
   useEffect(() => { const savedUser = localStorage.getItem('av_tasks_user'); if (savedUser && TEAM_MEMBERS.find(m => m.id === savedUser)) setCurrentUser(savedUser); setCheckingAuth(false); }, []);
   
@@ -382,28 +379,67 @@ export default function TaskApp() {
     for (const aId of task.assignees || []) { const m = TEAM_MEMBERS.find(x => x.id === aId); if (m && m.id !== currentUser) await sendEmailNotification(m.email, m.name, task.title, currentMember?.name); } 
   };
 
-  const handleDragStart = (e, task) => { setDraggedTask(task); e.dataTransfer.effectAllowed = 'move'; };
-  const handleDragOver = (e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; };
+  // Improved drag & drop
+  const handleDragStart = (e, task) => { 
+    setDraggedTask(task); 
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', task.id);
+  };
+  
+  const handleDragOver = (e, targetTask) => { 
+    e.preventDefault(); 
+    e.dataTransfer.dropEffect = 'move';
+    if (draggedTask && targetTask.id !== draggedTask.id && targetTask.status === draggedTask.status) {
+      setDragOverId(targetTask.id);
+    }
+  };
+  
   const handleDrop = async (e, targetTask) => {
     e.preventDefault();
-    if (!draggedTask || draggedTask.id === targetTask.id) return;
-    if (draggedTask.status !== targetTask.status) return;
-    const statusTasks = tasks.filter(t => t.status === draggedTask.status);
+    setDragOverId(null);
+    
+    if (!draggedTask || draggedTask.id === targetTask.id) {
+      setDraggedTask(null);
+      return;
+    }
+    if (draggedTask.status !== targetTask.status) {
+      setDraggedTask(null);
+      return;
+    }
+    
+    const statusTasks = filteredTasks.filter(t => t.status === draggedTask.status);
     const draggedIndex = statusTasks.findIndex(t => t.id === draggedTask.id);
     const targetIndex = statusTasks.findIndex(t => t.id === targetTask.id);
+    
+    if (draggedIndex === -1 || targetIndex === -1) {
+      setDraggedTask(null);
+      return;
+    }
+    
     const newStatusTasks = [...statusTasks];
     newStatusTasks.splice(draggedIndex, 1);
     newStatusTasks.splice(targetIndex, 0, draggedTask);
+    
+    // Update local state immediately
     const updates = newStatusTasks.map((t, idx) => ({ id: t.id, order: idx }));
     setTasks(prev => {
       const otherTasks = prev.filter(t => t.status !== draggedTask.status);
       const reorderedTasks = newStatusTasks.map((t, idx) => ({ ...t, order: idx }));
       return [...otherTasks, ...reorderedTasks].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
     });
-    for (const u of updates) await updateTaskDb(u.id, { order: u.order });
+    
+    // Persist to database
+    for (const u of updates) {
+      await updateTaskDb(u.id, { order: u.order });
+    }
+    
     setDraggedTask(null);
   };
-  const handleDragEnd = () => { setDraggedTask(null); };
+  
+  const handleDragEnd = () => { 
+    setDraggedTask(null); 
+    setDragOverId(null);
+  };
 
   const formUrl = typeof window !== 'undefined' ? `${window.location.origin}/request` : '/request';
   const copyLink = () => { navigator.clipboard.writeText(formUrl); setCopied(true); setTimeout(() => setCopied(false), 2000); };
@@ -506,10 +542,21 @@ export default function TaskApp() {
               {filteredTasks.length === 0 ? (
                 <div className="text-center py-16"><CheckCircle size={48} className="mx-auto mb-4" style={{ color: '#34a853', opacity: 0.4 }} /><p style={{ color: '#5f6368' }}>Brak zadań do wyświetlenia</p></div>
               ) : (
-                <div className="space-y-2">
-                  <p className="text-xs mb-2 flex items-center gap-1" style={{ color: '#9aa0a6' }}><GripVertical size={12} />Przeciągnij aby zmienić kolejność</p>
+                <div className="space-y-1">
                   {filteredTasks.map(t => (
-                    <TaskItem key={t.id} task={t} isSelected={selectedTask?.id === t.id} onClick={() => setSelectedTask(t)} onStatusChange={(s) => updateTask(t.id, { status: s })} onDragStart={handleDragStart} onDragOver={handleDragOver} onDrop={handleDrop} onDragEnd={handleDragEnd} isDragging={draggedTask?.id === t.id} />
+                    <TaskItem 
+                      key={t.id} 
+                      task={t} 
+                      isSelected={selectedTask?.id === t.id} 
+                      onClick={() => setSelectedTask(t)} 
+                      onStatusChange={(s) => updateTask(t.id, { status: s })} 
+                      onDragStart={handleDragStart} 
+                      onDragOver={handleDragOver} 
+                      onDrop={handleDrop} 
+                      onDragEnd={handleDragEnd} 
+                      isDragging={draggedTask?.id === t.id}
+                      dragOverId={dragOverId}
+                    />
                   ))}
                 </div>
               )}
@@ -546,36 +593,54 @@ function PendingView({ tasks, approveTask, deleteTask }) {
   );
 }
 
-function TaskItem({ task, isSelected, onClick, onStatusChange, onDragStart, onDragOver, onDrop, onDragEnd, isDragging }) {
+// COMPACT TaskItem - single row, no description
+function TaskItem({ task, isSelected, onClick, onStatusChange, onDragStart, onDragOver, onDrop, onDragEnd, isDragging, dragOverId }) {
   const market = MARKETS.find(m => m.id === task.market);
   const status = STATUSES.find(s => s.id === task.status);
   const Icon = status?.icon || Circle;
   const cycle = (e) => { e.stopPropagation(); onStatusChange(task.status === 'open' ? 'closed' : 'open'); };
-  const plainDescription = task.description?.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+  const isDropTarget = dragOverId === task.id;
   
   return (
-    <div onClick={onClick} draggable onDragStart={(e) => onDragStart(e, task)} onDragOver={onDragOver} onDrop={(e) => onDrop(e, task)} onDragEnd={onDragEnd} className="bg-white rounded-xl p-4 cursor-pointer transition-all hover:shadow-md border" style={{ borderColor: isSelected ? '#1a73e8' : '#e8eaed', opacity: isDragging ? 0.5 : 1 }}>
-      <div className="flex items-start gap-3">
-        <div className="flex items-center gap-1">
-          <GripVertical size={16} style={{ color: '#dadce0' }} className="cursor-grab" />
-          <button onClick={cycle} className="hover:scale-110 transition-transform"><Icon size={20} style={{ color: status?.color }} className={task.status === 'closed' ? 'fill-current' : ''} /></button>
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1 flex-wrap">
-            <span>{market?.icon}</span>
-            <h4 className="font-medium" style={{ color: task.status === 'closed' ? '#9aa0a6' : '#202124', textDecoration: task.status === 'closed' ? 'line-through' : 'none' }}>{task.title}</h4>
-            {task.isExternal && <ExternalLink size={12} style={{ color: '#fbbc04' }} />}
-            {task.language === 'en' && <TranslateButton task={task} size="small" />}
-            {task.status === 'longterm' && <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: '#f3e8fd', color: '#a142f4' }}>Long-term</span>}
+    <div 
+      onClick={onClick} 
+      draggable 
+      onDragStart={(e) => onDragStart(e, task)} 
+      onDragOver={(e) => onDragOver(e, task)} 
+      onDrop={(e) => onDrop(e, task)} 
+      onDragEnd={onDragEnd} 
+      className="bg-white rounded-lg px-3 py-2.5 cursor-pointer transition-all hover:shadow-sm border" 
+      style={{ 
+        borderColor: isSelected ? '#1a73e8' : isDropTarget ? '#4285f4' : '#e8eaed', 
+        opacity: isDragging ? 0.4 : 1,
+        borderTopWidth: isDropTarget ? '3px' : '1px',
+        borderTopColor: isDropTarget ? '#4285f4' : undefined,
+      }}
+    >
+      <div className="flex items-center gap-2">
+        <GripVertical size={14} style={{ color: '#dadce0' }} className="cursor-grab flex-shrink-0" />
+        <button onClick={cycle} className="hover:scale-110 transition-transform flex-shrink-0">
+          <Icon size={18} style={{ color: status?.color }} className={task.status === 'closed' ? 'fill-current' : ''} />
+        </button>
+        <span className="flex-shrink-0">{market?.icon}</span>
+        <h4 className="font-medium text-sm flex-1 min-w-0 truncate" style={{ color: task.status === 'closed' ? '#9aa0a6' : '#202124', textDecoration: task.status === 'closed' ? 'line-through' : 'none' }}>
+          {task.title}
+        </h4>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {task.isExternal && <ExternalLink size={12} style={{ color: '#fbbc04' }} />}
+          {task.language === 'en' && <TranslateButton task={task} size="small" />}
+          {task.status === 'longterm' && <span className="text-xs px-1.5 py-0.5 rounded-full" style={{ background: '#f3e8fd', color: '#a142f4' }}>LT</span>}
+          <div className="flex -space-x-1">
+            {task.assignees?.slice(0, 3).map(aId => { 
+              const m = TEAM_MEMBERS.find(x => x.id === aId); 
+              return m && <div key={aId} className="w-5 h-5 rounded-full flex items-center justify-center text-white text-xs font-medium border border-white" style={{ background: m.color }} title={m.name}>{getInitials(m.name)}</div>; 
+            })}
+            {task.assignees?.length > 3 && <div className="w-5 h-5 rounded-full flex items-center justify-center text-xs font-medium border border-white" style={{ background: '#e8eaed', color: '#5f6368' }}>+{task.assignees.length - 3}</div>}
           </div>
-          {plainDescription && <p className="text-sm line-clamp-1 mb-2" style={{ color: '#5f6368' }}>{plainDescription}</p>}
-          <div className="flex items-center gap-3 flex-wrap">
-            <div className="flex -space-x-1">{task.assignees?.slice(0, 4).map(aId => { const m = TEAM_MEMBERS.find(x => x.id === aId); return m && <div key={aId} className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-medium border-2 border-white" style={{ background: m.color }} title={m.name}>{getInitials(m.name)}</div>; })}</div>
-            {task.comments?.length > 0 && <div className="flex items-center gap-1" style={{ color: '#9aa0a6' }}><MessageSquare size={14} /><span className="text-xs">{task.comments.length}</span></div>}
-            <SubtaskProgress subtasks={task.subtasks} />
-          </div>
+          {task.comments?.length > 0 && <div className="flex items-center gap-0.5" style={{ color: '#9aa0a6' }}><MessageSquare size={12} /><span className="text-xs">{task.comments.length}</span></div>}
+          <SubtaskProgress subtasks={task.subtasks} />
+          <ChevronRight size={16} style={{ color: '#dadce0' }} />
         </div>
-        <ChevronRight size={18} style={{ color: '#dadce0' }} />
       </div>
     </div>
   );
