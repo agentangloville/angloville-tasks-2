@@ -1283,14 +1283,11 @@ const [linkCopied, setLinkCopied] = useState(false);
 const [generatingLink, setGeneratingLink] = useState(false);
 
 // Aktualizuj publicLink gdy zmieni się task
-useEffect(() => {
-  if (task.publicToken) {
-    setPublicLink(`${typeof window !== 'undefined' ? window.location.origin : ''}/task/${task.publicToken}`);
-  } else {
-    setPublicLink('');
-  }
-  setLinkCopied(false);
-}, [task.id, task.publicToken]);
+{publicLink && (
+  <div className="px-4 py-2 border-b ..." style={{ background: '#e8f0fe' }}>
+    ...
+  </div>
+)}
   
   const market = MARKETS.find(m => m.id === task.market);
   const me = TEAM_MEMBERS.find(m => m.id === currentUser);
