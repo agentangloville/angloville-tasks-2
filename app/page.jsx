@@ -1278,9 +1278,19 @@ function TaskDetail({ task, updateTask, deleteTask, onClose, currentUser, isMana
   const [showSubtaskForm, setShowSubtaskForm] = useState(false);
   const [editingCommentId, setEditingCommentId] = useState(null);
   const [editingCommentText, setEditingCommentText] = useState('');
-  const [publicLink, setPublicLink] = useState(task.publicToken ? `${typeof window !== 'undefined' ? window.location.origin : ''}/task/${task.publicToken}` : '');
-  const [linkCopied, setLinkCopied] = useState(false);
-  const [generatingLink, setGeneratingLink] = useState(false);
+const [publicLink, setPublicLink] = useState('');
+const [linkCopied, setLinkCopied] = useState(false);
+const [generatingLink, setGeneratingLink] = useState(false);
+
+// Aktualizuj publicLink gdy zmieni się task
+useEffect(() => {
+  if (task.publicToken) {
+    setPublicLink(`${typeof window !== 'undefined' ? window.location.origin : ''}/task/${task.publicToken}`);
+  } else {
+    setPublicLink('');
+  }
+  setLinkCopied(false);
+}, [task.id, task.publicToken]);
   
   const market = MARKETS.find(m => m.id === task.market);
   const me = TEAM_MEMBERS.find(m => m.id === currentUser);
