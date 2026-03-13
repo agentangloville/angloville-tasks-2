@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Plus, Check, X, Edit3, Trash2, CheckCircle, Circle, Send, MessageSquare, ChevronDown, ChevronRight, Clock, AlertCircle, ExternalLink, Copy, Languages, Loader2, ListTodo, Square, CheckSquare, Bold, Italic, List, ListOrdered, LogOut, Lock, GripVertical, Filter, Underline, AlignLeft, AlignCenter, AlignRight, Link2, Heading1, Heading2, Quote, Code, Undo, Redo } from 'lucide-react';
-import { getTasks, createTask, updateTask as updateTaskDb, deleteTask as deleteTaskDb } from '../lib/supabase';
+import { getTasks, createTask, updateTask as updateTaskDb, deleteTask as deleteTaskDb, getQuickLinks, createQuickLink, updateQuickLink, deleteQuickLink } from '../lib/supabase';
 
 const TEAM_MEMBERS = [
   { id: 'edyta', name: 'Edyta Kędzior', email: 'e.kedzior@angloville.pl', isManager: true, color: '#4285f4', pin: '1234' },
@@ -296,6 +296,208 @@ async function sendEmailNotification(to, assigneeName, taskTitle, assignedBy) {
   try { await fetch('/api/notify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ to, assigneeName, taskTitle, assignedBy }) }); } catch (e) { console.log('Email skipped:', e); }
 }
 
+// Quick Links Manager Component - saves to Supabase
+function QuickLinksSection() {
+  const [links, setLinks] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [form, setForm] = useState({ name: '', url: '' });
+  const [expanded, setExpanded] = useState(true);
+
+  const loadLinks = async () => {
+    const data = await getQuickLinks();
+    setLinks(data);
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    loadLinks();
+  }, []);
+
+  const addLink = async () => {
+    if (!form.name.trim() || !form.url.trim()) return;
+    let url = form.url.trim();
+    if (!url.startsWith('http')) url = 'https://' + url;
+    
+    const newLink = await createQuickLink({ name: form.name.trim(), url });
+    if (newLink) {
+      setLinks([...links, newLink]);
+    }
+    setForm({ name: '', url: '' });
+    setShowAddForm(false);
+  };
+
+  const updateLink = async () => {
+    if (!form.name.trim() || !form.url.trim()) return;
+    let url = form.url.trim();
+    if (!url.startsWith('http')) url = 'https://' + url;
+    
+    const updated = await updateQuickLink(editingId, { name: form.name.trim(), url });
+    if (updated) {
+      setLinks(links.map(l => l.id === editingId ? { ...l, name: form.name.trim(), url } : l));
+    }
+    setForm({ name: '', url: '' });
+    setEditingId(null);
+  };
+
+  const removeLink = async (id) => {
+    const success = await deleteQuickLink(id);
+    if (success) {
+      setLinks(links.filter(l => l.id !== id));
+    }
+  };
+
+  const startEdit = (link) => {
+    setForm({ name: link.name, url: link.url });
+    setEditingId(link.id);
+    setShowAddForm(false);
+  };
+
+  const getLinkIcon = (url) => {
+    try {
+      const hostname = new URL(url).hostname;
+      if (hostname.includes('docs.google.com')) return '📄';
+      if (hostname.includes('sheets.google.com')) return '📊';
+      if (hostname.includes('slides.google.com')) return '📽️';
+      if (hostname.includes('drive.google.com')) return '📁';
+      if (hostname.includes('notion.so')) return '📝';
+      if (hostname.includes('figma.com')) return '🎨';
+      if (hostname.includes('miro.com')) return '🎯';
+      if (hostname.includes('trello.com')) return '📋';
+      if (hostname.includes('asana.com')) return '✅';
+      if (hostname.includes('slack.com')) return '💬';
+      if (hostname.includes('hubspot')) return '🟠';
+      if (hostname.includes('lookerstudio') || hostname.includes('datastudio')) return '📈';
+      if (hostname.includes('pipedrive')) return '🟢';
+      if (hostname.includes('mailchimp')) return '🐵';
+      if (hostname.includes('canva')) return '🎨';
+      return '🔗';
+    } catch { return '🔗'; }
+  };
+
+  return (
+    <div className="mx-2 mt-3 rounded-lg overflow-hidden" style={{ background: '#f8f9fa', border: '1px solid #e8eaed' }}>
+      <button 
+        onClick={() => setExpanded(!expanded)} 
+        className="w-full px-3 py-2 flex items-center justify-between text-xs font-medium hover:bg-gray-100 transition-colors"
+        style={{ color: '#5f6368' }}
+      >
+        <span>📌 Przydatne linki</span>
+        <ChevronDown size={14} className={`transition-transform ${expanded ? '' : '-rotate-90'}`} />
+      </button>
+      
+      {expanded && (
+        <div className="px-2 pb-2">
+          {/* Links list */}
+          {loading ? (
+            <div className="py-3 text-center">
+              <Loader2 size={16} className="animate-spin mx-auto" style={{ color: '#9aa0a6' }} />
+            </div>
+          ) : (
+            <div className="space-y-0.5 mb-2 max-h-64 overflow-y-auto">
+              {links.map(link => (
+                <div key={link.id} className="group flex items-center gap-1 rounded hover:bg-white transition-colors">
+                  {editingId === link.id ? (
+                    <div className="flex-1 p-1.5 space-y-1">
+                      <input
+                        type="text"
+                        value={form.name}
+                        onChange={(e) => setForm({ ...form, name: e.target.value })}
+                        placeholder="Nazwa"
+                        className="w-full px-2 py-1 text-xs rounded border"
+                        style={{ borderColor: '#dadce0' }}
+                        autoFocus
+                      />
+                      <input
+                        type="text"
+                        value={form.url}
+                        onChange={(e) => setForm({ ...form, url: e.target.value })}
+                        placeholder="URL"
+                        className="w-full px-2 py-1 text-xs rounded border font-mono"
+                        style={{ borderColor: '#dadce0' }}
+                      />
+                      <div className="flex gap-1">
+                        <button onClick={updateLink} className="flex-1 py-1 rounded text-xs font-medium" style={{ background: '#1a73e8', color: 'white' }}>Zapisz</button>
+                        <button onClick={() => { setEditingId(null); setForm({ name: '', url: '' }); }} className="px-2 py-1 rounded text-xs" style={{ color: '#5f6368' }}>✕</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <a
+                        href={link.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex-1 flex items-center gap-1.5 px-2 py-1.5 text-xs rounded hover:underline truncate"
+                        style={{ color: '#1a73e8' }}
+                        title={link.url}
+                      >
+                        <span>{getLinkIcon(link.url)}</span>
+                        <span className="truncate">{link.name}</span>
+                      </a>
+                      <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button onClick={() => startEdit(link)} className="p-1 rounded hover:bg-gray-200" style={{ color: '#5f6368' }}>
+                          <Edit3 size={12} />
+                        </button>
+                        <button onClick={() => removeLink(link.id)} className="p-1 rounded hover:bg-red-50" style={{ color: '#ea4335' }}>
+                          <X size={12} />
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              ))}
+              {links.length === 0 && !loading && (
+                <p className="text-xs text-center py-2" style={{ color: '#9aa0a6' }}>Brak linków</p>
+              )}
+            </div>
+          )}
+
+          {/* Add form */}
+          {showAddForm ? (
+            <div className="p-2 rounded-lg space-y-1.5" style={{ background: 'white', border: '1px solid #dadce0' }}>
+              <input
+                type="text"
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+                placeholder="Nazwa (np. Budget NS)"
+                className="w-full px-2 py-1.5 text-xs rounded border"
+                style={{ borderColor: '#dadce0' }}
+                autoFocus
+              />
+              <input
+                type="text"
+                value={form.url}
+                onChange={(e) => setForm({ ...form, url: e.target.value })}
+                placeholder="Link (wklej URL)"
+                className="w-full px-2 py-1.5 text-xs rounded border font-mono"
+                style={{ borderColor: '#dadce0' }}
+                onKeyDown={(e) => e.key === 'Enter' && addLink()}
+              />
+              <div className="flex gap-1">
+                <button onClick={addLink} className="flex-1 py-1.5 rounded text-xs font-medium" style={{ background: '#1a73e8', color: 'white' }}>
+                  Dodaj
+                </button>
+                <button onClick={() => { setShowAddForm(false); setForm({ name: '', url: '' }); }} className="px-3 py-1.5 rounded text-xs" style={{ background: '#f1f3f4', color: '#5f6368' }}>
+                  Anuluj
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button 
+              onClick={() => { setShowAddForm(true); setEditingId(null); }}
+              className="w-full py-1.5 rounded text-xs flex items-center justify-center gap-1 hover:bg-white transition-colors"
+              style={{ color: '#1a73e8', border: '1px dashed #dadce0' }}
+            >
+              <Plus size={12} /> Dodaj link
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function TaskApp() {
   const [currentUser, setCurrentUser] = useState(null);
   const [tasks, setTasks] = useState([]);
@@ -501,6 +703,9 @@ export default function TaskApp() {
               {copied ? <Check size={14} style={{ color: '#34a853' }} /> : <Copy size={14} style={{ color: '#5f6368' }} />}
             </button>
           </div>
+
+          {/* Quick Links Section - only for manager */}
+          {isManager && <QuickLinksSection />}
         </div>
 
         <div className="p-3 border-t" style={{ borderColor: '#e8eaed' }}>
