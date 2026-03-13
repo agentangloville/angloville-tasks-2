@@ -100,7 +100,7 @@ const getUnreadCount = (task, userId, readTimestamps = null) => {
 };
 
 // =============================================
-// NEW TASK NOTIFICATIONS SYSTEM
+// NEW TASKS NOTIFICATIONS SYSTEM
 // =============================================
 const getSeenTaskIds = (userId) => {
   if (typeof window === 'undefined') return [];
@@ -118,16 +118,6 @@ const markTaskAsSeen = (taskId, userId) => {
       seen.push(taskId);
       localStorage.setItem(key, JSON.stringify(seen));
     }
-  } catch {}
-};
-
-const markAllTasksAsSeen = (taskIds, userId) => {
-  if (typeof window === 'undefined') return;
-  const key = `av_tasks_seen_${userId}`;
-  try {
-    const seen = JSON.parse(localStorage.getItem(key) || '[]');
-    const newSeen = [...new Set([...seen, ...taskIds])];
-    localStorage.setItem(key, JSON.stringify(newSeen));
   } catch {}
 };
 
@@ -392,9 +382,6 @@ async function sendPushNotification(userIds, title, body, url = '/') {
   } catch (e) { console.log('Push skipped:', e); }
 }
 
-// =============================================
-// SEND COMPLETED EMAIL
-// =============================================
 async function sendCompletedEmail(task, completedByName) {
   if (!task.submitterEmail || !task.isExternal) {
     return { sent: false, error: 'Brak emaila zgłaszającego lub zadanie nie jest zewnętrzne' };
@@ -414,20 +401,13 @@ async function sendCompletedEmail(task, completedByName) {
     });
     
     const data = await response.json();
-    return { 
-      sent: data.success || false, 
-      messageId: data.messageId,
-      error: data.error 
-    };
+    return { sent: data.success || false, messageId: data.messageId, error: data.error };
   } catch (e) {
     console.error('Error sending completed email:', e);
     return { sent: false, error: e.message };
   }
 }
 
-// =============================================
-// EMAIL HISTORY SECTION
-// =============================================
 function EmailHistorySection({ task, currentUser, onResendEmail }) {
   const [resending, setResending] = useState(false);
   
@@ -453,7 +433,6 @@ function EmailHistorySection({ task, currentUser, onResendEmail }) {
         </div>
       </div>
       
-      {/* Email do zgłaszającego */}
       <div className="p-3 rounded-lg mb-3" style={{ background: '#f8f9fa' }}>
         <div className="flex items-center justify-between">
           <div>
@@ -468,90 +447,46 @@ function EmailHistorySection({ task, currentUser, onResendEmail }) {
         </div>
       </div>
       
-      {/* Historia emaili */}
       {emailHistory.length > 0 && (
         <div className="space-y-2 mb-3">
           <p className="text-xs font-medium" style={{ color: '#5f6368' }}>Historia wysyłek:</p>
           {emailHistory.map((email, idx) => {
             const typeInfo = EMAIL_TYPES[email.type] || EMAIL_TYPES.completed;
-            const TypeIcon = typeInfo.icon;
             const sender = TEAM_MEMBERS.find(m => m.id === email.sentBy);
             
             return (
               <div key={email.id || idx} className="flex items-center gap-2 p-2 rounded-lg" style={{ background: email.success ? '#e6f4ea' : '#fce8e6' }}>
-                {email.success ? (
-                  <MailCheck size={16} style={{ color: '#34a853' }} />
-                ) : (
-                  <MailX size={16} style={{ color: '#ea4335' }} />
-                )}
+                {email.success ? <MailCheck size={16} style={{ color: '#34a853' }} /> : <MailX size={16} style={{ color: '#ea4335' }} />}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="text-xs font-medium" style={{ color: email.success ? '#137333' : '#c5221f' }}>
-                      {typeInfo.label}
-                    </span>
-                    <span className="text-xs" style={{ color: '#5f6368' }}>
-                      → {email.sentTo}
-                    </span>
+                    <span className="text-xs font-medium" style={{ color: email.success ? '#137333' : '#c5221f' }}>{typeInfo.label}</span>
+                    <span className="text-xs" style={{ color: '#5f6368' }}>→ {email.sentTo}</span>
                   </div>
-                  <p className="text-xs" style={{ color: '#9aa0a6' }}>
-                    {formatDateTime(email.sentAt)} przez {sender?.name?.split(' ')[0] || 'System'}
-                  </p>
+                  <p className="text-xs" style={{ color: '#9aa0a6' }}>{formatDateTime(email.sentAt)} przez {sender?.name?.split(' ')[0] || 'System'}</p>
                 </div>
-                {email.success && (
-                  <CheckCircle size={14} style={{ color: '#34a853' }} />
-                )}
+                {email.success && <CheckCircle size={14} style={{ color: '#34a853' }} />}
               </div>
             );
           })}
         </div>
       )}
       
-      {/* Przycisk wysyłania */}
       {hasEmail && task.status === 'closed' && (
         <div className="flex items-center gap-2">
-          <button
-            onClick={handleResend}
-            disabled={resending}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors hover:shadow-sm disabled:opacity-50"
-            style={{ 
-              background: lastCompletedEmail?.success ? '#f1f3f4' : '#34a853', 
-              color: lastCompletedEmail?.success ? '#202124' : 'white' 
-            }}
-          >
-            {resending ? (
-              <Loader2 size={16} className="animate-spin" />
-            ) : (
-              <RefreshCw size={16} />
-            )}
+          <button onClick={handleResend} disabled={resending} className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors hover:shadow-sm disabled:opacity-50" style={{ background: lastCompletedEmail?.success ? '#f1f3f4' : '#34a853', color: lastCompletedEmail?.success ? '#202124' : 'white' }}>
+            {resending ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
             {lastCompletedEmail?.success ? 'Wyślij ponownie' : 'Wyślij email o zakończeniu'}
           </button>
-          
-          {lastCompletedEmail?.success && (
-            <span className="text-xs" style={{ color: '#34a853' }}>
-              ✓ Wysłano {formatTimeAgo(lastCompletedEmail.sentAt)}
-            </span>
-          )}
+          {lastCompletedEmail?.success && <span className="text-xs" style={{ color: '#34a853' }}>✓ Wysłano {formatTimeAgo(lastCompletedEmail.sentAt)}</span>}
         </div>
       )}
       
-      {hasEmail && task.status !== 'closed' && (
-        <p className="text-xs" style={{ color: '#9aa0a6' }}>
-          💡 Email o zakończeniu zostanie wysłany automatycznie po zamknięciu zadania
-        </p>
-      )}
-      
-      {!hasEmail && (
-        <p className="text-xs" style={{ color: '#ea4335' }}>
-          ⚠️ Brak adresu email - nie można wysłać powiadomienia
-        </p>
-      )}
+      {hasEmail && task.status !== 'closed' && <p className="text-xs" style={{ color: '#9aa0a6' }}>💡 Email o zakończeniu zostanie wysłany automatycznie po zamknięciu zadania</p>}
+      {!hasEmail && <p className="text-xs" style={{ color: '#ea4335' }}>⚠️ Brak adresu email - nie można wysłać powiadomienia</p>}
     </div>
   );
 }
 
-// =============================================
-// NEW TASKS SECTION (similar to unread comments)
-// =============================================
 function NewTasksSection({ tasks, currentUser, onSelectTask, seenTaskIds }) {
   const [expanded, setExpanded] = useState(true);
   
@@ -571,17 +506,11 @@ function NewTasksSection({ tasks, currentUser, onSelectTask, seenTaskIds }) {
 
   return (
     <div className="mx-2 mt-3 rounded-lg overflow-hidden" style={{ background: '#e8f0fe', border: '1px solid #c6dafc' }}>
-      <button 
-        onClick={() => setExpanded(!expanded)} 
-        className="w-full px-3 py-2 flex items-center justify-between text-xs font-medium hover:bg-blue-100 transition-colors"
-        style={{ color: '#1a73e8' }}
-      >
+      <button onClick={() => setExpanded(!expanded)} className="w-full px-3 py-2 flex items-center justify-between text-xs font-medium hover:bg-blue-100 transition-colors" style={{ color: '#1a73e8' }}>
         <div className="flex items-center gap-2">
           <Sparkles size={14} />
           <span>Nowe zadania</span>
-          <span className="px-1.5 py-0.5 rounded-full text-xs font-bold" style={{ background: '#1a73e8', color: 'white' }}>
-            {newTasks.length}
-          </span>
+          <span className="px-1.5 py-0.5 rounded-full text-xs font-bold" style={{ background: '#1a73e8', color: 'white' }}>{newTasks.length}</span>
         </div>
         <ChevronDown size={14} className={`transition-transform ${expanded ? '' : '-rotate-90'}`} />
       </button>
@@ -594,21 +523,12 @@ function NewTasksSection({ tasks, currentUser, onSelectTask, seenTaskIds }) {
               const market = MARKETS.find(m => m.id === task.market);
               
               return (
-                <button
-                  key={task.id}
-                  onClick={() => onSelectTask(task)}
-                  className="w-full text-left p-2 rounded-lg bg-white hover:bg-blue-50 transition-colors group"
-                  style={{ border: '1px solid #c6dafc' }}
-                >
+                <button key={task.id} onClick={() => onSelectTask(task)} className="w-full text-left p-2 rounded-lg bg-white hover:bg-blue-50 transition-colors group" style={{ border: '1px solid #c6dafc' }}>
                   <div className="flex items-start gap-2">
                     <span className="text-base flex-shrink-0">{market?.icon}</span>
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs font-medium truncate" style={{ color: '#202124' }}>
-                        {task.title}
-                      </p>
-                      <p className="text-xs" style={{ color: '#5f6368' }}>
-                        od {creator?.name?.split(' ')[0] || 'Ktoś'} • {formatTimeAgo(task.createdAt)}
-                      </p>
+                      <p className="text-xs font-medium truncate" style={{ color: '#202124' }}>{task.title}</p>
+                      <p className="text-xs" style={{ color: '#5f6368' }}>od {creator?.name?.split(' ')[0] || 'Ktoś'} • {formatTimeAgo(task.createdAt)}</p>
                     </div>
                   </div>
                 </button>
@@ -621,9 +541,6 @@ function NewTasksSection({ tasks, currentUser, onSelectTask, seenTaskIds }) {
   );
 }
 
-// =============================================
-// UNREAD COMMENTS SECTION
-// =============================================
 function UnreadCommentsSection({ tasks, currentUser, onSelectTask, readTimestamps }) {
   const [expanded, setExpanded] = useState(true);
   
@@ -652,17 +569,11 @@ function UnreadCommentsSection({ tasks, currentUser, onSelectTask, readTimestamp
 
   return (
     <div className="mx-2 mt-3 rounded-lg overflow-hidden" style={{ background: '#fef7e0', border: '1px solid #feefc3' }}>
-      <button 
-        onClick={() => setExpanded(!expanded)} 
-        className="w-full px-3 py-2 flex items-center justify-between text-xs font-medium hover:bg-yellow-100 transition-colors"
-        style={{ color: '#b06000' }}
-      >
+      <button onClick={() => setExpanded(!expanded)} className="w-full px-3 py-2 flex items-center justify-between text-xs font-medium hover:bg-yellow-100 transition-colors" style={{ color: '#b06000' }}>
         <div className="flex items-center gap-2">
           <Inbox size={14} />
           <span>Nieodczytane</span>
-          <span className="px-1.5 py-0.5 rounded-full text-xs font-bold" style={{ background: '#fbbc04', color: 'white' }}>
-            {totalUnread}
-          </span>
+          <span className="px-1.5 py-0.5 rounded-full text-xs font-bold" style={{ background: '#fbbc04', color: 'white' }}>{totalUnread}</span>
         </div>
         <ChevronDown size={14} className={`transition-transform ${expanded ? '' : '-rotate-90'}`} />
       </button>
@@ -673,42 +584,23 @@ function UnreadCommentsSection({ tasks, currentUser, onSelectTask, readTimestamp
             {tasksWithUnread.map(task => {
               const latestComment = task.unreadComments[task.unreadComments.length - 1];
               const author = TEAM_MEMBERS.find(m => m.id === latestComment?.author);
-              const authorName = latestComment?.author === 'external' 
-                ? (latestComment?.authorName || task.submittedBy || 'Zewnętrzny')
-                : (author?.name?.split(' ')[0] || 'Ktoś');
+              const authorName = latestComment?.author === 'external' ? (latestComment?.authorName || task.submittedBy || 'Zewnętrzny') : (author?.name?.split(' ')[0] || 'Ktoś');
               
               return (
-                <button
-                  key={task.id}
-                  onClick={() => onSelectTask(task)}
-                  className="w-full text-left p-2 rounded-lg bg-white hover:bg-yellow-50 transition-colors group"
-                  style={{ border: '1px solid #feefc3' }}
-                >
+                <button key={task.id} onClick={() => onSelectTask(task)} className="w-full text-left p-2 rounded-lg bg-white hover:bg-yellow-50 transition-colors group" style={{ border: '1px solid #feefc3' }}>
                   <div className="flex items-start gap-2">
-                    <div 
-                      className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-medium flex-shrink-0 mt-0.5"
-                      style={{ background: author?.color || '#5f6368' }}
-                    >
+                    <div className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-medium flex-shrink-0 mt-0.5" style={{ background: author?.color || '#5f6368' }}>
                       {latestComment?.author === 'external' ? '👤' : getInitials(author?.name || '?')}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1 mb-0.5">
-                        <span className="text-xs font-medium truncate" style={{ color: '#202124' }}>
-                          {task.title}
-                        </span>
-                        {task.unreadCount > 1 && (
-                          <span className="text-xs px-1 rounded" style={{ background: '#fef7e0', color: '#b06000' }}>
-                            +{task.unreadCount}
-                          </span>
-                        )}
+                        <span className="text-xs font-medium truncate" style={{ color: '#202124' }}>{task.title}</span>
+                        {task.unreadCount > 1 && <span className="text-xs px-1 rounded" style={{ background: '#fef7e0', color: '#b06000' }}>+{task.unreadCount}</span>}
                       </div>
                       <p className="text-xs truncate" style={{ color: '#5f6368' }}>
-                        <span className="font-medium">{authorName}:</span>{' '}
-                        {latestComment?.text?.substring(0, 50)}{latestComment?.text?.length > 50 ? '...' : ''}
+                        <span className="font-medium">{authorName}:</span> {latestComment?.text?.substring(0, 50)}{latestComment?.text?.length > 50 ? '...' : ''}
                       </p>
-                      <p className="text-xs mt-0.5" style={{ color: '#9aa0a6' }}>
-                        {formatTimeAgo(latestComment?.createdAt)}
-                      </p>
+                      <p className="text-xs mt-0.5" style={{ color: '#9aa0a6' }}>{formatTimeAgo(latestComment?.createdAt)}</p>
                     </div>
                   </div>
                 </button>
@@ -721,7 +613,6 @@ function UnreadCommentsSection({ tasks, currentUser, onSelectTask, readTimestamp
   );
 }
 
-// Quick Links Manager Component
 function QuickLinksSection({ currentUser }) {
   const [links, setLinks] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -730,12 +621,7 @@ function QuickLinksSection({ currentUser }) {
   const [form, setForm] = useState({ name: '', url: '' });
   const [expanded, setExpanded] = useState(true);
 
-  const loadLinks = async () => { 
-    const data = await getQuickLinks(currentUser); 
-    setLinks(data); 
-    setLoading(false); 
-  };
-  
+  const loadLinks = async () => { const data = await getQuickLinks(currentUser); setLinks(data); setLoading(false); };
   useEffect(() => { loadLinks(); }, [currentUser]);
 
   const addLink = async () => {
@@ -748,7 +634,7 @@ function QuickLinksSection({ currentUser }) {
     setShowAddForm(false);
   };
 
-  const updateLink = async () => {
+  const updateLinkItem = async () => {
     if (!form.name.trim() || !form.url.trim()) return;
     let url = form.url.trim();
     if (!url.startsWith('http')) url = 'https://' + url;
@@ -792,7 +678,7 @@ function QuickLinksSection({ currentUser }) {
                       <input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Nazwa" className="w-full px-2 py-1 text-xs rounded border" style={{ borderColor: '#dadce0' }} autoFocus />
                       <input type="text" value={form.url} onChange={(e) => setForm({ ...form, url: e.target.value })} placeholder="URL" className="w-full px-2 py-1 text-xs rounded border font-mono" style={{ borderColor: '#dadce0' }} />
                       <div className="flex gap-1">
-                        <button onClick={updateLink} className="flex-1 py-1 rounded text-xs font-medium" style={{ background: '#1a73e8', color: 'white' }}>Zapisz</button>
+                        <button onClick={updateLinkItem} className="flex-1 py-1 rounded text-xs font-medium" style={{ background: '#1a73e8', color: 'white' }}>Zapisz</button>
                         <button onClick={() => { setEditingId(null); setForm({ name: '', url: '' }); }} className="px-2 py-1 rounded text-xs" style={{ color: '#5f6368' }}>✕</button>
                       </div>
                     </div>
@@ -933,10 +819,7 @@ export default function TaskApp() {
     setSelectedTask(task);
     if (currentUser && task) {
       setTaskRead(task.id, currentUser);
-      setReadTimestamps(prev => ({
-        ...prev,
-        [task.id]: new Date().toISOString()
-      }));
+      setReadTimestamps(prev => ({ ...prev, [task.id]: new Date().toISOString() }));
       markTaskAsSeen(task.id, currentUser);
       setSeenTaskIds(prev => prev.includes(task.id) ? prev : [...prev, task.id]);
     }
@@ -945,11 +828,7 @@ export default function TaskApp() {
   const handleMarkUnread = useCallback((taskId) => {
     if (currentUser) {
       setTaskUnread(taskId, currentUser);
-      setReadTimestamps(prev => {
-        const newState = { ...prev };
-        delete newState[taskId];
-        return newState;
-      });
+      setReadTimestamps(prev => { const newState = { ...prev }; delete newState[taskId]; return newState; });
     }
   }, [currentUser]);
 
@@ -990,25 +869,11 @@ export default function TaskApp() {
     setTasks(prev => prev.map(t => t.id === id ? newTask : t)); 
     if (selectedTask?.id === id) setSelectedTask(newTask);
     
-    // Automatyczne wysyłanie emaila o zakończeniu
     if (updates.status === 'closed' && oldTask?.status !== 'closed' && oldTask?.isExternal && oldTask?.submitterEmail && !options.skipEmail) {
       const result = await sendCompletedEmail(oldTask, currentMember?.name);
-      
-      // Dodaj do historii emaili
-      const emailEntry = {
-        id: generateId(),
-        type: 'completed',
-        sentAt: new Date().toISOString(),
-        sentBy: currentUser,
-        sentTo: oldTask.submitterEmail,
-        success: result.sent,
-        messageId: result.messageId || null,
-        error: result.error || null,
-      };
-      
+      const emailEntry = { id: generateId(), type: 'completed', sentAt: new Date().toISOString(), sentBy: currentUser, sentTo: oldTask.submitterEmail, success: result.sent, messageId: result.messageId || null, error: result.error || null };
       updates.emailHistory = [...(oldTask.emailHistory || []), emailEntry];
       newTask.emailHistory = updates.emailHistory;
-      
       setTasks(prev => prev.map(t => t.id === id ? newTask : t)); 
       if (selectedTask?.id === id) setSelectedTask(newTask);
     }
@@ -1020,10 +885,7 @@ export default function TaskApp() {
   
   const approveTask = async (task, assignees) => { 
     await updateTask(task.id, { status: 'open', assignees, approvedAt: new Date().toISOString(), approvedBy: currentUser }); 
-    for (const aId of assignees) { 
-      const m = TEAM_MEMBERS.find(x => x.id === aId); 
-      if (m) await sendEmailNotification(m.email, m.name, task.title, currentMember?.name); 
-    } 
+    for (const aId of assignees) { const m = TEAM_MEMBERS.find(x => x.id === aId); if (m) await sendEmailNotification(m.email, m.name, task.title, currentMember?.name); } 
     setActiveTab('tasks'); 
   };
   
@@ -1032,13 +894,9 @@ export default function TaskApp() {
     const created = await createTask(newTask); 
     if (created) await loadTasks(); 
     setShowNewTask(false); 
-    for (const aId of task.assignees || []) { 
-      const m = TEAM_MEMBERS.find(x => x.id === aId); 
-      if (m && m.id !== currentUser) await sendEmailNotification(m.email, m.name, task.title, currentMember?.name); 
-    } 
+    for (const aId of task.assignees || []) { const m = TEAM_MEMBERS.find(x => x.id === aId); if (m && m.id !== currentUser) await sendEmailNotification(m.email, m.name, task.title, currentMember?.name); } 
   };
 
-  // Drag & drop handlers
   const handleDragStart = (e, task) => { setDraggedTask(task); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', task.id); };
   const handleDragOver = (e, targetTask) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; if (draggedTask && targetTask.id !== draggedTask.id && targetTask.status === draggedTask.status) setDragOverId(targetTask.id); };
   const handleDrop = async (e, targetTask) => {
@@ -1219,10 +1077,7 @@ function TaskItem({ task, isSelected, onClick, onStatusChange, onDragStart, onDr
   const isDropTarget = dragOverId === task.id;
   const unreadCount = getUnreadCount(task, currentUser, readTimestamps);
   const isNewTask = task.assignees?.includes(currentUser) && task.createdBy !== currentUser && !seenTaskIds.includes(task.id);
-  
-  // Sprawdź czy jest oczekujący email
-  const hasEmailPending = task.isExternal && task.submitterEmail && task.status === 'closed' && 
-    !(task.emailHistory || []).some(e => e.type === 'completed' && e.success);
+  const hasEmailPending = task.isExternal && task.submitterEmail && task.status === 'closed' && !(task.emailHistory || []).some(e => e.type === 'completed' && e.success);
   
   return (
     <div onClick={onClick} draggable onDragStart={(e) => onDragStart(e, task)} onDragOver={(e) => onDragOver(e, task)} onDrop={(e) => onDrop(e, task)} onDragEnd={onDragEnd} className="bg-white rounded-lg px-3 py-2.5 cursor-pointer transition-all hover:shadow-sm border" style={{ borderColor: isSelected ? '#1a73e8' : isDropTarget ? '#4285f4' : isNewTask ? '#c6dafc' : '#e8eaed', opacity: isDragging ? 0.4 : 1, borderTopWidth: isDropTarget ? '3px' : '1px', borderTopColor: isDropTarget ? '#4285f4' : undefined, background: isNewTask ? '#f8fbff' : 'white' }}>
@@ -1232,30 +1087,13 @@ function TaskItem({ task, isSelected, onClick, onStatusChange, onDragStart, onDr
         <span className="flex-shrink-0">{market?.icon}</span>
         <h4 className="font-medium text-sm flex-1 min-w-0 truncate" style={{ color: task.status === 'closed' ? '#9aa0a6' : '#202124', textDecoration: task.status === 'closed' ? 'line-through' : 'none' }}>{task.title}</h4>
         <div className="flex items-center gap-2 flex-shrink-0">
-          {isNewTask && (
-            <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs font-medium" style={{ background: '#1a73e8', color: 'white' }}>
-              <Sparkles size={10} />
-              Nowy
-            </span>
-          )}
-          {unreadCount > 0 && (
-            <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs font-medium" style={{ background: '#fbbc04', color: 'white' }}>
-              <MessageSquare size={10} />
-              {unreadCount}
-            </span>
-          )}
-          {hasEmailPending && (
-            <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs font-medium" style={{ background: '#ea4335', color: 'white' }} title="Email nie wysłany">
-              <MailX size={10} />
-            </span>
-          )}
+          {isNewTask && <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs font-medium" style={{ background: '#1a73e8', color: 'white' }}><Sparkles size={10} />Nowy</span>}
+          {unreadCount > 0 && <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs font-medium" style={{ background: '#fbbc04', color: 'white' }}><MessageSquare size={10} />{unreadCount}</span>}
+          {hasEmailPending && <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs font-medium" style={{ background: '#ea4335', color: 'white' }} title="Email nie wysłany"><MailX size={10} /></span>}
           {task.isExternal && <ExternalLink size={12} style={{ color: '#fbbc04' }} />}
           {task.language === 'en' && <TranslateButton task={task} size="small" />}
           {task.status === 'longterm' && <span className="text-xs px-1.5 py-0.5 rounded-full" style={{ background: '#f3e8fd', color: '#a142f4' }}>LT</span>}
-          {task.market === 'pl' && task.subcategory && (() => {
-            const subcat = PL_SUBCATEGORIES.find(s => s.id === task.subcategory);
-            return subcat && <span className="text-xs px-1.5 py-0.5 rounded-full font-medium" style={{ background: subcat.bg, color: subcat.color }}>{subcat.name}</span>;
-          })()}
+          {task.market === 'pl' && task.subcategory && (() => { const subcat = PL_SUBCATEGORIES.find(s => s.id === task.subcategory); return subcat && <span className="text-xs px-1.5 py-0.5 rounded-full font-medium" style={{ background: subcat.bg, color: subcat.color }}>{subcat.name}</span>; })()}
           <div className="flex -space-x-1">
             {task.assignees?.slice(0, 3).map(aId => { const m = TEAM_MEMBERS.find(x => x.id === aId); return m && <div key={aId} className="w-5 h-5 rounded-full flex items-center justify-center text-white text-xs font-medium border border-white" style={{ background: m.color }} title={m.name}>{getInitials(m.name)}</div>; })}
             {task.assignees?.length > 3 && <div className="w-5 h-5 rounded-full flex items-center justify-center text-xs font-medium border border-white" style={{ background: '#e8eaed', color: '#5f6368' }}>+{task.assignees.length - 3}</div>}
@@ -1272,83 +1110,59 @@ function TaskItem({ task, isSelected, onClick, onStatusChange, onDragStart, onDr
 function TaskDetail({ task, updateTask, deleteTask, onClose, currentUser, isManager, onMarkUnread, readTimestamps }) {
   const [comment, setComment] = useState('');
   const [editing, setEditing] = useState(false);
-  const [form, setForm] = useState({ title: task.title, description: task.description || '' });
+  const [form, setForm] = useState({ title: '', description: '' });
   const [newSubtask, setNewSubtask] = useState('');
   const [subtaskAssignee, setSubtaskAssignee] = useState('');
   const [showSubtaskForm, setShowSubtaskForm] = useState(false);
   const [editingCommentId, setEditingCommentId] = useState(null);
   const [editingCommentText, setEditingCommentText] = useState('');
-const [publicLink, setPublicLink] = useState('');
-const [linkCopied, setLinkCopied] = useState(false);
-const [generatingLink, setGeneratingLink] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
 
-// Aktualizuj publicLink gdy zmieni się task
-{publicLink && (
-  <div className="px-4 py-2 border-b ..." style={{ background: '#e8f0fe' }}>
-    ...
-  </div>
-)}
+  // ===== FIX: Reset wszystkich stanów gdy zmieni się zadanie =====
+  useEffect(() => {
+    setForm({ title: task.title, description: task.description || '' });
+    setEditing(false);
+    setComment('');
+    setNewSubtask('');
+    setSubtaskAssignee('');
+    setShowSubtaskForm(false);
+    setEditingCommentId(null);
+    setEditingCommentText('');
+    setLinkCopied(false);
+  }, [task.id]);
+  // ===============================================================
   
   const market = MARKETS.find(m => m.id === task.market);
   const me = TEAM_MEMBERS.find(m => m.id === currentUser);
   const subtasks = task.subtasks || [];
   const canEdit = isManager || task.createdBy === currentUser;
   const hasUnread = getUnreadCount(task, currentUser, readTimestamps) > 0;
+  
+  // Każde zadanie ma swój stały link (generowany przy tworzeniu)
+  const publicLink = task.publicToken ? `${typeof window !== 'undefined' ? window.location.origin : ''}/task/${task.publicToken}` : null;
 
-  const generatePublicLink = async () => {
-    if (task.publicToken) {
-      const link = `${window.location.origin}/task/${task.publicToken}`;
-      setPublicLink(link);
-      navigator.clipboard.writeText(link);
+  const copyPublicLink = () => {
+    if (publicLink) {
+      navigator.clipboard.writeText(publicLink);
       setLinkCopied(true);
       setTimeout(() => setLinkCopied(false), 2000);
-      return;
     }
-    setGeneratingLink(true);
-    const newToken = Math.random().toString(36).substr(2, 12);
-    await updateTask(task.id, { publicToken: newToken });
-    const link = `${window.location.origin}/task/${newToken}`;
-    setPublicLink(link);
-    navigator.clipboard.writeText(link);
-    setLinkCopied(true);
-    setGeneratingLink(false);
-    setTimeout(() => setLinkCopied(false), 2000);
   };
 
   const handleResendEmail = async () => {
     const result = await sendCompletedEmail(task, me?.name);
-    
-    const emailEntry = {
-      id: generateId(),
-      type: 'completed',
-      sentAt: new Date().toISOString(),
-      sentBy: currentUser,
-      sentTo: task.submitterEmail,
-      success: result.sent,
-      messageId: result.messageId || null,
-      error: result.error || null,
-    };
-    
-    await updateTask(task.id, { 
-      emailHistory: [...(task.emailHistory || []), emailEntry] 
-    }, { skipEmail: true });
+    const emailEntry = { id: generateId(), type: 'completed', sentAt: new Date().toISOString(), sentBy: currentUser, sentTo: task.submitterEmail, success: result.sent, messageId: result.messageId || null, error: result.error || null };
+    await updateTask(task.id, { emailHistory: [...(task.emailHistory || []), emailEntry] }, { skipEmail: true });
   };
 
   const addComment = async () => { 
     if (!comment.trim()) return; 
     const newCommentObj = { id: generateId(), text: comment.trim(), author: currentUser, createdAt: new Date().toISOString() };
     updateTask(task.id, { comments: [...(task.comments || []), newCommentObj] }); 
-    
     const otherAssignees = (task.assignees || []).filter(a => a !== currentUser);
     if (otherAssignees.length > 0) {
-      sendPushNotification(
-        otherAssignees, 
-        `💬 Nowy komentarz: ${task.title}`,
-        `${me?.name || 'Ktoś'}: ${comment.substring(0, 100)}${comment.length > 100 ? '...' : ''}`,
-        '/'
-      );
+      sendPushNotification(otherAssignees, `💬 Nowy komentarz: ${task.title}`, `${me?.name || 'Ktoś'}: ${comment.substring(0, 100)}${comment.length > 100 ? '...' : ''}`, '/');
     }
-    
     setComment(''); 
   };
   
@@ -1372,19 +1186,22 @@ const [generatingLink, setGeneratingLink] = useState(false);
         </div>
         <div className="flex items-center gap-1">
           {task.language === 'en' && <TranslateButton task={task} />}
-          <button onClick={generatePublicLink} className="p-2 rounded-full hover:bg-blue-50 transition-colors" style={{ color: linkCopied ? '#34a853' : '#1a73e8' }} title={publicLink ? 'Kopiuj link' : 'Generuj publiczny link'}>
-            {generatingLink ? <Loader2 size={18} className="animate-spin" /> : linkCopied ? <Check size={18} /> : <Link2 size={18} />}
-          </button>
+          {publicLink && (
+            <button onClick={copyPublicLink} className="p-2 rounded-full hover:bg-blue-50 transition-colors" style={{ color: linkCopied ? '#34a853' : '#1a73e8' }} title="Kopiuj link publiczny">
+              {linkCopied ? <Check size={18} /> : <Link2 size={18} />}
+            </button>
+          )}
           {canEdit && <><button onClick={() => setEditing(!editing)} className="p-2 rounded-full hover:bg-gray-100" style={{ color: '#5f6368' }}><Edit3 size={18} /></button><button onClick={() => deleteTask(task.id)} className="p-2 rounded-full hover:bg-red-50" style={{ color: '#5f6368' }}><Trash2 size={18} /></button></>}
           <button onClick={onClose} className="p-2 rounded-full hover:bg-gray-100" style={{ color: '#5f6368' }}><X size={18} /></button>
         </div>
       </div>
       
+      {/* Pasek z linkiem publicznym - zawsze pokazuj jeśli link istnieje */}
       {publicLink && (
         <div className="px-4 py-2 border-b flex items-center gap-2" style={{ background: '#e8f0fe', borderColor: '#c6dafc' }}>
           <Link2 size={14} style={{ color: '#1a73e8' }} />
           <code className="flex-1 text-xs truncate" style={{ color: '#1a73e8' }}>{publicLink}</code>
-          <button onClick={() => { navigator.clipboard.writeText(publicLink); setLinkCopied(true); setTimeout(() => setLinkCopied(false), 2000); }} className="text-xs px-2 py-1 rounded hover:bg-blue-100 transition-colors" style={{ color: '#1a73e8' }}>
+          <button onClick={copyPublicLink} className="text-xs px-2 py-1 rounded hover:bg-blue-100 transition-colors" style={{ color: '#1a73e8' }}>
             {linkCopied ? '✓ Skopiowano' : 'Kopiuj'}
           </button>
         </div>
@@ -1444,72 +1261,122 @@ const [generatingLink, setGeneratingLink] = useState(false);
           <div className="flex items-center justify-between mb-3">
             <label className="text-sm font-medium" style={{ color: '#202124' }}>Komentarze ({task.comments?.length || 0})</label>
             {!hasUnread && task.comments?.length > 0 && (
-              <button 
-                onClick={() => onMarkUnread(task.id)} 
-                className="text-xs flex items-center gap-1 px-2 py-1 rounded hover:bg-yellow-50 transition-colors"
-                style={{ color: '#b06000' }}
-                title="Oznacz jako nieprzeczytane"
-              >
+              <button onClick={() => onMarkUnread(task.id)} className="text-xs flex items-center gap-1 px-2 py-1 rounded hover:bg-yellow-50 transition-colors" style={{ color: '#b06000' }} title="Oznacz jako nieprzeczytane">
                 <Inbox size={14} />
                 Oznacz nieprzeczytane
               </button>
             )}
           </div>
-          <div className="space-y-3 mb-4">{task.comments?.map(c => { const author = TEAM_MEMBERS.find(m => m.id === c.author); const isMyComment = c.author === currentUser; const isExternal = c.author === 'external' || c.isExternal; if (editingCommentId === c.id) return <div key={c.id} className="flex gap-3"><div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-medium flex-shrink-0" style={{ background: author?.color || '#9aa0a6' }}>{getInitials(author?.name || '?')}</div><div className="flex-1"><input type="text" value={editingCommentText} onChange={(e) => setEditingCommentText(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && saveCommentEdit()} className="w-full px-3 py-2 border rounded-lg text-sm mb-2 transition-colors focus:border-blue-500" style={{ borderColor: '#1a73e8' }} autoFocus /><div className="flex gap-2"><button onClick={saveCommentEdit} className="text-xs px-3 py-1 rounded-full font-medium" style={{ background: '#1a73e8', color: 'white' }}>Zapisz</button><button onClick={() => { setEditingCommentId(null); setEditingCommentText(''); }} className="text-xs px-3 py-1 rounded-full" style={{ color: '#5f6368' }}>Anuluj</button></div></div></div>; return <div key={c.id} className="flex gap-3 group"><div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-medium flex-shrink-0" style={{ background: isExternal ? '#5f6368' : (author?.color || '#9aa0a6') }}>{isExternal ? '👤' : getInitials(author?.name || '?')}</div><div className="flex-1"><div className="rounded-2xl px-4 py-2" style={{ background: isExternal ? '#e8f0fe' : '#f1f3f4' }}><div className="flex items-center justify-between mb-1"><div className="flex items-center gap-2"><span className="text-sm font-medium" style={{ color: '#202124' }}>{isExternal ? (c.authorName || task.submittedBy || 'Zewnętrzny') : (author?.name || 'Nieznany')}</span>{isExternal && <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: '#fbbc04', color: '#fff' }}>Zewnętrzny</span>}<span className="text-xs" style={{ color: '#9aa0a6' }}>{formatDateTime(c.createdAt)}</span>{c.editedAt && <span className="text-xs italic" style={{ color: '#9aa0a6' }}>(edytowano)</span>}</div>{isMyComment && <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"><button onClick={() => editComment(c.id)} className="p-1 rounded-full hover:bg-gray-200" style={{ color: '#5f6368' }}><Edit3 size={14} /></button><button onClick={() => deleteComment(c.id)} className="p-1 rounded-full hover:bg-red-50" style={{ color: '#ea4335' }}><Trash2 size={14} /></button></div>}</div><p className="text-sm" style={{ color: '#3c4043' }}>{c.text}</p></div></div></div>; })}</div>
-          <div className="flex gap-2"><input type="text" value={comment} onChange={(e) => setComment(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addComment()} placeholder="Napisz komentarz..." className="flex-1 px-4 py-2.5 rounded-full text-sm transition-colors focus:border-blue-500" style={{ background: '#f1f3f4', border: '1px solid #e8eaed' }} /><button onClick={addComment} className="p-2.5 rounded-full transition-colors hover:shadow-md" style={{ background: '#1a73e8', color: 'white' }}><Send size={18} /></button></div>
+          <div className="space-y-3 mb-4">{task.comments?.map(c => { 
+            const author = TEAM_MEMBERS.find(m => m.id === c.author); 
+            const isMyComment = c.author === currentUser; 
+            const isExternal = c.author === 'external' || c.isExternal; 
+            
+            if (editingCommentId === c.id) return (
+              <div key={c.id} className="flex gap-3">
+                <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-medium flex-shrink-0" style={{ background: author?.color || '#9aa0a6' }}>{getInitials(author?.name || '?')}</div>
+                <div className="flex-1">
+                  <input type="text" value={editingCommentText} onChange={(e) => setEditingCommentText(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && saveCommentEdit()} className="w-full px-3 py-2 border rounded-lg text-sm mb-2 transition-colors focus:border-blue-500" style={{ borderColor: '#1a73e8' }} autoFocus />
+                  <div className="flex gap-2"><button onClick={saveCommentEdit} className="text-xs px-3 py-1 rounded-full font-medium" style={{ background: '#1a73e8', color: 'white' }}>Zapisz</button><button onClick={() => { setEditingCommentId(null); setEditingCommentText(''); }} className="text-xs px-3 py-1 rounded-full" style={{ color: '#5f6368' }}>Anuluj</button></div>
+                </div>
+              </div>
+            );
+            
+            return (
+              <div key={c.id} className="flex gap-3 group">
+                <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-medium flex-shrink-0" style={{ background: isExternal ? '#5f6368' : (author?.color || '#9aa0a6') }}>
+                  {isExternal ? '👤' : getInitials(author?.name || '?')}
+                </div>
+                <div className="flex-1">
+                  <div className="rounded-xl p-3" style={{ background: '#f1f3f4' }}>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-sm font-medium" style={{ color: '#202124' }}>{isExternal ? (c.authorName || task.submittedBy || 'Zewnętrzny') : (author?.name || 'Nieznany')}</span>
+                      <span className="text-xs" style={{ color: '#9aa0a6' }}>{formatDateTime(c.createdAt)}</span>
+                      {c.editedAt && <span className="text-xs" style={{ color: '#9aa0a6' }}>(edytowano)</span>}
+                    </div>
+                    <p className="text-sm" style={{ color: '#3c4043' }}>{c.text}</p>
+                  </div>
+                  {isMyComment && (
+                    <div className="flex gap-2 mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button onClick={() => editComment(c.id)} className="text-xs px-2 py-0.5 rounded hover:bg-gray-100" style={{ color: '#5f6368' }}>Edytuj</button>
+                      <button onClick={() => deleteComment(c.id)} className="text-xs px-2 py-0.5 rounded hover:bg-red-50" style={{ color: '#ea4335' }}>Usuń</button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}</div>
+          <div className="flex gap-2">
+            <input type="text" value={comment} onChange={(e) => setComment(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addComment()} placeholder="Napisz komentarz..." className="flex-1 px-4 py-2.5 rounded-xl text-sm transition-colors focus:border-blue-500" style={{ background: '#f1f3f4', border: '1px solid #e8eaed' }} />
+            <button onClick={addComment} className="p-2.5 rounded-xl transition-colors hover:shadow-sm" style={{ background: '#1a73e8', color: 'white' }}><Send size={18} /></button>
+          </div>
         </div>
-        
-        {/* EMAIL HISTORY SECTION */}
-        <EmailHistorySection 
-          task={task} 
-          currentUser={currentUser} 
-          onResendEmail={handleResendEmail}
-        />
-        
-        <div className="pt-4 border-t text-xs" style={{ borderColor: '#e8eaed', color: '#9aa0a6' }}><p>Utworzono: {formatDateTime(task.createdAt)}</p>{task.createdBy && <p>Przez: {TEAM_MEMBERS.find(m => m.id === task.createdBy)?.name}</p>}</div>
+
+        <EmailHistorySection task={task} currentUser={currentUser} onResendEmail={handleResendEmail} />
+
+        <div className="pt-4 border-t text-xs space-y-1" style={{ borderColor: '#e8eaed', color: '#9aa0a6' }}>
+          <p>Utworzono: {formatDateTime(task.createdAt)}</p>
+          {task.createdBy && <p>Przez: {TEAM_MEMBERS.find(m => m.id === task.createdBy)?.name || task.createdBy}</p>}
+          {task.publicToken && <p>ID: {task.publicToken}</p>}
+        </div>
       </div>
     </aside>
   );
 }
 
 function NewTaskModal({ onClose, onSave, currentUser }) {
-  const [form, setForm] = useState({ title: '', description: '', market: 'pl', subcategory: '', status: 'open', assignees: [currentUser], comments: [] });
+  const [form, setForm] = useState({ title: '', description: '', market: 'pl', status: 'open', assignees: [currentUser], comments: [] });
   const toggle = (id) => setForm(p => ({ ...p, assignees: p.assignees.includes(id) ? p.assignees.filter(a => a !== id) : [...p.assignees, id] }));
   const save = () => { if (form.title.trim()) onSave(form); };
-  
+
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={onClose}>
-      <div className="bg-white rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto" style={{ boxShadow: '0 24px 38px 3px rgba(0,0,0,.14), 0 9px 46px 8px rgba(0,0,0,.12), 0 11px 15px -7px rgba(0,0,0,.2)' }} onClick={e => e.stopPropagation()}>
-        <div className="p-5 border-b flex items-center justify-between" style={{ borderColor: '#e8eaed' }}><h3 className="text-lg font-medium" style={{ color: '#202124' }}>Nowe zadanie</h3><button onClick={onClose} className="p-1 rounded-full hover:bg-gray-100" style={{ color: '#5f6368' }}><X size={22} /></button></div>
+      <div className="bg-white rounded-xl w-full max-w-lg max-h-[90vh] overflow-y-auto" style={{ boxShadow: '0 24px 38px 3px rgba(0,0,0,.14), 0 9px 46px 8px rgba(0,0,0,.12), 0 11px 15px -7px rgba(0,0,0,.2)' }} onClick={e => e.stopPropagation()}>
+        <div className="p-5 border-b flex items-center justify-between" style={{ borderColor: '#e8eaed' }}>
+          <h3 className="text-lg font-medium" style={{ color: '#202124' }}>Nowe zadanie</h3>
+          <button onClick={onClose} style={{ color: '#5f6368' }}><X size={20} /></button>
+        </div>
         <div className="p-5 space-y-4">
-          <div><label className="text-sm font-medium block mb-1.5" style={{ color: '#202124' }}>Tytuł *</label><input type="text" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="w-full px-4 py-2.5 border rounded-lg text-sm transition-colors focus:border-blue-500" style={{ borderColor: '#dadce0' }} placeholder="Co trzeba zrobić?" autoFocus /></div>
-          <div><label className="text-sm font-medium block mb-1.5" style={{ color: '#202124' }}>Opis</label><RichTextEditor value={form.description} onChange={(v) => setForm({ ...form, description: v })} placeholder="Szczegóły zadania..." minHeight="200px" /></div>
+          <div>
+            <label className="text-sm font-medium block mb-1.5" style={{ color: '#202124' }}>Tytuł *</label>
+            <input type="text" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="w-full px-4 py-2.5 border rounded-lg text-sm transition-colors focus:border-blue-500" style={{ borderColor: '#dadce0' }} placeholder="Co trzeba zrobić?" autoFocus />
+          </div>
+          <div>
+            <label className="text-sm font-medium block mb-1.5" style={{ color: '#202124' }}>Opis</label>
+            <RichTextEditor value={form.description} onChange={(v) => setForm({ ...form, description: v })} placeholder="Szczegóły zadania..." />
+          </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="text-sm font-medium block mb-1.5" style={{ color: '#202124' }}>Rynek</label>
-              <select value={form.market} onChange={(e) => setForm({ ...form, market: e.target.value, subcategory: e.target.value === 'pl' ? form.subcategory : '' })} className="w-full px-4 py-2.5 border rounded-lg text-sm" style={{ borderColor: '#dadce0' }}>{MARKETS.map(m => <option key={m.id} value={m.id}>{m.icon} {m.name}</option>)}</select>
+              <select value={form.market} onChange={(e) => setForm({ ...form, market: e.target.value })} className="w-full px-4 py-2.5 border rounded-lg text-sm" style={{ borderColor: '#dadce0' }}>
+                {MARKETS.map(m => <option key={m.id} value={m.id}>{m.icon} {m.name}</option>)}
+              </select>
             </div>
             <div>
               <label className="text-sm font-medium block mb-1.5" style={{ color: '#202124' }}>Typ</label>
-              <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })} className="w-full px-4 py-2.5 border rounded-lg text-sm" style={{ borderColor: '#dadce0' }}><option value="open">Otwarte</option><option value="longterm">Long-term</option></select>
+              <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })} className="w-full px-4 py-2.5 border rounded-lg text-sm" style={{ borderColor: '#dadce0' }}>
+                <option value="open">Otwarte</option>
+                <option value="longterm">Long-term</option>
+              </select>
             </div>
           </div>
-          {form.market === 'pl' && (
-            <div>
-              <label className="text-sm font-medium block mb-1.5" style={{ color: '#202124' }}>Podkategoria</label>
-              <div className="flex gap-2">
-                <button type="button" onClick={() => setForm({ ...form, subcategory: '' })} className="px-4 py-2 rounded-full text-sm font-medium transition-all" style={{ background: !form.subcategory ? '#f1f3f4' : 'white', color: '#5f6368', border: !form.subcategory ? '2px solid #5f6368' : '2px solid #dadce0' }}>Brak</button>
-                {PL_SUBCATEGORIES.map(s => (
-                  <button key={s.id} type="button" onClick={() => setForm({ ...form, subcategory: s.id })} className="px-4 py-2 rounded-full text-sm font-medium transition-all" style={{ background: form.subcategory === s.id ? s.bg : 'white', color: form.subcategory === s.id ? s.color : '#5f6368', border: form.subcategory === s.id ? `2px solid ${s.color}` : '2px solid #dadce0' }}>{s.name}</button>
-                ))}
-              </div>
+          <div>
+            <label className="text-sm font-medium block mb-2" style={{ color: '#202124' }}>Przypisz do</label>
+            <div className="flex flex-wrap gap-2">
+              {TEAM_MEMBERS.map(m => (
+                <button key={m.id} onClick={() => toggle(m.id)} className="flex items-center gap-2 px-3 py-2 rounded-full border text-sm transition-all" style={{ borderColor: form.assignees.includes(m.id) ? '#1a73e8' : '#dadce0', background: form.assignees.includes(m.id) ? '#e8f0fe' : 'white', color: form.assignees.includes(m.id) ? '#1a73e8' : '#202124' }}>
+                  <div className="w-5 h-5 rounded-full flex items-center justify-center text-white text-xs font-medium" style={{ background: m.color }}>{getInitials(m.name)}</div>
+                  <span>{m.name.split(' ')[0]}</span>
+                  {form.assignees.includes(m.id) && <Check size={14} />}
+                </button>
+              ))}
             </div>
-          )}
-          <div><label className="text-sm font-medium block mb-2" style={{ color: '#202124' }}>Przypisz do</label><div className="flex flex-wrap gap-2">
-            {TEAM_MEMBERS.map(m => <button key={m.id} onClick={() => toggle(m.id)} className="flex items-center gap-2 px-3 py-2 rounded-full border text-sm transition-all" style={{ borderColor: form.assignees.includes(m.id) ? '#1a73e8' : '#dadce0', background: form.assignees.includes(m.id) ? '#e8f0fe' : 'white', color: form.assignees.includes(m.id) ? '#1a73e8' : '#202124' }}><div className="w-5 h-5 rounded-full flex items-center justify-center text-white text-xs font-medium" style={{ background: m.color }}>{getInitials(m.name)}</div><span>{m.name}</span>{form.assignees.includes(m.id) && <Check size={14} />}</button>)}
-          </div></div>
+          </div>
         </div>
-        <div className="p-5 border-t flex justify-end gap-3" style={{ borderColor: '#e8eaed' }}><button onClick={onClose} className="px-5 py-2.5 rounded-lg text-sm font-medium hover:bg-gray-100" style={{ color: '#5f6368' }}>Anuluj</button><button onClick={save} className="px-5 py-2.5 rounded-lg text-sm font-medium transition-colors hover:shadow-md" style={{ background: '#1a73e8', color: 'white' }}>Utwórz zadanie</button></div>
+        <div className="p-5 border-t flex justify-end gap-3" style={{ borderColor: '#e8eaed' }}>
+          <button onClick={onClose} className="px-5 py-2.5 rounded-lg text-sm font-medium hover:bg-gray-100" style={{ color: '#5f6368' }}>Anuluj</button>
+          <button onClick={save} className="px-5 py-2.5 rounded-lg text-sm font-medium transition-colors hover:shadow-md" style={{ background: '#1a73e8', color: 'white' }}>Utwórz zadanie</button>
+        </div>
       </div>
     </div>
   );
