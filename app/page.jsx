@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { Plus, Check, X, Edit3, Trash2, CheckCircle, Circle, Send, MessageSquare, ChevronDown, ChevronRight, Clock, AlertCircle, ExternalLink, Copy, Languages, Loader2, ListTodo, Square, CheckSquare, Bold, Italic, List, ListOrdered, LogOut, Lock, GripVertical, Filter, Underline, AlignLeft, AlignCenter, AlignRight, Link2, Undo, Redo, Bell, BellOff, Inbox, Sparkles } from 'lucide-react';
+import { Plus, Check, X, Edit3, Trash2, CheckCircle, Circle, Send, MessageSquare, ChevronDown, ChevronRight, Clock, AlertCircle, ExternalLink, Copy, Languages, Loader2, ListTodo, Square, CheckSquare, Bold, Italic, List, ListOrdered, LogOut, Lock, GripVertical, Filter, Underline, Link2, Undo, Redo, Bell, BellOff, Inbox, Sparkles, Mail, MailCheck, MailX, RefreshCw } from 'lucide-react';
 import { getTasks, createTask, updateTask as updateTaskDb, deleteTask as deleteTaskDb, getQuickLinks, createQuickLink, updateQuickLink, deleteQuickLink } from '../lib/supabase';
 
 const TEAM_MEMBERS = [
@@ -31,6 +31,12 @@ const STATUSES = [
   { id: 'longterm', name: 'Long-term', icon: Clock, color: '#a142f4', bg: '#f3e8fd' },
   { id: 'closed', name: 'Zamknięte', icon: CheckCircle, color: '#34a853', bg: '#e6f4ea' },
 ];
+
+const EMAIL_TYPES = {
+  completed: { label: 'Zakończenie', icon: CheckCircle, color: '#34a853' },
+  comment: { label: 'Komentarz', icon: MessageSquare, color: '#1a73e8' },
+  assigned: { label: 'Przypisanie', icon: Mail, color: '#fbbc04' },
+};
 
 const getInitials = (name) => {
   const parts = name.split(' ');
@@ -387,6 +393,163 @@ async function sendPushNotification(userIds, title, body, url = '/') {
 }
 
 // =============================================
+// SEND COMPLETED EMAIL
+// =============================================
+async function sendCompletedEmail(task, completedByName) {
+  if (!task.submitterEmail || !task.isExternal) {
+    return { sent: false, error: 'Brak emaila zgłaszającego lub zadanie nie jest zewnętrzne' };
+  }
+  
+  try {
+    const response = await fetch('/api/notify-completed', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        to: task.submitterEmail,
+        requesterName: task.submittedBy,
+        taskTitle: task.title,
+        completedBy: completedByName,
+        publicToken: task.publicToken,
+      }),
+    });
+    
+    const data = await response.json();
+    return { 
+      sent: data.success || false, 
+      messageId: data.messageId,
+      error: data.error 
+    };
+  } catch (e) {
+    console.error('Error sending completed email:', e);
+    return { sent: false, error: e.message };
+  }
+}
+
+// =============================================
+// EMAIL HISTORY SECTION
+// =============================================
+function EmailHistorySection({ task, currentUser, onResendEmail }) {
+  const [resending, setResending] = useState(false);
+  
+  const emailHistory = task.emailHistory || [];
+  const hasEmail = task.submitterEmail && task.isExternal;
+  const completedEmails = emailHistory.filter(e => e.type === 'completed');
+  const lastCompletedEmail = completedEmails[completedEmails.length - 1];
+  
+  const handleResend = async () => {
+    setResending(true);
+    await onResendEmail();
+    setResending(false);
+  };
+  
+  if (!task.isExternal) return null;
+  
+  return (
+    <div className="border-t pt-4 mt-4" style={{ borderColor: '#e8eaed' }}>
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <Mail size={16} style={{ color: '#5f6368' }} />
+          <label className="text-sm font-medium" style={{ color: '#202124' }}>Powiadomienia email</label>
+        </div>
+      </div>
+      
+      {/* Email do zgłaszającego */}
+      <div className="p-3 rounded-lg mb-3" style={{ background: '#f8f9fa' }}>
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-xs font-medium" style={{ color: '#5f6368' }}>Zgłaszający</p>
+            <p className="text-sm" style={{ color: '#202124' }}>{task.submittedBy || 'Nieznany'}</p>
+            {task.submitterEmail ? (
+              <p className="text-xs" style={{ color: '#1a73e8' }}>{task.submitterEmail}</p>
+            ) : (
+              <p className="text-xs" style={{ color: '#ea4335' }}>Brak adresu email</p>
+            )}
+          </div>
+        </div>
+      </div>
+      
+      {/* Historia emaili */}
+      {emailHistory.length > 0 && (
+        <div className="space-y-2 mb-3">
+          <p className="text-xs font-medium" style={{ color: '#5f6368' }}>Historia wysyłek:</p>
+          {emailHistory.map((email, idx) => {
+            const typeInfo = EMAIL_TYPES[email.type] || EMAIL_TYPES.completed;
+            const TypeIcon = typeInfo.icon;
+            const sender = TEAM_MEMBERS.find(m => m.id === email.sentBy);
+            
+            return (
+              <div key={email.id || idx} className="flex items-center gap-2 p-2 rounded-lg" style={{ background: email.success ? '#e6f4ea' : '#fce8e6' }}>
+                {email.success ? (
+                  <MailCheck size={16} style={{ color: '#34a853' }} />
+                ) : (
+                  <MailX size={16} style={{ color: '#ea4335' }} />
+                )}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-medium" style={{ color: email.success ? '#137333' : '#c5221f' }}>
+                      {typeInfo.label}
+                    </span>
+                    <span className="text-xs" style={{ color: '#5f6368' }}>
+                      → {email.sentTo}
+                    </span>
+                  </div>
+                  <p className="text-xs" style={{ color: '#9aa0a6' }}>
+                    {formatDateTime(email.sentAt)} przez {sender?.name?.split(' ')[0] || 'System'}
+                  </p>
+                </div>
+                {email.success && (
+                  <CheckCircle size={14} style={{ color: '#34a853' }} />
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+      
+      {/* Przycisk wysyłania */}
+      {hasEmail && task.status === 'closed' && (
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleResend}
+            disabled={resending}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors hover:shadow-sm disabled:opacity-50"
+            style={{ 
+              background: lastCompletedEmail?.success ? '#f1f3f4' : '#34a853', 
+              color: lastCompletedEmail?.success ? '#202124' : 'white' 
+            }}
+          >
+            {resending ? (
+              <Loader2 size={16} className="animate-spin" />
+            ) : (
+              <RefreshCw size={16} />
+            )}
+            {lastCompletedEmail?.success ? 'Wyślij ponownie' : 'Wyślij email o zakończeniu'}
+          </button>
+          
+          {lastCompletedEmail?.success && (
+            <span className="text-xs" style={{ color: '#34a853' }}>
+              ✓ Wysłano {formatTimeAgo(lastCompletedEmail.sentAt)}
+            </span>
+          )}
+        </div>
+      )}
+      
+      {hasEmail && task.status !== 'closed' && (
+        <p className="text-xs" style={{ color: '#9aa0a6' }}>
+          💡 Email o zakończeniu zostanie wysłany automatycznie po zamknięciu zadania
+        </p>
+      )}
+      
+      {!hasEmail && (
+        <p className="text-xs" style={{ color: '#ea4335' }}>
+          ⚠️ Brak adresu email - nie można wysłać powiadomienia
+        </p>
+      )}
+    </div>
+  );
+}
+
+// =============================================
 // NEW TASKS SECTION (similar to unread comments)
 // =============================================
 function NewTasksSection({ tasks, currentUser, onSelectTask, seenTaskIds }) {
@@ -395,14 +558,10 @@ function NewTasksSection({ tasks, currentUser, onSelectTask, seenTaskIds }) {
   const newTasks = useMemo(() => {
     return tasks
       .filter(task => {
-        // Only show tasks where user is assigned
         const isAssigned = task.assignees?.includes(currentUser);
         if (!isAssigned) return false;
-        // Not created by current user
         if (task.createdBy === currentUser) return false;
-        // Not pending (already approved)
         if (task.status === 'pending') return false;
-        // Not yet seen
         return !seenTaskIds.includes(task.id);
       })
       .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
@@ -562,7 +721,7 @@ function UnreadCommentsSection({ tasks, currentUser, onSelectTask, readTimestamp
   );
 }
 
-// Quick Links Manager Component - now per user
+// Quick Links Manager Component
 function QuickLinksSection({ currentUser }) {
   const [links, setLinks] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -773,13 +932,11 @@ export default function TaskApp() {
   const handleSelectTask = useCallback((task) => {
     setSelectedTask(task);
     if (currentUser && task) {
-      // Mark as read (for comments)
       setTaskRead(task.id, currentUser);
       setReadTimestamps(prev => ({
         ...prev,
         [task.id]: new Date().toISOString()
       }));
-      // Mark as seen (for new tasks)
       markTaskAsSeen(task.id, currentUser);
       setSeenTaskIds(prev => prev.includes(task.id) ? prev : [...prev, task.id]);
     }
@@ -803,7 +960,6 @@ export default function TaskApp() {
   const isManager = currentMember?.isManager || false;
   const pendingTasks = tasks.filter(t => t.status === 'pending');
   
-  // All users can now see all tasks (removed the restriction)
   const visibleTasks = tasks.filter(t => {
     if (t.status === 'pending') return false;
     if (filterMarket !== 'all' && t.market !== filterMarket) return false;
@@ -827,15 +983,41 @@ export default function TaskApp() {
   const longtermTasks = visibleTasks.filter(t => t.status === 'longterm');
   const closedTasks = visibleTasks.filter(t => t.status === 'closed');
 
-  const updateTask = async (id, updates) => { 
-    setTasks(prev => prev.map(t => t.id === id ? { ...t, ...updates } : t)); 
-    if (selectedTask?.id === id) setSelectedTask(prev => ({ ...prev, ...updates })); 
+  const updateTask = async (id, updates, options = {}) => { 
+    const oldTask = tasks.find(t => t.id === id);
+    const newTask = { ...oldTask, ...updates };
+    
+    setTasks(prev => prev.map(t => t.id === id ? newTask : t)); 
+    if (selectedTask?.id === id) setSelectedTask(newTask);
+    
+    // Automatyczne wysyłanie emaila o zakończeniu
+    if (updates.status === 'closed' && oldTask?.status !== 'closed' && oldTask?.isExternal && oldTask?.submitterEmail && !options.skipEmail) {
+      const result = await sendCompletedEmail(oldTask, currentMember?.name);
+      
+      // Dodaj do historii emaili
+      const emailEntry = {
+        id: generateId(),
+        type: 'completed',
+        sentAt: new Date().toISOString(),
+        sentBy: currentUser,
+        sentTo: oldTask.submitterEmail,
+        success: result.sent,
+        messageId: result.messageId || null,
+        error: result.error || null,
+      };
+      
+      updates.emailHistory = [...(oldTask.emailHistory || []), emailEntry];
+      newTask.emailHistory = updates.emailHistory;
+      
+      setTasks(prev => prev.map(t => t.id === id ? newTask : t)); 
+      if (selectedTask?.id === id) setSelectedTask(newTask);
+    }
+    
     await updateTaskDb(id, updates); 
   };
   
   const deleteTask = async (id) => { if (confirm('Usunąć zadanie?')) { setTasks(prev => prev.filter(t => t.id !== id)); setSelectedTask(null); await deleteTaskDb(id); } };
   
-  // All users can approve tasks now
   const approveTask = async (task, assignees) => { 
     await updateTask(task.id, { status: 'open', assignees, approvedAt: new Date().toISOString(), approvedBy: currentUser }); 
     for (const aId of assignees) { 
@@ -846,7 +1028,7 @@ export default function TaskApp() {
   };
   
   const addTask = async (task) => { 
-    const newTask = { ...task, createdAt: new Date().toISOString(), createdBy: currentUser, isExternal: false, subtasks: [], status: task.status || 'open', order: 0 }; 
+    const newTask = { ...task, createdAt: new Date().toISOString(), createdBy: currentUser, isExternal: false, subtasks: [], status: task.status || 'open', order: 0, emailHistory: [] }; 
     const created = await createTask(newTask); 
     if (created) await loadTasks(); 
     setShowNewTask(false); 
@@ -899,32 +1081,17 @@ export default function TaskApp() {
             <option value="all">Wszystkie rynki</option>
             {MARKETS.map(m => <option key={m.id} value={m.id}>{m.icon} {m.name}</option>)}
           </select>
-          {/* All users can filter by person now */}
           <select value={filterPerson} onChange={(e) => setFilterPerson(e.target.value)} className="w-full rounded-lg px-3 py-2 text-sm border transition-colors focus:border-blue-500" style={{ borderColor: '#dadce0', color: '#202124' }}>
             <option value="all">Wszyscy</option>
             {TEAM_MEMBERS.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
           </select>
         </div>
 
-        {/* NEW TASKS SECTION */}
-        <NewTasksSection 
-          tasks={tasks} 
-          currentUser={currentUser} 
-          onSelectTask={handleSelectTask}
-          seenTaskIds={seenTaskIds}
-        />
-
-        {/* UNREAD COMMENTS SECTION */}
-        <UnreadCommentsSection 
-          tasks={tasks} 
-          currentUser={currentUser} 
-          onSelectTask={handleSelectTask}
-          readTimestamps={readTimestamps}
-        />
+        <NewTasksSection tasks={tasks} currentUser={currentUser} onSelectTask={handleSelectTask} seenTaskIds={seenTaskIds} />
+        <UnreadCommentsSection tasks={tasks} currentUser={currentUser} onSelectTask={handleSelectTask} readTimestamps={readTimestamps} />
 
         <div className="p-2 flex-1">
           <div className="space-y-0.5">
-            {/* All users can see pending tasks now */}
             {pendingTasks.length > 0 && (
               <button onClick={() => setActiveTab('pending')} className="w-full flex items-center justify-between px-3 py-2 rounded-full text-sm transition-colors" style={{ background: activeTab === 'pending' ? '#fef7e0' : 'transparent', color: activeTab === 'pending' ? '#b06000' : '#202124' }}>
                 <div className="flex items-center gap-3"><AlertCircle size={18} style={{ color: '#fbbc04' }} /><span>Oczekujące</span></div>
@@ -957,7 +1124,6 @@ export default function TaskApp() {
             </button>
           </div>
 
-          {/* Quick Links for ALL users now */}
           <QuickLinksSection currentUser={currentUser} />
           
           <div className="mx-2 mt-3">
@@ -1021,7 +1187,6 @@ export default function TaskApp() {
   );
 }
 
-// All users can now approve pending tasks
 function PendingView({ tasks, approveTask, deleteTask, currentUser }) {
   const [selected, setSelected] = useState({});
   const toggle = (taskId, memberId) => { setSelected(p => { const curr = p[taskId] || []; return { ...p, [taskId]: curr.includes(memberId) ? curr.filter(x => x !== memberId) : [...curr, memberId] }; }); };
@@ -1036,7 +1201,6 @@ function PendingView({ tasks, approveTask, deleteTask, currentUser }) {
             {task.isExternal && <div className="flex items-center gap-2 mb-3 pb-3 border-b" style={{ borderColor: '#e8eaed' }}><ExternalLink size={14} style={{ color: '#fbbc04' }} /><span className="text-xs font-medium" style={{ color: '#b06000' }}>Zewnętrzne</span>{task.language === 'en' && <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: '#e8f0fe', color: '#1a73e8' }}>🇬🇧</span>}<span className="text-xs" style={{ color: '#9aa0a6' }}>od {task.submittedBy}</span></div>}
             <div className="flex items-start gap-3 mb-4"><span className="text-xl">{market?.icon}</span><div className="flex-1"><div className="flex items-center gap-2"><h3 className="font-medium text-lg" style={{ color: '#202124' }}>{task.title}</h3><TranslateButton task={task} /></div>{task.description && <div className="mt-2"><RichTextDisplay html={task.description} /></div>}{task.links && <div className="mt-3 p-3 rounded-lg" style={{ background: '#f8f9fa' }}><ClickableLinks text={task.links} /></div>}</div></div>
             <div className="mb-4"><p className="text-xs font-medium mb-2" style={{ color: '#5f6368' }}>Przypisz:</p><div className="flex flex-wrap gap-2">
-              {/* All team members can be assigned now (including manager) */}
               {TEAM_MEMBERS.map(m => <button key={m.id} onClick={() => toggle(task.id, m.id)} className="flex items-center gap-2 px-3 py-2 rounded-full border text-sm transition-all" style={{ borderColor: assignees.includes(m.id) ? '#1a73e8' : '#dadce0', background: assignees.includes(m.id) ? '#e8f0fe' : 'white', color: assignees.includes(m.id) ? '#1a73e8' : '#202124' }}><div className="w-5 h-5 rounded-full flex items-center justify-center text-white text-xs font-medium" style={{ background: m.color }}>{getInitials(m.name)}</div><span>{m.name.split(' ')[0]}</span>{assignees.includes(m.id) && <Check size={14} />}</button>)}
             </div></div>
             <div className="flex gap-2 pt-4 border-t" style={{ borderColor: '#e8eaed' }}><button onClick={() => approveTask(task, assignees)} disabled={!assignees.length} className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg font-medium disabled:opacity-50 transition-colors" style={{ background: assignees.length ? '#1a73e8' : '#f1f3f4', color: assignees.length ? 'white' : '#9aa0a6' }}><Check size={18} /> Zatwierdź</button><button onClick={() => deleteTask(task.id)} className="px-4 py-2.5 rounded-lg hover:bg-red-50 transition-colors" style={{ color: '#ea4335', border: '1px solid #f5c6cb' }}><X size={18} /></button></div>
@@ -1056,6 +1220,10 @@ function TaskItem({ task, isSelected, onClick, onStatusChange, onDragStart, onDr
   const unreadCount = getUnreadCount(task, currentUser, readTimestamps);
   const isNewTask = task.assignees?.includes(currentUser) && task.createdBy !== currentUser && !seenTaskIds.includes(task.id);
   
+  // Sprawdź czy jest oczekujący email
+  const hasEmailPending = task.isExternal && task.submitterEmail && task.status === 'closed' && 
+    !(task.emailHistory || []).some(e => e.type === 'completed' && e.success);
+  
   return (
     <div onClick={onClick} draggable onDragStart={(e) => onDragStart(e, task)} onDragOver={(e) => onDragOver(e, task)} onDrop={(e) => onDrop(e, task)} onDragEnd={onDragEnd} className="bg-white rounded-lg px-3 py-2.5 cursor-pointer transition-all hover:shadow-sm border" style={{ borderColor: isSelected ? '#1a73e8' : isDropTarget ? '#4285f4' : isNewTask ? '#c6dafc' : '#e8eaed', opacity: isDragging ? 0.4 : 1, borderTopWidth: isDropTarget ? '3px' : '1px', borderTopColor: isDropTarget ? '#4285f4' : undefined, background: isNewTask ? '#f8fbff' : 'white' }}>
       <div className="flex items-center gap-2">
@@ -1064,18 +1232,21 @@ function TaskItem({ task, isSelected, onClick, onStatusChange, onDragStart, onDr
         <span className="flex-shrink-0">{market?.icon}</span>
         <h4 className="font-medium text-sm flex-1 min-w-0 truncate" style={{ color: task.status === 'closed' ? '#9aa0a6' : '#202124', textDecoration: task.status === 'closed' ? 'line-through' : 'none' }}>{task.title}</h4>
         <div className="flex items-center gap-2 flex-shrink-0">
-          {/* New task indicator */}
           {isNewTask && (
             <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs font-medium" style={{ background: '#1a73e8', color: 'white' }}>
               <Sparkles size={10} />
               Nowy
             </span>
           )}
-          {/* Unread indicator */}
           {unreadCount > 0 && (
             <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs font-medium" style={{ background: '#fbbc04', color: 'white' }}>
               <MessageSquare size={10} />
               {unreadCount}
+            </span>
+          )}
+          {hasEmailPending && (
+            <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs font-medium" style={{ background: '#ea4335', color: 'white' }} title="Email nie wysłany">
+              <MailX size={10} />
             </span>
           )}
           {task.isExternal && <ExternalLink size={12} style={{ color: '#fbbc04' }} />}
@@ -1135,6 +1306,25 @@ function TaskDetail({ task, updateTask, deleteTask, onClose, currentUser, isMana
     setLinkCopied(true);
     setGeneratingLink(false);
     setTimeout(() => setLinkCopied(false), 2000);
+  };
+
+  const handleResendEmail = async () => {
+    const result = await sendCompletedEmail(task, me?.name);
+    
+    const emailEntry = {
+      id: generateId(),
+      type: 'completed',
+      sentAt: new Date().toISOString(),
+      sentBy: currentUser,
+      sentTo: task.submitterEmail,
+      success: result.sent,
+      messageId: result.messageId || null,
+      error: result.error || null,
+    };
+    
+    await updateTask(task.id, { 
+      emailHistory: [...(task.emailHistory || []), emailEntry] 
+    }, { skipEmail: true });
   };
 
   const addComment = async () => { 
@@ -1262,6 +1452,13 @@ function TaskDetail({ task, updateTask, deleteTask, onClose, currentUser, isMana
           <div className="flex gap-2"><input type="text" value={comment} onChange={(e) => setComment(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addComment()} placeholder="Napisz komentarz..." className="flex-1 px-4 py-2.5 rounded-full text-sm transition-colors focus:border-blue-500" style={{ background: '#f1f3f4', border: '1px solid #e8eaed' }} /><button onClick={addComment} className="p-2.5 rounded-full transition-colors hover:shadow-md" style={{ background: '#1a73e8', color: 'white' }}><Send size={18} /></button></div>
         </div>
         
+        {/* EMAIL HISTORY SECTION */}
+        <EmailHistorySection 
+          task={task} 
+          currentUser={currentUser} 
+          onResendEmail={handleResendEmail}
+        />
+        
         <div className="pt-4 border-t text-xs" style={{ borderColor: '#e8eaed', color: '#9aa0a6' }}><p>Utworzono: {formatDateTime(task.createdAt)}</p>{task.createdBy && <p>Przez: {TEAM_MEMBERS.find(m => m.id === task.createdBy)?.name}</p>}</div>
       </div>
     </aside>
@@ -1302,7 +1499,6 @@ function NewTaskModal({ onClose, onSave, currentUser }) {
             </div>
           )}
           <div><label className="text-sm font-medium block mb-2" style={{ color: '#202124' }}>Przypisz do</label><div className="flex flex-wrap gap-2">
-            {/* All team members can be assigned (including manager) */}
             {TEAM_MEMBERS.map(m => <button key={m.id} onClick={() => toggle(m.id)} className="flex items-center gap-2 px-3 py-2 rounded-full border text-sm transition-all" style={{ borderColor: form.assignees.includes(m.id) ? '#1a73e8' : '#dadce0', background: form.assignees.includes(m.id) ? '#e8f0fe' : 'white', color: form.assignees.includes(m.id) ? '#1a73e8' : '#202124' }}><div className="w-5 h-5 rounded-full flex items-center justify-center text-white text-xs font-medium" style={{ background: m.color }}>{getInitials(m.name)}</div><span>{m.name}</span>{form.assignees.includes(m.id) && <Check size={14} />}</button>)}
           </div></div>
         </div>
