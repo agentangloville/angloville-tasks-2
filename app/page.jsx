@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { Plus, Check, X, Edit3, Trash2, CheckCircle, Circle, Send, MessageSquare, ChevronDown, ChevronRight, Clock, AlertCircle, ExternalLink, Copy, Languages, Loader2, ListTodo, Square, CheckSquare, Bold, Italic, List, ListOrdered, LogOut, Lock, GripVertical, Filter, Underline, AlignLeft, AlignCenter, AlignRight, Link2, Undo, Redo, Bell, BellOff, Inbox } from 'lucide-react';
+import { Plus, Check, X, Edit3, Trash2, CheckCircle, Circle, Send, MessageSquare, ChevronDown, ChevronRight, Clock, AlertCircle, ExternalLink, Copy, Languages, Loader2, ListTodo, Square, CheckSquare, Bold, Italic, List, ListOrdered, LogOut, Lock, GripVertical, Filter, Underline, AlignLeft, AlignCenter, AlignRight, Link2, Undo, Redo, Bell, BellOff, Inbox, Sparkles } from 'lucide-react';
 import { getTasks, createTask, updateTask as updateTaskDb, deleteTask as deleteTaskDb, getQuickLinks, createQuickLink, updateQuickLink, deleteQuickLink } from '../lib/supabase';
 
 const TEAM_MEMBERS = [
@@ -58,7 +58,6 @@ const setTaskUnread = (taskId, userId) => {
   const key = `av_tasks_read_${userId}`;
   try {
     const timestamps = JSON.parse(localStorage.getItem(key) || '{}');
-    // Set to very old date so all comments appear unread
     delete timestamps[taskId];
     localStorage.setItem(key, JSON.stringify(timestamps));
   } catch {}
@@ -73,7 +72,6 @@ const getUnreadComments = (task, userId, readTimestamps = null) => {
     const lastRead = timestamps[task.id];
     
     if (!lastRead) {
-      // Never read - return comments from others
       return task.comments.filter(c => c.author !== userId);
     }
     
@@ -88,6 +86,38 @@ const getUnreadComments = (task, userId, readTimestamps = null) => {
 
 const getUnreadCount = (task, userId, readTimestamps = null) => {
   return getUnreadComments(task, userId, readTimestamps).length;
+};
+
+// =============================================
+// NEW TASK NOTIFICATIONS SYSTEM
+// =============================================
+const getSeenTaskIds = (userId) => {
+  if (typeof window === 'undefined') return [];
+  try {
+    return JSON.parse(localStorage.getItem(`av_tasks_seen_${userId}`) || '[]');
+  } catch { return []; }
+};
+
+const markTaskAsSeen = (taskId, userId) => {
+  if (typeof window === 'undefined') return;
+  const key = `av_tasks_seen_${userId}`;
+  try {
+    const seen = JSON.parse(localStorage.getItem(key) || '[]');
+    if (!seen.includes(taskId)) {
+      seen.push(taskId);
+      localStorage.setItem(key, JSON.stringify(seen));
+    }
+  } catch {}
+};
+
+const markAllTasksAsSeen = (taskIds, userId) => {
+  if (typeof window === 'undefined') return;
+  const key = `av_tasks_seen_${userId}`;
+  try {
+    const seen = JSON.parse(localStorage.getItem(key) || '[]');
+    const newSeen = [...new Set([...seen, ...taskIds])];
+    localStorage.setItem(key, JSON.stringify(newSeen));
+  } catch {}
 };
 
 // Push notification helpers
@@ -352,16 +382,90 @@ async function sendPushNotification(userIds, title, body, url = '/') {
 }
 
 // =============================================
+// NEW TASKS SECTION (similar to unread comments)
+// =============================================
+function NewTasksSection({ tasks, currentUser, onSelectTask, seenTaskIds }) {
+  const [expanded, setExpanded] = useState(true);
+  
+  const newTasks = useMemo(() => {
+    return tasks
+      .filter(task => {
+        // Only show tasks where user is assigned
+        const isAssigned = task.assignees?.includes(currentUser);
+        if (!isAssigned) return false;
+        // Not created by current user
+        if (task.createdBy === currentUser) return false;
+        // Not pending (already approved)
+        if (task.status === 'pending') return false;
+        // Not yet seen
+        return !seenTaskIds.includes(task.id);
+      })
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  }, [tasks, currentUser, seenTaskIds]);
+
+  if (newTasks.length === 0) return null;
+
+  return (
+    <div className="mx-2 mt-3 rounded-lg overflow-hidden" style={{ background: '#e8f0fe', border: '1px solid #c6dafc' }}>
+      <button 
+        onClick={() => setExpanded(!expanded)} 
+        className="w-full px-3 py-2 flex items-center justify-between text-xs font-medium hover:bg-blue-100 transition-colors"
+        style={{ color: '#1a73e8' }}
+      >
+        <div className="flex items-center gap-2">
+          <Sparkles size={14} />
+          <span>Nowe zadania</span>
+          <span className="px-1.5 py-0.5 rounded-full text-xs font-bold" style={{ background: '#1a73e8', color: 'white' }}>
+            {newTasks.length}
+          </span>
+        </div>
+        <ChevronDown size={14} className={`transition-transform ${expanded ? '' : '-rotate-90'}`} />
+      </button>
+      
+      {expanded && (
+        <div className="px-2 pb-2 max-h-48 overflow-y-auto">
+          <div className="space-y-1">
+            {newTasks.map(task => {
+              const creator = TEAM_MEMBERS.find(m => m.id === task.createdBy);
+              const market = MARKETS.find(m => m.id === task.market);
+              
+              return (
+                <button
+                  key={task.id}
+                  onClick={() => onSelectTask(task)}
+                  className="w-full text-left p-2 rounded-lg bg-white hover:bg-blue-50 transition-colors group"
+                  style={{ border: '1px solid #c6dafc' }}
+                >
+                  <div className="flex items-start gap-2">
+                    <span className="text-base flex-shrink-0">{market?.icon}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-medium truncate" style={{ color: '#202124' }}>
+                        {task.title}
+                      </p>
+                      <p className="text-xs" style={{ color: '#5f6368' }}>
+                        od {creator?.name?.split(' ')[0] || 'Ktoś'} • {formatTimeAgo(task.createdAt)}
+                      </p>
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// =============================================
 // UNREAD COMMENTS SECTION
 // =============================================
 function UnreadCommentsSection({ tasks, currentUser, onSelectTask, readTimestamps }) {
   const [expanded, setExpanded] = useState(true);
   
-  // Get tasks with unread comments for current user
   const tasksWithUnread = useMemo(() => {
     return tasks
       .filter(task => {
-        // Only show tasks where user is assigned or created
         const isInvolved = task.assignees?.includes(currentUser) || task.createdBy === currentUser;
         if (!isInvolved) return false;
         return getUnreadCount(task, currentUser, readTimestamps) > 0;
@@ -372,7 +476,6 @@ function UnreadCommentsSection({ tasks, currentUser, onSelectTask, readTimestamp
         unreadCount: getUnreadCount(task, currentUser, readTimestamps),
       }))
       .sort((a, b) => {
-        // Sort by most recent unread comment
         const aLatest = a.unreadComments[a.unreadComments.length - 1]?.createdAt || '';
         const bLatest = b.unreadComments[b.unreadComments.length - 1]?.createdAt || '';
         return new Date(bLatest) - new Date(aLatest);
@@ -454,8 +557,8 @@ function UnreadCommentsSection({ tasks, currentUser, onSelectTask, readTimestamp
   );
 }
 
-// Quick Links Manager Component
-function QuickLinksSection() {
+// Quick Links Manager Component - now per user
+function QuickLinksSection({ currentUser }) {
   const [links, setLinks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
@@ -463,14 +566,19 @@ function QuickLinksSection() {
   const [form, setForm] = useState({ name: '', url: '' });
   const [expanded, setExpanded] = useState(true);
 
-  const loadLinks = async () => { const data = await getQuickLinks(); setLinks(data); setLoading(false); };
-  useEffect(() => { loadLinks(); }, []);
+  const loadLinks = async () => { 
+    const data = await getQuickLinks(currentUser); 
+    setLinks(data); 
+    setLoading(false); 
+  };
+  
+  useEffect(() => { loadLinks(); }, [currentUser]);
 
   const addLink = async () => {
     if (!form.name.trim() || !form.url.trim()) return;
     let url = form.url.trim();
     if (!url.startsWith('http')) url = 'https://' + url;
-    const newLink = await createQuickLink({ name: form.name.trim(), url });
+    const newLink = await createQuickLink({ name: form.name.trim(), url, userId: currentUser });
     if (newLink) setLinks([...links, newLink]);
     setForm({ name: '', url: '' });
     setShowAddForm(false);
@@ -506,7 +614,7 @@ function QuickLinksSection() {
   return (
     <div className="mx-2 mt-3 rounded-lg overflow-hidden" style={{ background: '#f8f9fa', border: '1px solid #e8eaed' }}>
       <button onClick={() => setExpanded(!expanded)} className="w-full px-3 py-2 flex items-center justify-between text-xs font-medium hover:bg-gray-100 transition-colors" style={{ color: '#5f6368' }}>
-        <span>📌 Przydatne linki</span>
+        <span>📌 Moje linki</span>
         <ChevronDown size={14} className={`transition-transform ${expanded ? '' : '-rotate-90'}`} />
       </button>
       {expanded && (
@@ -626,11 +734,12 @@ export default function TaskApp() {
   const [draggedTask, setDraggedTask] = useState(null);
   const [dragOverId, setDragOverId] = useState(null);
   const [readTimestamps, setReadTimestamps] = useState({});
+  const [seenTaskIds, setSeenTaskIds] = useState([]);
 
-  // Load read timestamps on mount
   useEffect(() => {
     if (currentUser) {
       setReadTimestamps(getReadTimestamps(currentUser));
+      setSeenTaskIds(getSeenTaskIds(currentUser));
     }
   }, [currentUser]);
 
@@ -656,24 +765,24 @@ export default function TaskApp() {
   
   const handleLogout = () => { localStorage.removeItem('av_tasks_user'); setCurrentUser(null); setTasks([]); setSelectedTask(null); };
 
-  // Mark task as read when opening detail
   const handleSelectTask = useCallback((task) => {
     setSelectedTask(task);
     if (currentUser && task) {
+      // Mark as read (for comments)
       setTaskRead(task.id, currentUser);
-      // Immediately update state to reflect the change
       setReadTimestamps(prev => ({
         ...prev,
         [task.id]: new Date().toISOString()
       }));
+      // Mark as seen (for new tasks)
+      markTaskAsSeen(task.id, currentUser);
+      setSeenTaskIds(prev => prev.includes(task.id) ? prev : [...prev, task.id]);
     }
   }, [currentUser]);
 
-  // Mark task as unread
   const handleMarkUnread = useCallback((taskId) => {
     if (currentUser) {
       setTaskUnread(taskId, currentUser);
-      // Immediately update state
       setReadTimestamps(prev => {
         const newState = { ...prev };
         delete newState[taskId];
@@ -689,9 +798,9 @@ export default function TaskApp() {
   const isManager = currentMember?.isManager || false;
   const pendingTasks = tasks.filter(t => t.status === 'pending');
   
+  // All users can now see all tasks (removed the restriction)
   const visibleTasks = tasks.filter(t => {
     if (t.status === 'pending') return false;
-    if (!isManager && !t.assignees?.includes(currentUser) && t.createdBy !== currentUser) return false;
     if (filterMarket !== 'all' && t.market !== filterMarket) return false;
     if (filterPerson !== 'all' && !t.assignees?.includes(filterPerson)) return false;
     return true;
@@ -721,6 +830,7 @@ export default function TaskApp() {
   
   const deleteTask = async (id) => { if (confirm('Usunąć zadanie?')) { setTasks(prev => prev.filter(t => t.id !== id)); setSelectedTask(null); await deleteTaskDb(id); } };
   
+  // All users can approve tasks now
   const approveTask = async (task, assignees) => { 
     await updateTask(task.id, { status: 'open', assignees, approvedAt: new Date().toISOString(), approvedBy: currentUser }); 
     for (const aId of assignees) { 
@@ -784,13 +894,20 @@ export default function TaskApp() {
             <option value="all">Wszystkie rynki</option>
             {MARKETS.map(m => <option key={m.id} value={m.id}>{m.icon} {m.name}</option>)}
           </select>
-          {isManager && (
-            <select value={filterPerson} onChange={(e) => setFilterPerson(e.target.value)} className="w-full rounded-lg px-3 py-2 text-sm border transition-colors focus:border-blue-500" style={{ borderColor: '#dadce0', color: '#202124' }}>
-              <option value="all">Wszyscy</option>
-              {TEAM_MEMBERS.filter(m => !m.isManager).map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
-            </select>
-          )}
+          {/* All users can filter by person now */}
+          <select value={filterPerson} onChange={(e) => setFilterPerson(e.target.value)} className="w-full rounded-lg px-3 py-2 text-sm border transition-colors focus:border-blue-500" style={{ borderColor: '#dadce0', color: '#202124' }}>
+            <option value="all">Wszyscy</option>
+            {TEAM_MEMBERS.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+          </select>
         </div>
+
+        {/* NEW TASKS SECTION */}
+        <NewTasksSection 
+          tasks={tasks} 
+          currentUser={currentUser} 
+          onSelectTask={handleSelectTask}
+          seenTaskIds={seenTaskIds}
+        />
 
         {/* UNREAD COMMENTS SECTION */}
         <UnreadCommentsSection 
@@ -802,7 +919,8 @@ export default function TaskApp() {
 
         <div className="p-2 flex-1">
           <div className="space-y-0.5">
-            {isManager && pendingTasks.length > 0 && (
+            {/* All users can see pending tasks now */}
+            {pendingTasks.length > 0 && (
               <button onClick={() => setActiveTab('pending')} className="w-full flex items-center justify-between px-3 py-2 rounded-full text-sm transition-colors" style={{ background: activeTab === 'pending' ? '#fef7e0' : 'transparent', color: activeTab === 'pending' ? '#b06000' : '#202124' }}>
                 <div className="flex items-center gap-3"><AlertCircle size={18} style={{ color: '#fbbc04' }} /><span>Oczekujące</span></div>
                 <span className="font-medium" style={{ color: '#fbbc04' }}>{pendingTasks.length}</span>
@@ -834,7 +952,8 @@ export default function TaskApp() {
             </button>
           </div>
 
-          {isManager && <QuickLinksSection />}
+          {/* Quick Links for ALL users now */}
+          <QuickLinksSection currentUser={currentUser} />
           
           <div className="mx-2 mt-3">
             <PushNotificationToggle userId={currentUser} />
@@ -873,8 +992,8 @@ export default function TaskApp() {
         </header>
         
         <div className="flex-1 overflow-y-auto p-4">
-          {activeTab === 'pending' && isManager ? (
-            <PendingView tasks={pendingTasks} approveTask={approveTask} deleteTask={deleteTask} />
+          {activeTab === 'pending' ? (
+            <PendingView tasks={pendingTasks} approveTask={approveTask} deleteTask={deleteTask} currentUser={currentUser} />
           ) : (
             <div className="max-w-4xl mx-auto">
               {filteredTasks.length === 0 ? (
@@ -882,7 +1001,7 @@ export default function TaskApp() {
               ) : (
                 <div className="space-y-1">
                   {filteredTasks.map(t => (
-                    <TaskItem key={t.id} task={t} isSelected={selectedTask?.id === t.id} onClick={() => handleSelectTask(t)} onStatusChange={(s) => updateTask(t.id, { status: s })} onDragStart={handleDragStart} onDragOver={handleDragOver} onDrop={handleDrop} onDragEnd={handleDragEnd} isDragging={draggedTask?.id === t.id} dragOverId={dragOverId} currentUser={currentUser} readTimestamps={readTimestamps} />
+                    <TaskItem key={t.id} task={t} isSelected={selectedTask?.id === t.id} onClick={() => handleSelectTask(t)} onStatusChange={(s) => updateTask(t.id, { status: s })} onDragStart={handleDragStart} onDragOver={handleDragOver} onDrop={handleDrop} onDragEnd={handleDragEnd} isDragging={draggedTask?.id === t.id} dragOverId={dragOverId} currentUser={currentUser} readTimestamps={readTimestamps} seenTaskIds={seenTaskIds} />
                   ))}
                 </div>
               )}
@@ -897,7 +1016,8 @@ export default function TaskApp() {
   );
 }
 
-function PendingView({ tasks, approveTask, deleteTask }) {
+// All users can now approve pending tasks
+function PendingView({ tasks, approveTask, deleteTask, currentUser }) {
   const [selected, setSelected] = useState({});
   const toggle = (taskId, memberId) => { setSelected(p => { const curr = p[taskId] || []; return { ...p, [taskId]: curr.includes(memberId) ? curr.filter(x => x !== memberId) : [...curr, memberId] }; }); };
   if (!tasks.length) return <div className="max-w-3xl mx-auto text-center py-16"><CheckCircle size={48} className="mx-auto mb-4" style={{ color: '#34a853', opacity: 0.4 }} /><p style={{ color: '#5f6368' }}>Brak oczekujących</p></div>;
@@ -910,7 +1030,10 @@ function PendingView({ tasks, approveTask, deleteTask }) {
           <div key={task.id} className="bg-white rounded-xl p-5 border" style={{ borderColor: '#e8eaed' }}>
             {task.isExternal && <div className="flex items-center gap-2 mb-3 pb-3 border-b" style={{ borderColor: '#e8eaed' }}><ExternalLink size={14} style={{ color: '#fbbc04' }} /><span className="text-xs font-medium" style={{ color: '#b06000' }}>Zewnętrzne</span>{task.language === 'en' && <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: '#e8f0fe', color: '#1a73e8' }}>🇬🇧</span>}<span className="text-xs" style={{ color: '#9aa0a6' }}>od {task.submittedBy}</span></div>}
             <div className="flex items-start gap-3 mb-4"><span className="text-xl">{market?.icon}</span><div className="flex-1"><div className="flex items-center gap-2"><h3 className="font-medium text-lg" style={{ color: '#202124' }}>{task.title}</h3><TranslateButton task={task} /></div>{task.description && <div className="mt-2"><RichTextDisplay html={task.description} /></div>}{task.links && <div className="mt-3 p-3 rounded-lg" style={{ background: '#f8f9fa' }}><ClickableLinks text={task.links} /></div>}</div></div>
-            <div className="mb-4"><p className="text-xs font-medium mb-2" style={{ color: '#5f6368' }}>Przypisz:</p><div className="flex flex-wrap gap-2">{TEAM_MEMBERS.filter(m => !m.isManager).map(m => <button key={m.id} onClick={() => toggle(task.id, m.id)} className="flex items-center gap-2 px-3 py-2 rounded-full border text-sm transition-all" style={{ borderColor: assignees.includes(m.id) ? '#1a73e8' : '#dadce0', background: assignees.includes(m.id) ? '#e8f0fe' : 'white', color: assignees.includes(m.id) ? '#1a73e8' : '#202124' }}><div className="w-5 h-5 rounded-full flex items-center justify-center text-white text-xs font-medium" style={{ background: m.color }}>{getInitials(m.name)}</div><span>{m.name.split(' ')[0]}</span>{assignees.includes(m.id) && <Check size={14} />}</button>)}</div></div>
+            <div className="mb-4"><p className="text-xs font-medium mb-2" style={{ color: '#5f6368' }}>Przypisz:</p><div className="flex flex-wrap gap-2">
+              {/* All team members can be assigned now (including manager) */}
+              {TEAM_MEMBERS.map(m => <button key={m.id} onClick={() => toggle(task.id, m.id)} className="flex items-center gap-2 px-3 py-2 rounded-full border text-sm transition-all" style={{ borderColor: assignees.includes(m.id) ? '#1a73e8' : '#dadce0', background: assignees.includes(m.id) ? '#e8f0fe' : 'white', color: assignees.includes(m.id) ? '#1a73e8' : '#202124' }}><div className="w-5 h-5 rounded-full flex items-center justify-center text-white text-xs font-medium" style={{ background: m.color }}>{getInitials(m.name)}</div><span>{m.name.split(' ')[0]}</span>{assignees.includes(m.id) && <Check size={14} />}</button>)}
+            </div></div>
             <div className="flex gap-2 pt-4 border-t" style={{ borderColor: '#e8eaed' }}><button onClick={() => approveTask(task, assignees)} disabled={!assignees.length} className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg font-medium disabled:opacity-50 transition-colors" style={{ background: assignees.length ? '#1a73e8' : '#f1f3f4', color: assignees.length ? 'white' : '#9aa0a6' }}><Check size={18} /> Zatwierdź</button><button onClick={() => deleteTask(task.id)} className="px-4 py-2.5 rounded-lg hover:bg-red-50 transition-colors" style={{ color: '#ea4335', border: '1px solid #f5c6cb' }}><X size={18} /></button></div>
           </div>
         );
@@ -919,22 +1042,30 @@ function PendingView({ tasks, approveTask, deleteTask }) {
   );
 }
 
-function TaskItem({ task, isSelected, onClick, onStatusChange, onDragStart, onDragOver, onDrop, onDragEnd, isDragging, dragOverId, currentUser, readTimestamps }) {
+function TaskItem({ task, isSelected, onClick, onStatusChange, onDragStart, onDragOver, onDrop, onDragEnd, isDragging, dragOverId, currentUser, readTimestamps, seenTaskIds }) {
   const market = MARKETS.find(m => m.id === task.market);
   const status = STATUSES.find(s => s.id === task.status);
   const Icon = status?.icon || Circle;
   const cycle = (e) => { e.stopPropagation(); onStatusChange(task.status === 'open' ? 'closed' : 'open'); };
   const isDropTarget = dragOverId === task.id;
   const unreadCount = getUnreadCount(task, currentUser, readTimestamps);
+  const isNewTask = task.assignees?.includes(currentUser) && task.createdBy !== currentUser && !seenTaskIds.includes(task.id);
   
   return (
-    <div onClick={onClick} draggable onDragStart={(e) => onDragStart(e, task)} onDragOver={(e) => onDragOver(e, task)} onDrop={(e) => onDrop(e, task)} onDragEnd={onDragEnd} className="bg-white rounded-lg px-3 py-2.5 cursor-pointer transition-all hover:shadow-sm border" style={{ borderColor: isSelected ? '#1a73e8' : isDropTarget ? '#4285f4' : '#e8eaed', opacity: isDragging ? 0.4 : 1, borderTopWidth: isDropTarget ? '3px' : '1px', borderTopColor: isDropTarget ? '#4285f4' : undefined }}>
+    <div onClick={onClick} draggable onDragStart={(e) => onDragStart(e, task)} onDragOver={(e) => onDragOver(e, task)} onDrop={(e) => onDrop(e, task)} onDragEnd={onDragEnd} className="bg-white rounded-lg px-3 py-2.5 cursor-pointer transition-all hover:shadow-sm border" style={{ borderColor: isSelected ? '#1a73e8' : isDropTarget ? '#4285f4' : isNewTask ? '#c6dafc' : '#e8eaed', opacity: isDragging ? 0.4 : 1, borderTopWidth: isDropTarget ? '3px' : '1px', borderTopColor: isDropTarget ? '#4285f4' : undefined, background: isNewTask ? '#f8fbff' : 'white' }}>
       <div className="flex items-center gap-2">
         <GripVertical size={14} style={{ color: '#dadce0' }} className="cursor-grab flex-shrink-0" />
         <button onClick={cycle} className="hover:scale-110 transition-transform flex-shrink-0"><Icon size={18} style={{ color: status?.color }} className={task.status === 'closed' ? 'fill-current' : ''} /></button>
         <span className="flex-shrink-0">{market?.icon}</span>
         <h4 className="font-medium text-sm flex-1 min-w-0 truncate" style={{ color: task.status === 'closed' ? '#9aa0a6' : '#202124', textDecoration: task.status === 'closed' ? 'line-through' : 'none' }}>{task.title}</h4>
         <div className="flex items-center gap-2 flex-shrink-0">
+          {/* New task indicator */}
+          {isNewTask && (
+            <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs font-medium" style={{ background: '#1a73e8', color: 'white' }}>
+              <Sparkles size={10} />
+              Nowy
+            </span>
+          )}
           {/* Unread indicator */}
           {unreadCount > 0 && (
             <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs font-medium" style={{ background: '#fbbc04', color: 'white' }}>
@@ -1083,8 +1214,8 @@ function TaskDetail({ task, updateTask, deleteTask, onClose, currentUser, isMana
         
         <div>
           <div className="flex items-center justify-between mb-3"><div className="flex items-center gap-2"><ListTodo size={18} style={{ color: '#5f6368' }} /><label className="text-sm font-medium" style={{ color: '#202124' }}>Subtaski ({subtasks.filter(s => s.status === 'closed').length}/{subtasks.length})</label></div>{!showSubtaskForm && <button onClick={() => setShowSubtaskForm(true)} className="text-sm flex items-center gap-1 px-3 py-1 rounded-full hover:bg-gray-100 transition-colors" style={{ color: '#1a73e8' }}><Plus size={16} /> Dodaj</button>}</div>
-          <div className="space-y-1">{subtasks.map(sub => { const assignee = TEAM_MEMBERS.find(m => m.id === sub.assignee); const isDone = sub.status === 'closed'; return <div key={sub.id} className="flex items-center gap-2 px-3 py-2 rounded-lg group hover:bg-gray-50 transition-colors"><button onClick={() => toggleSubtask(sub.id)} className="flex-shrink-0">{isDone ? <CheckSquare size={20} style={{ color: '#34a853' }} /> : <Square size={20} style={{ color: '#dadce0' }} />}</button><span className="flex-1 text-sm" style={{ color: isDone ? '#9aa0a6' : '#202124', textDecoration: isDone ? 'line-through' : 'none' }}>{sub.title}</span>{assignee ? <div className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-medium" style={{ background: assignee.color }} title={assignee.name}>{getInitials(assignee.name)}</div> : <select onChange={(e) => updateSubtaskAssignee(sub.id, e.target.value)} className="text-xs px-2 py-1 rounded border opacity-0 group-hover:opacity-100 transition-opacity" style={{ borderColor: '#dadce0', color: '#5f6368' }} value=""><option value="">+ Przypisz</option>{TEAM_MEMBERS.filter(m => !m.isManager).map(m => <option key={m.id} value={m.id}>{m.name}</option>)}</select>}<button onClick={() => deleteSubtask(sub.id)} className="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-50 rounded-full transition-all" style={{ color: '#ea4335' }}><X size={16} /></button></div>; })}</div>
-          {showSubtaskForm && <div className="mt-3 p-3 rounded-lg border" style={{ borderColor: '#1a73e8', background: '#f8fbff' }}><input type="text" value={newSubtask} onChange={(e) => setNewSubtask(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addSubtask()} placeholder="Nazwa subtaska..." className="w-full px-3 py-2 border rounded-lg text-sm mb-2 transition-colors focus:border-blue-500" style={{ borderColor: '#dadce0' }} autoFocus /><div className="flex items-center gap-2"><select value={subtaskAssignee} onChange={(e) => setSubtaskAssignee(e.target.value)} className="flex-1 px-2 py-1.5 border rounded-lg text-sm" style={{ borderColor: '#dadce0' }}><option value="">Bez przypisania</option>{TEAM_MEMBERS.filter(m => !m.isManager).map(m => <option key={m.id} value={m.id}>{m.name}</option>)}</select><button onClick={addSubtask} className="px-4 py-1.5 rounded-lg text-sm font-medium" style={{ background: '#1a73e8', color: 'white' }}>Dodaj</button><button onClick={() => { setShowSubtaskForm(false); setNewSubtask(''); }} className="px-3 py-1.5 rounded-lg text-sm" style={{ color: '#5f6368' }}>Anuluj</button></div></div>}
+          <div className="space-y-1">{subtasks.map(sub => { const assignee = TEAM_MEMBERS.find(m => m.id === sub.assignee); const isDone = sub.status === 'closed'; return <div key={sub.id} className="flex items-center gap-2 px-3 py-2 rounded-lg group hover:bg-gray-50 transition-colors"><button onClick={() => toggleSubtask(sub.id)} className="flex-shrink-0">{isDone ? <CheckSquare size={20} style={{ color: '#34a853' }} /> : <Square size={20} style={{ color: '#dadce0' }} />}</button><span className="flex-1 text-sm" style={{ color: isDone ? '#9aa0a6' : '#202124', textDecoration: isDone ? 'line-through' : 'none' }}>{sub.title}</span>{assignee ? <div className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-medium" style={{ background: assignee.color }} title={assignee.name}>{getInitials(assignee.name)}</div> : <select onChange={(e) => updateSubtaskAssignee(sub.id, e.target.value)} className="text-xs px-2 py-1 rounded border opacity-0 group-hover:opacity-100 transition-opacity" style={{ borderColor: '#dadce0', color: '#5f6368' }} value=""><option value="">+ Przypisz</option>{TEAM_MEMBERS.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}</select>}<button onClick={() => deleteSubtask(sub.id)} className="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-50 rounded-full transition-all" style={{ color: '#ea4335' }}><X size={16} /></button></div>; })}</div>
+          {showSubtaskForm && <div className="mt-3 p-3 rounded-lg border" style={{ borderColor: '#1a73e8', background: '#f8fbff' }}><input type="text" value={newSubtask} onChange={(e) => setNewSubtask(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addSubtask()} placeholder="Nazwa subtaska..." className="w-full px-3 py-2 border rounded-lg text-sm mb-2 transition-colors focus:border-blue-500" style={{ borderColor: '#dadce0' }} autoFocus /><div className="flex items-center gap-2"><select value={subtaskAssignee} onChange={(e) => setSubtaskAssignee(e.target.value)} className="flex-1 px-2 py-1.5 border rounded-lg text-sm" style={{ borderColor: '#dadce0' }}><option value="">Bez przypisania</option>{TEAM_MEMBERS.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}</select><button onClick={addSubtask} className="px-4 py-1.5 rounded-lg text-sm font-medium" style={{ background: '#1a73e8', color: 'white' }}>Dodaj</button><button onClick={() => { setShowSubtaskForm(false); setNewSubtask(''); }} className="px-3 py-1.5 rounded-lg text-sm" style={{ color: '#5f6368' }}>Anuluj</button></div></div>}
         </div>
         
         <div><label className="block mb-2 text-sm font-medium" style={{ color: '#202124' }}>Status</label><div className="flex flex-wrap gap-2">{STATUSES.filter(s => s.id !== 'pending').map(s => <button key={s.id} onClick={() => updateTask(task.id, { status: s.id })} className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all" style={{ background: task.status === s.id ? s.bg : '#f1f3f4', color: task.status === s.id ? s.color : '#5f6368', border: task.status === s.id ? `2px solid ${s.color}` : '2px solid transparent' }}><s.icon size={16} /> {s.name}</button>)}</div></div>
@@ -1129,7 +1260,10 @@ function NewTaskModal({ onClose, onSave, currentUser }) {
           <div><label className="text-sm font-medium block mb-1.5" style={{ color: '#202124' }}>Tytuł *</label><input type="text" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="w-full px-4 py-2.5 border rounded-lg text-sm transition-colors focus:border-blue-500" style={{ borderColor: '#dadce0' }} placeholder="Co trzeba zrobić?" autoFocus /></div>
           <div><label className="text-sm font-medium block mb-1.5" style={{ color: '#202124' }}>Opis</label><RichTextEditor value={form.description} onChange={(v) => setForm({ ...form, description: v })} placeholder="Szczegóły zadania..." minHeight="200px" /></div>
           <div className="grid grid-cols-2 gap-4"><div><label className="text-sm font-medium block mb-1.5" style={{ color: '#202124' }}>Rynek</label><select value={form.market} onChange={(e) => setForm({ ...form, market: e.target.value })} className="w-full px-4 py-2.5 border rounded-lg text-sm" style={{ borderColor: '#dadce0' }}>{MARKETS.map(m => <option key={m.id} value={m.id}>{m.icon} {m.name}</option>)}</select></div><div><label className="text-sm font-medium block mb-1.5" style={{ color: '#202124' }}>Typ</label><select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })} className="w-full px-4 py-2.5 border rounded-lg text-sm" style={{ borderColor: '#dadce0' }}><option value="open">Otwarte</option><option value="longterm">Long-term</option></select></div></div>
-          <div><label className="text-sm font-medium block mb-2" style={{ color: '#202124' }}>Przypisz do</label><div className="flex flex-wrap gap-2">{TEAM_MEMBERS.map(m => <button key={m.id} onClick={() => toggle(m.id)} className="flex items-center gap-2 px-3 py-2 rounded-full border text-sm transition-all" style={{ borderColor: form.assignees.includes(m.id) ? '#1a73e8' : '#dadce0', background: form.assignees.includes(m.id) ? '#e8f0fe' : 'white', color: form.assignees.includes(m.id) ? '#1a73e8' : '#202124' }}><div className="w-5 h-5 rounded-full flex items-center justify-center text-white text-xs font-medium" style={{ background: m.color }}>{getInitials(m.name)}</div><span>{m.name}</span>{form.assignees.includes(m.id) && <Check size={14} />}</button>)}</div></div>
+          <div><label className="text-sm font-medium block mb-2" style={{ color: '#202124' }}>Przypisz do</label><div className="flex flex-wrap gap-2">
+            {/* All team members can be assigned (including manager) */}
+            {TEAM_MEMBERS.map(m => <button key={m.id} onClick={() => toggle(m.id)} className="flex items-center gap-2 px-3 py-2 rounded-full border text-sm transition-all" style={{ borderColor: form.assignees.includes(m.id) ? '#1a73e8' : '#dadce0', background: form.assignees.includes(m.id) ? '#e8f0fe' : 'white', color: form.assignees.includes(m.id) ? '#1a73e8' : '#202124' }}><div className="w-5 h-5 rounded-full flex items-center justify-center text-white text-xs font-medium" style={{ background: m.color }}>{getInitials(m.name)}</div><span>{m.name}</span>{form.assignees.includes(m.id) && <Check size={14} />}</button>)}
+          </div></div>
         </div>
         <div className="p-5 border-t flex justify-end gap-3" style={{ borderColor: '#e8eaed' }}><button onClick={onClose} className="px-5 py-2.5 rounded-lg text-sm font-medium hover:bg-gray-100" style={{ color: '#5f6368' }}>Anuluj</button><button onClick={save} className="px-5 py-2.5 rounded-lg text-sm font-medium transition-colors hover:shadow-md" style={{ background: '#1a73e8', color: 'white' }}>Utwórz zadanie</button></div>
       </div>
