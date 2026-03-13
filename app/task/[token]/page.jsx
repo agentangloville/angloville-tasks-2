@@ -1,14 +1,14 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { CheckCircle, Circle, Clock, AlertCircle, Send, MessageSquare, ExternalLink, Loader2, ArrowLeft, User } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { CheckCircle, Circle, Clock, AlertCircle, Send, MessageSquare, ExternalLink, Loader2, ArrowLeft, User, RefreshCw } from 'lucide-react';
 import { useParams } from 'next/navigation';
 
 const STATUSES = {
-  pending: { name: 'Pending Review', icon: AlertCircle, color: '#fbbc04', bg: '#fef7e0' },
-  open: { name: 'In Progress', icon: Circle, color: '#4285f4', bg: '#e8f0fe' },
-  longterm: { name: 'Long-term', icon: Clock, color: '#a142f4', bg: '#f3e8fd' },
-  closed: { name: 'Completed', icon: CheckCircle, color: '#34a853', bg: '#e6f4ea' },
+  pending: { name: 'Pending Review', icon: AlertCircle, color: '#fbbc04', bg: '#fef7e0', description: 'Your request is waiting to be reviewed by the team.' },
+  open: { name: 'In Progress', icon: Circle, color: '#4285f4', bg: '#e8f0fe', description: 'The team is actively working on your request.' },
+  longterm: { name: 'Long-term', icon: Clock, color: '#a142f4', bg: '#f3e8fd', description: 'This is a long-term project in progress.' },
+  closed: { name: 'Completed', icon: CheckCircle, color: '#34a853', bg: '#e6f4ea', description: 'Your request has been completed!' },
 };
 
 const TEAM_MEMBERS = [
@@ -48,6 +48,10 @@ const formatDateTime = (date) => {
   return d.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
 };
 
+const formatTime = (date) => {
+  return new Date(date).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+};
+
 function RichTextDisplay({ html }) {
   if (!html) return null;
   return (
@@ -61,10 +65,7 @@ function RichTextDisplay({ html }) {
 
 function ClickableLinks({ text }) {
   if (!text) return null;
-  const cleanText = text
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&amp;/g, '&');
-  
+  const cleanText = text.replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&');
   const lines = cleanText.split('\n');
   return (
     <div className="space-y-1">
@@ -81,14 +82,7 @@ function ClickableLinks({ text }) {
             else label = urlObj.hostname.replace('www.', '');
           } catch {}
           return (
-            <a 
-              key={i}
-              href={url} 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-blue-50 transition-colors"
-              style={{ color: '#1a73e8' }}
-            >
+            <a key={i} href={url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-blue-50 transition-colors" style={{ color: '#1a73e8' }}>
               <ExternalLink size={14} />
               <span className="text-sm hover:underline">{label}</span>
             </a>
@@ -106,12 +100,15 @@ export default function PublicTaskPage() {
   
   const [task, setTask] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
   const [comment, setComment] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState(null);
 
-  const loadTask = async () => {
+  const loadTask = useCallback(async (showRefreshing = false) => {
+    if (showRefreshing) setRefreshing(true);
     try {
       const res = await fetch(`/api/task/${token}`);
       const data = await res.json();
@@ -120,16 +117,34 @@ export default function PublicTaskPage() {
         setError(data.error);
       } else {
         setTask(data);
+        setLastUpdated(new Date());
       }
     } catch (err) {
       setError('Failed to load task');
     }
     setLoading(false);
-  };
+    setRefreshing(false);
+  }, [token]);
 
+  // Initial load
   useEffect(() => {
     if (token) loadTask();
-  }, [token]);
+  }, [token, loadTask]);
+
+  // Auto-refresh every 30 seconds
+  useEffect(() => {
+    if (!token || error) return;
+    
+    const interval = setInterval(() => {
+      loadTask(false); // silent refresh
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, [token, error, loadTask]);
+
+  const handleRefresh = () => {
+    loadTask(true);
+  };
 
   const handleSubmitComment = async (e) => {
     e.preventDefault();
@@ -148,7 +163,7 @@ export default function PublicTaskPage() {
         setComment('');
         setSubmitted(true);
         setTimeout(() => setSubmitted(false), 3000);
-        loadTask(); // Reload to show new comment
+        loadTask(true);
       }
     } catch (err) {
       console.error('Failed to submit comment:', err);
@@ -192,28 +207,57 @@ export default function PublicTaskPage() {
             <img src="https://angloville.com/wp-content/themes/angloville/assets/images/logo.svg" alt="Angloville" className="h-8" />
             <span className="text-sm font-medium px-3 py-1 rounded-full" style={{ background: '#e8f0fe', color: '#1a73e8' }}>Task Tracker</span>
           </div>
-          <a href="/request" className="text-sm flex items-center gap-1 hover:underline" style={{ color: '#1a73e8' }}>
-            <ArrowLeft size={16} /> New Request
-          </a>
+          <div className="flex items-center gap-4">
+            {/* Refresh button */}
+            <button 
+              onClick={handleRefresh}
+              disabled={refreshing}
+              className="flex items-center gap-2 text-sm px-3 py-1.5 rounded-full hover:bg-gray-100 transition-colors"
+              style={{ color: '#5f6368' }}
+              title="Refresh status"
+            >
+              <RefreshCw size={16} className={refreshing ? 'animate-spin' : ''} />
+              <span className="hidden sm:inline">Refresh</span>
+            </button>
+            <a href="/request" className="text-sm flex items-center gap-1 hover:underline" style={{ color: '#1a73e8' }}>
+              <ArrowLeft size={16} /> New Request
+            </a>
+          </div>
         </div>
       </header>
 
       <main className="max-w-3xl mx-auto py-8 px-4">
+        {/* Last updated info */}
+        {lastUpdated && (
+          <div className="text-center mb-4">
+            <p className="text-xs" style={{ color: '#9aa0a6' }}>
+              Last updated: {formatTime(lastUpdated)} • Auto-refreshes every 30 seconds
+            </p>
+          </div>
+        )}
+
         {/* Task Card */}
         <div className="bg-white rounded-xl overflow-hidden mb-6" style={{ boxShadow: '0 1px 3px 0 rgba(60,64,67,.3), 0 4px 8px 3px rgba(60,64,67,.15)' }}>
-          {/* Status Bar */}
-          <div className="px-6 py-4 flex items-center justify-between" style={{ background: status.bg }}>
-            <div className="flex items-center gap-3">
-              <StatusIcon size={24} style={{ color: status.color }} />
-              <div>
-                <p className="text-xs font-medium uppercase tracking-wide" style={{ color: status.color }}>Status</p>
-                <p className="font-semibold" style={{ color: status.color }}>{status.name}</p>
+          {/* Status Bar - Enhanced with description */}
+          <div className="px-6 py-5" style={{ background: status.bg }}>
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ background: 'white' }}>
+                  <StatusIcon size={28} style={{ color: status.color }} />
+                </div>
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-wide" style={{ color: status.color }}>Current Status</p>
+                  <p className="text-xl font-semibold" style={{ color: status.color }}>{status.name}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/50">
+                <span className="text-2xl">{market?.icon}</span>
+                <span className="text-sm font-medium" style={{ color: '#5f6368' }}>{market?.name}</span>
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="text-2xl">{market?.icon}</span>
-              <span className="text-sm font-medium" style={{ color: '#5f6368' }}>{market?.name}</span>
-            </div>
+            <p className="text-sm mt-2" style={{ color: status.color, opacity: 0.8 }}>
+              {status.description}
+            </p>
           </div>
 
           {/* Task Content */}
@@ -281,7 +325,6 @@ export default function PublicTaskPage() {
                   
                   return (
                     <div key={c.id || index} className={`flex gap-3 ${isExternal ? 'flex-row-reverse' : ''}`}>
-                      {/* Avatar */}
                       <div 
                         className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-medium flex-shrink-0"
                         style={{ background: isExternal ? '#5f6368' : (member?.color || '#9aa0a6') }}
@@ -289,30 +332,22 @@ export default function PublicTaskPage() {
                         {isExternal ? <User size={20} /> : getInitials(member?.name || '?')}
                       </div>
                       
-                      {/* Message */}
                       <div className={`flex-1 ${isExternal ? 'text-right' : ''}`}>
                         <div 
                           className={`inline-block rounded-2xl px-4 py-3 max-w-[85%] ${isExternal ? 'rounded-tr-sm' : 'rounded-tl-sm'}`}
-                          style={{ 
-                            background: isExternal ? '#1a73e8' : '#f1f3f4',
-                            color: isExternal ? 'white' : '#202124'
-                          }}
+                          style={{ background: isExternal ? '#1a73e8' : '#f1f3f4', color: isExternal ? 'white' : '#202124' }}
                         >
                           <div className="flex items-center gap-2 mb-1">
                             <span className="text-sm font-medium" style={{ color: isExternal ? 'rgba(255,255,255,0.9)' : '#202124' }}>
                               {isExternal ? (c.authorName || task.submittedBy || 'You') : (member?.name || 'Team')}
                             </span>
                             {!isExternal && (
-                              <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: 'rgba(0,0,0,0.1)', color: isExternal ? 'rgba(255,255,255,0.7)' : '#5f6368' }}>
-                                Team
-                              </span>
+                              <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: 'rgba(0,0,0,0.1)', color: '#5f6368' }}>Team</span>
                             )}
                           </div>
                           <p className="text-sm" style={{ color: isExternal ? 'white' : '#3c4043' }}>{c.text}</p>
                         </div>
-                        <p className="text-xs mt-1" style={{ color: '#9aa0a6' }}>
-                          {formatDateTime(c.createdAt)}
-                        </p>
+                        <p className="text-xs mt-1" style={{ color: '#9aa0a6' }}>{formatDateTime(c.createdAt)}</p>
                       </div>
                     </div>
                   );
@@ -329,10 +364,7 @@ export default function PublicTaskPage() {
             {/* Reply Form */}
             <form onSubmit={handleSubmitComment}>
               <div className="flex gap-3">
-                <div 
-                  className="w-10 h-10 rounded-full flex items-center justify-center text-white flex-shrink-0"
-                  style={{ background: '#5f6368' }}
-                >
+                <div className="w-10 h-10 rounded-full flex items-center justify-center text-white flex-shrink-0" style={{ background: '#5f6368' }}>
                   <User size={20} />
                 </div>
                 <div className="flex-1">
@@ -345,20 +377,14 @@ export default function PublicTaskPage() {
                     rows={3}
                   />
                   <div className="flex items-center justify-between mt-3">
-                    <p className="text-xs" style={{ color: '#9aa0a6' }}>
-                      The team will be notified of your reply
-                    </p>
+                    <p className="text-xs" style={{ color: '#9aa0a6' }}>The team will be notified of your reply</p>
                     <button
                       type="submit"
                       disabled={!comment.trim() || submitting}
                       className="flex items-center gap-2 px-5 py-2.5 rounded-full font-medium text-sm disabled:opacity-50 transition-all hover:shadow-md"
                       style={{ background: '#1a73e8', color: 'white' }}
                     >
-                      {submitting ? (
-                        <Loader2 size={16} className="animate-spin" />
-                      ) : (
-                        <Send size={16} />
-                      )}
+                      {submitting ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
                       {submitting ? 'Sending...' : 'Send Reply'}
                     </button>
                   </div>
@@ -366,7 +392,6 @@ export default function PublicTaskPage() {
               </div>
             </form>
 
-            {/* Success Message */}
             {submitted && (
               <div className="mt-4 p-3 rounded-lg flex items-center gap-2" style={{ background: '#e6f4ea' }}>
                 <CheckCircle size={18} style={{ color: '#34a853' }} />
@@ -376,7 +401,6 @@ export default function PublicTaskPage() {
           </div>
         </div>
 
-        {/* Footer */}
         <p className="text-center mt-8 text-sm" style={{ color: '#9aa0a6' }}>
           Questions? Contact <a href="mailto:e.kedzior@angloville.pl" className="hover:underline" style={{ color: '#1a73e8' }}>e.kedzior@angloville.pl</a>
         </p>
