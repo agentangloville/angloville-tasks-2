@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { Plus, Check, X, Edit3, Trash2, CheckCircle, Circle, Send, MessageSquare, ChevronDown, ChevronRight, Clock, AlertCircle, ExternalLink, Copy, Languages, Loader2, ListTodo, Square, CheckSquare, Bold, Italic, List, ListOrdered, LogOut, Lock, GripVertical, Filter, Underline, Link2, Undo, Redo, Inbox, Sparkles, Mail, MailCheck, MailX, RefreshCw, Paperclip, File, FileText, Image, FileSpreadsheet, Download, Flag, Users, UserPlus, Globe, EyeOff } from 'lucide-react';
+import { Plus, Check, X, Edit3, Trash2, CheckCircle, Circle, Send, MessageSquare, ChevronDown, ChevronRight, Clock, AlertCircle, ExternalLink, Copy, Languages, Loader2, ListTodo, Square, CheckSquare, Bold, Italic, List, ListOrdered, LogOut, Lock, GripVertical, Filter, Underline, Link2, Undo, Redo, Inbox, Sparkles, Mail, MailCheck, MailX, RefreshCw, Paperclip, File, FileText, Image, FileSpreadsheet, Download, Flag, Users, UserPlus, Globe, EyeOff, ArrowUpDown, ArrowDown, ArrowUp, Activity } from 'lucide-react';
 import { getTasks, createTask, updateTask as updateTaskDb, deleteTask as deleteTaskDb, getQuickLinks, createQuickLink, deleteQuickLink, uploadFile, getTeamMembers, getAllTeamMembers, createTeamMember, updateTeamMember } from '../lib/supabase';
 
 const FALLBACK_TEAM = [
@@ -28,6 +28,15 @@ const PRIORITIES = [
   { id: 'urgent', name: 'Pilny', nameEn: 'Urgent', color: '#d93025', bg: '#fce8e6' },
 ];
 
+const PRIORITY_ORDER = { urgent: 0, high: 1, medium: 2, low: 3, null: 4 };
+
+const SORT_OPTIONS = [
+  { id: 'newest', icon: ArrowDown },
+  { id: 'oldest', icon: ArrowUp },
+  { id: 'priority', icon: Flag },
+  { id: 'activity', icon: Activity },
+];
+
 const STATUSES = [
   { id: 'pending', name: 'Oczekujące', nameEn: 'Pending', icon: AlertCircle, color: '#fbbc04', bg: '#fef7e0' },
   { id: 'open', name: 'Otwarte', nameEn: 'Open', icon: Circle, color: '#4285f4', bg: '#e8f0fe' },
@@ -40,9 +49,13 @@ const COLORS = ['#4285f4', '#a142f4', '#34a853', '#fbbc04', '#ea4335', '#e91e63'
 const TRANSLATIONS = {
   pl: {
     marketingTasks: 'Marketing Tasks', loginTitle: 'Zaloguj się do panelu', person: 'Osoba', select: 'Wybierz...', pin: 'PIN', login: 'Zaloguj się', incorrectPin: 'Nieprawidłowy PIN', selectPerson: 'Wybierz osobę', allMarkets: 'Wszystkie rynki', everyone: 'Wszyscy', pending: 'Oczekujące', active: 'Aktywne', open: 'Otwarte', longterm: 'Long-term', closed: 'Zamknięte', formEn: 'Formularz EN:', myLinks: '📌 Moje linki', addLink: 'Dodaj link', noLinks: 'Brak linków', manager: 'Manager', pendingApproval: 'Oczekujące na akceptację', activeTasks: 'Aktywne zadania', openTasks: 'Otwarte zadania', longtermTasks: 'Zadania long-term', closedTasks: 'Zamknięte zadania', allTasks: 'Wszystkie zadania', filter: 'Filtr', newTask: 'Nowe zadanie', noTasksToShow: 'Brak zadań do wyświetlenia', noPending: 'Brak oczekujących', external: 'Zewnętrzne', assignTo: 'Przypisz:', approve: 'Zatwierdź', title: 'Tytuł', description: 'Opis', attachments: 'Załączniki', noAttachments: 'Brak załączników', subtasks: 'Subtaski', add: 'Dodaj', subtaskName: 'Nazwa subtaska...', noAssignment: 'Bez przypisania', cancel: 'Anuluj', status: 'Status', subcategory: 'Podkategoria', none: 'Brak', assigned: 'Przypisani', addPerson: '+ Dodaj', comments: 'Komentarze', markUnread: 'Oznacz nieprzeczytane', edit: 'Edytuj', delete: 'Usuń', writeComment: 'Napisz komentarz...', emailNotifications: 'Powiadomienia email', submittedBy: 'Zgłaszający', unknown: 'Nieznany', noEmail: 'Brak adresu email', history: 'Historia:', by: 'przez', system: 'System', resend: 'Wyślij ponownie', sendEmail: 'Wyślij email', created: 'Utworzono', byPerson: 'Przez', save: 'Zapisz', taskDetails: 'Szczegóły zadania...', whatToDo: 'Co trzeba zrobić?', market: 'Rynek', type: 'Typ', assignToPerson: 'Przypisz do', createTask: 'Utwórz zadanie', links: 'Linki', copyLink: 'Kopiuj link', copied: 'Skopiowano', from: 'Od', priority: 'Priorytet', clickToAddAttachments: 'Kliknij 📎 aby dodać załączniki', loading: 'Ładowanie...', deleteTask: 'Usunąć zadanie?', lt: 'LT', new: 'Nowy', users: 'Użytkownicy', usersPanel: 'Zarządzanie użytkownikami', addUser: 'Dodaj użytkownika', editUser: 'Edytuj użytkownika', name: 'Imię i nazwisko', email: 'Email', role: 'Rola', language: 'Język', polish: 'Polski', english: 'Angielski', restrictedMarket: 'Ograniczenie do rynku', allMarketsAccess: 'Wszystkie rynki', seeOnlyAssigned: 'Widzi tylko przypisane', seeAll: 'Widzi wszystkie zadania', isManager: 'Administrator', deactivate: 'Dezaktywuj', activate: 'Aktywuj', color: 'Kolor', unread: 'Nieodczytane', newTasks: 'Nowe zadania',
+    // Sortowanie
+    sortBy: 'Sortuj', sortNewest: 'Od najnowszych', sortOldest: 'Od najstarszych', sortPriority: 'Po priorytecie', sortActivity: 'Po aktywności',
   },
   en: {
     marketingTasks: 'Marketing Tasks', loginTitle: 'Login to panel', person: 'Person', select: 'Select...', pin: 'PIN', login: 'Login', incorrectPin: 'Incorrect PIN', selectPerson: 'Select person', allMarkets: 'All markets', everyone: 'Everyone', pending: 'Pending', active: 'Active', open: 'Open', longterm: 'Long-term', closed: 'Closed', formEn: 'EN Form:', myLinks: '📌 My links', addLink: 'Add link', noLinks: 'No links', manager: 'Manager', pendingApproval: 'Pending approval', activeTasks: 'Active tasks', openTasks: 'Open tasks', longtermTasks: 'Long-term tasks', closedTasks: 'Closed tasks', allTasks: 'All tasks', filter: 'Filter', newTask: 'New task', noTasksToShow: 'No tasks to display', noPending: 'No pending tasks', external: 'External', assignTo: 'Assign to:', approve: 'Approve', title: 'Title', description: 'Description', attachments: 'Attachments', noAttachments: 'No attachments', subtasks: 'Subtasks', add: 'Add', subtaskName: 'Subtask name...', noAssignment: 'Unassigned', cancel: 'Cancel', status: 'Status', subcategory: 'Subcategory', none: 'None', assigned: 'Assigned', addPerson: '+ Add', comments: 'Comments', markUnread: 'Mark as unread', edit: 'Edit', delete: 'Delete', writeComment: 'Write a comment...', emailNotifications: 'Email notifications', submittedBy: 'Submitted by', unknown: 'Unknown', noEmail: 'No email address', history: 'History:', by: 'by', system: 'System', resend: 'Resend', sendEmail: 'Send email', created: 'Created', byPerson: 'By', save: 'Save', taskDetails: 'Task details...', whatToDo: 'What needs to be done?', market: 'Market', type: 'Type', assignToPerson: 'Assign to', createTask: 'Create task', links: 'Links', copyLink: 'Copy link', copied: 'Copied', from: 'From', priority: 'Priority', clickToAddAttachments: 'Click 📎 to add attachments', loading: 'Loading...', deleteTask: 'Delete task?', lt: 'LT', new: 'New', users: 'Users', usersPanel: 'User management', addUser: 'Add user', editUser: 'Edit user', name: 'Full name', email: 'Email', role: 'Role', language: 'Language', polish: 'Polish', english: 'English', restrictedMarket: 'Restricted to market', allMarketsAccess: 'All markets', seeOnlyAssigned: 'See only assigned', seeAll: 'See all tasks', isManager: 'Administrator', deactivate: 'Deactivate', activate: 'Activate', color: 'Color', unread: 'Unread', newTasks: 'New tasks',
+    // Sorting
+    sortBy: 'Sort', sortNewest: 'Newest first', sortOldest: 'Oldest first', sortPriority: 'By priority', sortActivity: 'By activity',
   }
 };
 
@@ -64,6 +77,36 @@ const formatDateTimeEn = (date) => new Date(date).toLocaleString('en-US', { day:
 const formatTimeAgo = (date) => { const diffMins = Math.floor((new Date() - new Date(date)) / 60000); if (diffMins < 1) return 'teraz'; if (diffMins < 60) return `${diffMins} min`; if (diffMins < 1440) return `${Math.floor(diffMins/60)} godz.`; return `${Math.floor(diffMins/1440)} dni`; };
 async function sendEmailNotification(to, assigneeName, taskTitle, assignedBy) { try { await fetch('/api/notify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ to, assigneeName, taskTitle, assignedBy }) }); } catch (e) { console.log('Email skipped:', e); } }
 async function sendCompletedEmail(task, completedByName) { if (!task.submitterEmail || !task.isExternal) return { sent: false }; try { const response = await fetch('/api/notify-completed', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ to: task.submitterEmail, requesterName: task.submittedBy, taskTitle: task.title, completedBy: completedByName, publicToken: task.publicToken }) }); const data = await response.json(); return { sent: data.success || false, messageId: data.messageId }; } catch (e) { return { sent: false, error: e.message }; } }
+
+// Funkcja sortowania
+function sortTasks(tasks, sortBy) {
+  const sorted = [...tasks];
+  switch (sortBy) {
+    case 'newest':
+      return sorted.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    case 'oldest':
+      return sorted.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+    case 'priority':
+      return sorted.sort((a, b) => {
+        const orderA = PRIORITY_ORDER[a.priority] ?? 4;
+        const orderB = PRIORITY_ORDER[b.priority] ?? 4;
+        if (orderA !== orderB) return orderA - orderB;
+        return new Date(b.createdAt) - new Date(a.createdAt);
+      });
+    case 'activity':
+      return sorted.sort((a, b) => {
+        const lastActivityA = a.comments?.length > 0 
+          ? Math.max(...a.comments.map(c => new Date(c.createdAt).getTime())) 
+          : new Date(a.createdAt).getTime();
+        const lastActivityB = b.comments?.length > 0 
+          ? Math.max(...b.comments.map(c => new Date(c.createdAt).getTime())) 
+          : new Date(b.createdAt).getTime();
+        return lastActivityB - lastActivityA;
+      });
+    default:
+      return sorted;
+  }
+}
 
 function AttachmentUploader({ onUpload, uploading }) { const ref = useRef(null); const handleSelect = async (e) => { const files = Array.from(e.target.files); if (files.length > 0) await onUpload(files); e.target.value = ''; }; return <><input ref={ref} type="file" multiple onChange={handleSelect} className="hidden" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.ppt,.pptx" /><button type="button" onClick={() => ref.current?.click()} disabled={uploading} className="p-2 rounded-full hover:bg-gray-100 disabled:opacity-50" style={{ color: '#5f6368' }}>{uploading ? <Loader2 size={18} className="animate-spin" /> : <Paperclip size={18} />}</button></>; }
 function AttachmentList({ attachments, onRemove, showRemove = true }) { if (!attachments?.length) return null; return <div className="mt-3 space-y-2">{attachments.map(att => { const FileIcon = getFileIcon(att.type); const isImage = att.type?.startsWith('image/'); return <div key={att.id} className="flex items-center gap-3 px-3 py-2 rounded-lg group" style={{ background: '#f1f3f4' }}>{isImage ? <img src={att.url} alt={att.name} className="w-10 h-10 rounded object-cover cursor-pointer" onClick={() => window.open(att.url, '_blank')} /> : <div className="w-10 h-10 rounded flex items-center justify-center" style={{ background: '#e8eaed' }}><FileIcon size={20} style={{ color: '#5f6368' }} /></div>}<div className="flex-1 min-w-0"><p className="text-sm font-medium truncate" style={{ color: '#202124' }}>{att.name}</p><p className="text-xs" style={{ color: '#9aa0a6' }}>{formatFileSize(att.size)}</p></div><a href={att.url} target="_blank" rel="noopener noreferrer" className="p-1.5 rounded hover:bg-gray-200" style={{ color: '#5f6368' }}><Download size={16} /></a>{showRemove && onRemove && <button onClick={() => onRemove(att.id)} className="p-1.5 rounded hover:bg-red-50 opacity-0 group-hover:opacity-100" style={{ color: '#ea4335' }}><X size={16} /></button>}</div>; })}</div>; }
@@ -190,6 +233,70 @@ function QuickLinksSection({ currentUser, t }) {
   const handleAdd = async () => { if (!newLink.name.trim() || !newLink.url.trim()) return; await createQuickLink({ ...newLink, userId: currentUser }); setNewLink({ name: '', url: '' }); setShowAdd(false); loadLinks(); };
   const handleDelete = async (id) => { await deleteQuickLink(id); loadLinks(); };
   return <div className="mt-4 mx-2"><button onClick={() => setExpanded(!expanded)} className="w-full flex items-center justify-between px-2 py-1 text-xs font-medium rounded hover:bg-gray-100" style={{ color: '#5f6368' }}><span>{t.myLinks}</span><ChevronDown size={14} className={`transition-transform ${expanded ? '' : '-rotate-90'}`} /></button>{expanded && <div className="mt-2 space-y-1">{loading ? <Loader2 size={14} className="animate-spin mx-auto" style={{ color: '#5f6368' }} /> : <>{links.map(link => <div key={link.id} className="flex items-center gap-1 group"><a href={link.url} target="_blank" rel="noopener noreferrer" className="flex-1 text-xs px-2 py-1.5 rounded hover:bg-gray-100 truncate" style={{ color: '#1a73e8' }}>{link.name}</a><button onClick={() => handleDelete(link.id)} className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-red-50" style={{ color: '#ea4335' }}><X size={12} /></button></div>)}{links.length === 0 && !showAdd && <p className="text-xs px-2" style={{ color: '#9aa0a6' }}>{t.noLinks}</p>}{showAdd ? <div className="p-2 rounded-lg" style={{ background: '#f1f3f4' }}><input type="text" value={newLink.name} onChange={e => setNewLink({ ...newLink, name: e.target.value })} className="w-full px-2 py-1 text-xs rounded border mb-1" style={{ borderColor: '#dadce0' }} placeholder="Nazwa" /><input type="url" value={newLink.url} onChange={e => setNewLink({ ...newLink, url: e.target.value })} className="w-full px-2 py-1 text-xs rounded border mb-2" style={{ borderColor: '#dadce0' }} placeholder="https://..." /><div className="flex gap-1"><button onClick={handleAdd} className="flex-1 py-1 rounded text-xs font-medium" style={{ background: '#1a73e8', color: 'white' }}>{t.add}</button><button onClick={() => { setShowAdd(false); setNewLink({ name: '', url: '' }); }} className="px-2 py-1 rounded text-xs" style={{ color: '#5f6368' }}>{t.cancel}</button></div></div> : <button onClick={() => setShowAdd(true)} className="w-full text-xs px-2 py-1.5 rounded hover:bg-gray-100 text-left" style={{ color: '#1a73e8' }}>+ {t.addLink}</button>}</>}</div>}</div>;
+}
+
+// Komponent sortowania
+function SortDropdown({ value, onChange, t }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+  
+  const options = [
+    { id: 'newest', label: t.sortNewest, icon: ArrowDown },
+    { id: 'oldest', label: t.sortOldest, icon: ArrowUp },
+    { id: 'priority', label: t.sortPriority, icon: Flag },
+    { id: 'activity', label: t.sortActivity, icon: Activity },
+  ];
+  
+  const current = options.find(o => o.id === value) || options[0];
+  const CurrentIcon = current.icon;
+  
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        onClick={() => setOpen(!open)}
+        className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm hover:bg-gray-100"
+        style={{ color: '#5f6368', border: '1px solid #dadce0' }}
+      >
+        <ArrowUpDown size={16} />
+        <span className="hidden sm:inline">{current.label}</span>
+        <ChevronDown size={14} className={`transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      
+      {open && (
+        <div 
+          className="absolute right-0 top-full mt-1 bg-white rounded-lg py-1 z-20 min-w-[180px]"
+          style={{ boxShadow: '0 4px 12px rgba(0,0,0,.15)', border: '1px solid #e8eaed' }}
+        >
+          {options.map(opt => {
+            const Icon = opt.icon;
+            return (
+              <button
+                key={opt.id}
+                onClick={() => { onChange(opt.id); setOpen(false); }}
+                className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-gray-50 text-left"
+                style={{ 
+                  color: value === opt.id ? '#1a73e8' : '#202124',
+                  background: value === opt.id ? '#e8f0fe' : 'transparent'
+                }}
+              >
+                <Icon size={16} />
+                <span>{opt.label}</span>
+                {value === opt.id && <Check size={16} className="ml-auto" />}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
 }
 
 function PendingView({ tasks, approveTask, deleteTask, currentUser, t, lang, teamMembers }) {
@@ -373,6 +480,7 @@ export default function TaskApp() {
   const [filterMarket, setFilterMarket] = useState('all');
   const [filterPerson, setFilterPerson] = useState('all');
   const [filterStatus, setFilterStatus] = useState('active');
+  const [sortBy, setSortBy] = useState('newest');
   const [activeTab, setActiveTab] = useState('tasks');
   const [copied, setCopied] = useState(false);
   const [checkingAuth, setCheckingAuth] = useState(true);
@@ -394,7 +502,7 @@ export default function TaskApp() {
   useEffect(() => { const savedUser = localStorage.getItem('av_tasks_user'); if (savedUser) { const checkUser = async () => { const members = await getTeamMembers(); if (members.find(m => m.id === savedUser)) { setCurrentUser(savedUser); setTeamMembers(members); } setCheckingAuth(false); }; checkUser(); } else { setCheckingAuth(false); } }, []);
   useEffect(() => { if (restrictedMarket) setFilterMarket(restrictedMarket); }, [restrictedMarket]);
   
-  const loadTasks = async () => { const data = await getTasks(); setTasks(data.sort((a, b) => (a.order ?? 999) - (b.order ?? 999) || new Date(b.createdAt) - new Date(a.createdAt))); setLoading(false); };
+  const loadTasks = async () => { const data = await getTasks(); setTasks(data); setLoading(false); };
   useEffect(() => { if (currentUser) loadTasks(); }, [currentUser]);
   
   const handleLogout = () => { localStorage.removeItem('av_tasks_user'); setCurrentUser(null); setTasks([]); setSelectedTask(null); setShowUsersPanel(false); };
@@ -416,7 +524,10 @@ export default function TaskApp() {
   });
   
   const getFilteredByStatus = (sf) => { switch (sf) { case 'active': return visibleTasks.filter(t => t.status === 'open' || t.status === 'longterm'); case 'open': return visibleTasks.filter(t => t.status === 'open'); case 'longterm': return visibleTasks.filter(t => t.status === 'longterm'); case 'closed': return visibleTasks.filter(t => t.status === 'closed'); default: return visibleTasks; } };
-  const filteredTasks = getFilteredByStatus(filterStatus);
+  
+  // Najpierw filtruj, potem sortuj
+  const filteredTasks = sortTasks(getFilteredByStatus(filterStatus), sortBy);
+  
   const openTasks = visibleTasks.filter(t => t.status === 'open');
   const longtermTasks = visibleTasks.filter(t => t.status === 'longterm');
   const closedTasks = visibleTasks.filter(t => t.status === 'closed');
@@ -476,7 +587,12 @@ export default function TaskApp() {
       <main className="flex-1 flex flex-col overflow-hidden">
         <header className="bg-white border-b px-6 py-3 flex items-center justify-between" style={{ borderColor: '#e8eaed' }}>
           <div><h2 className="text-lg font-medium" style={{ color: '#202124' }}>{showUsersPanel ? t.usersPanel : activeTab === 'pending' ? t.pendingApproval : filterStatus === 'active' ? t.activeTasks : filterStatus === 'open' ? t.openTasks : filterStatus === 'longterm' ? t.longtermTasks : t.closedTasks}</h2>{filterPerson !== 'all' && !showUsersPanel && <p className="text-xs" style={{ color: '#5f6368' }}>{t.filter}: {teamMembers.find(m => m.id === filterPerson)?.name}</p>}</div>
-          <div className="flex items-center gap-2">{!showUsersPanel && <><button onClick={loadTasks} className="p-2 rounded-full hover:bg-gray-100" style={{ color: '#5f6368' }}><Loader2 size={18} className={loading ? 'animate-spin' : ''} /></button>{activeTab === 'tasks' && <button onClick={() => setShowNewTask(true)} className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm" style={{ background: '#1a73e8', color: 'white' }}><Plus size={18} /> {t.newTask}</button>}</>}</div>
+          <div className="flex items-center gap-2">
+            {!showUsersPanel && activeTab === 'tasks' && (
+              <SortDropdown value={sortBy} onChange={setSortBy} t={t} />
+            )}
+            {!showUsersPanel && <><button onClick={loadTasks} className="p-2 rounded-full hover:bg-gray-100" style={{ color: '#5f6368' }}><Loader2 size={18} className={loading ? 'animate-spin' : ''} /></button>{activeTab === 'tasks' && <button onClick={() => setShowNewTask(true)} className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm" style={{ background: '#1a73e8', color: 'white' }}><Plus size={18} /> {t.newTask}</button>}</>}
+          </div>
         </header>
         <div className="flex-1 overflow-y-auto p-4">
           {showUsersPanel ? null : activeTab === 'pending' && isManager ? <PendingView tasks={pendingTasks} approveTask={approveTask} deleteTask={deleteTask} currentUser={currentUser} t={t} lang={lang} teamMembers={teamMembers} /> : (
