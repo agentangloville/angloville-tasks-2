@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useState, useRef } from 'react';
-import { CheckCircle, Send, Bold, Italic, Underline, List, ListOrdered, Link2, AlignLeft, AlignCenter, AlignRight, Heading1, Heading2, Undo, Redo, X, Check, Copy, ExternalLink } from 'lucide-react';
-import { createTask } from '../../lib/supabase';
+import { CheckCircle, Send, Bold, Italic, Underline, List, ListOrdered, Link2, Undo, Redo, X, Check, Copy, ExternalLink, Paperclip, File, FileText, Image, FileSpreadsheet, Loader2 } from 'lucide-react';
+import { createTask, uploadFile } from '../../lib/supabase';
 
 const TEAM_MEMBERS = [
   { id: 'edyta', name: 'Edyta Kędzior', color: '#4285f4' },
@@ -26,6 +26,19 @@ const getInitials = (name) => {
   return name[0];
 };
 
+const getFileIcon = (type) => {
+  if (type?.startsWith('image/')) return Image;
+  if (type?.includes('spreadsheet') || type?.includes('excel') || type?.includes('csv')) return FileSpreadsheet;
+  if (type?.includes('pdf') || type?.includes('document') || type?.includes('word')) return FileText;
+  return File;
+};
+
+const formatFileSize = (bytes) => {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+  return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+};
+
 export default function RequestPage() {
   const [form, setForm] = useState({ 
     title: '', 
@@ -33,14 +46,17 @@ export default function RequestPage() {
     submittedBy: '', 
     email: '', 
     market: 'ns',
-    assignees: []
+    assignees: [],
+    attachments: []
   });
   const [submitted, setSubmitted] = useState(false);
   const [publicToken, setPublicToken] = useState('');
   const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
   const editorRef = useRef(null);
+  const fileInputRef = useRef(null);
 
   const execCommand = (command, val = null) => {
     document.execCommand(command, false, val);
@@ -59,6 +75,26 @@ export default function RequestPage() {
         ? prev.assignees.filter(a => a !== id)
         : [...prev.assignees, id]
     }));
+  };
+
+  const handleFileSelect = async (e) => {
+    const files = Array.from(e.target.files);
+    if (files.length === 0) return;
+    
+    setUploading(true);
+    for (const file of files) {
+      const result = await uploadFile(file, 'requests');
+      if (result) {
+        result.uploadedBy = 'external';
+        setForm(prev => ({ ...prev, attachments: [...prev.attachments, result] }));
+      }
+    }
+    setUploading(false);
+    e.target.value = '';
+  };
+
+  const removeAttachment = (id) => {
+    setForm(prev => ({ ...prev, attachments: prev.attachments.filter(a => a.id !== id) }));
   };
 
   const handleSubmit = async (e) => {
@@ -84,6 +120,7 @@ export default function RequestPage() {
         assignees: form.assignees,
         comments: [],
         subtasks: [],
+        attachments: form.attachments,
         submittedBy: form.submittedBy.trim(),
         submitterEmail: form.email.trim(),
         isExternal: true,
@@ -347,6 +384,67 @@ export default function RequestPage() {
 - Any deadline or priority?"
               suppressContentEditableWarning
             />
+          </div>
+
+          {/* Attachments section */}
+          <div className="px-6 py-5 border-b" style={{ borderColor: '#e8eaed' }}>
+            <div className="flex items-center justify-between mb-3">
+              <label className="text-sm font-medium" style={{ color: '#202124' }}>
+                Attachments
+              </label>
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                onChange={handleFileSelect}
+                className="hidden"
+                accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.ppt,.pptx"
+              />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors hover:bg-gray-100 disabled:opacity-50"
+                style={{ color: '#1a73e8' }}
+              >
+                {uploading ? <Loader2 size={16} className="animate-spin" /> : <Paperclip size={16} />}
+                {uploading ? 'Uploading...' : 'Add files'}
+              </button>
+            </div>
+            
+            {form.attachments.length > 0 ? (
+              <div className="space-y-2">
+                {form.attachments.map(att => {
+                  const FileIcon = getFileIcon(att.type);
+                  const isImage = att.type?.startsWith('image/');
+                  return (
+                    <div key={att.id} className="flex items-center gap-3 px-3 py-2 rounded-lg group" style={{ background: '#f1f3f4' }}>
+                      {isImage ? (
+                        <img src={att.url} alt={att.name} className="w-10 h-10 rounded object-cover" />
+                      ) : (
+                        <div className="w-10 h-10 rounded flex items-center justify-center" style={{ background: '#e8eaed' }}>
+                          <FileIcon size={20} style={{ color: '#5f6368' }} />
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate" style={{ color: '#202124' }}>{att.name}</p>
+                        <p className="text-xs" style={{ color: '#9aa0a6' }}>{formatFileSize(att.size)}</p>
+                      </div>
+                      <button 
+                        type="button"
+                        onClick={() => removeAttachment(att.id)} 
+                        className="p-1 rounded hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-opacity"
+                        style={{ color: '#ea4335' }}
+                      >
+                        <X size={16} />
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="text-sm" style={{ color: '#9aa0a6' }}>No files attached. Click "Add files" to upload.</p>
+            )}
           </div>
 
           <div className="px-6 py-5 border-b" style={{ borderColor: '#e8eaed' }}>
