@@ -45,6 +45,53 @@ const getInitials = (name) => {
 };
 
 // =============================================
+// LINKIFY TEXT - zamienia URL-e na klikalne linki
+// =============================================
+function LinkifiedText({ text, className = '', style = {} }) {
+  if (!text) return null;
+  
+  // Regex do wykrywania URL-ów
+  const urlRegex = /(https?:\/\/[^\s<]+[^\s<.,;:!?'"\])>])/gi;
+  
+  const parts = text.split(urlRegex);
+  
+  return (
+    <span className={className} style={style}>
+      {parts.map((part, index) => {
+        if (part.match(urlRegex)) {
+          // Określ label dla linku
+          let label = part;
+          try {
+            const urlObj = new URL(part);
+            if (urlObj.hostname.includes('docs.google.com')) label = 'Google Docs';
+            else if (urlObj.hostname.includes('drive.google.com')) label = 'Google Drive';
+            else if (urlObj.hostname.includes('sheets.google.com')) label = 'Google Sheets';
+            else if (urlObj.hostname.includes('slides.google.com')) label = 'Google Slides';
+            else label = urlObj.hostname.replace('www.', '');
+          } catch {}
+          
+          return (
+            <a
+              key={index}
+              href={part}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 hover:underline"
+              style={{ color: '#1a73e8' }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <ExternalLink size={12} className="inline flex-shrink-0" />
+              <span>{label}</span>
+            </a>
+          );
+        }
+        return <span key={index}>{part}</span>;
+      })}
+    </span>
+  );
+}
+
+// =============================================
 // FILE HELPERS
 // =============================================
 const getFileIcon = (type) => {
@@ -345,7 +392,44 @@ function RichTextEditor({ value, onChange, placeholder, minHeight = '150px' }) {
   );
 }
 
-function RichTextDisplay({ html }) { if (!html) return null; return <div className="text-sm leading-relaxed prose-docs" style={{ color: '#3c4043' }} dangerouslySetInnerHTML={{ __html: html }} />; }
+// =============================================
+// RICH TEXT DISPLAY - z auto-linkowaniem URL-ów
+// =============================================
+function RichTextDisplay({ html }) { 
+  if (!html) return null; 
+  
+  // Funkcja do zamiany URL-ów na klikalne linki (tylko te, które nie są już w tagach <a>)
+  const linkifyHtml = (htmlContent) => {
+    // Najpierw sprawdź czy HTML już zawiera linki - jeśli tak, nie modyfikuj
+    if (htmlContent.includes('<a ')) return htmlContent;
+    
+    // Regex do wykrywania URL-ów
+    const urlRegex = /(https?:\/\/[^\s<]+[^\s<.,;:!?'"\])>])/gi;
+    
+    return htmlContent.replace(urlRegex, (url) => {
+      let label = url;
+      try {
+        const urlObj = new URL(url);
+        if (urlObj.hostname.includes('docs.google.com')) label = '📄 Google Docs';
+        else if (urlObj.hostname.includes('drive.google.com')) label = '📁 Google Drive';
+        else if (urlObj.hostname.includes('sheets.google.com')) label = '📊 Google Sheets';
+        else if (urlObj.hostname.includes('slides.google.com')) label = '📽️ Google Slides';
+        else label = urlObj.hostname.replace('www.', '');
+      } catch {}
+      return `<a href="${url}" target="_blank" rel="noopener noreferrer" style="color: #1a73e8; text-decoration: none;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">${label}</a>`;
+    });
+  };
+  
+  const processedHtml = linkifyHtml(html);
+  
+  return (
+    <div 
+      className="text-sm leading-relaxed prose-docs" 
+      style={{ color: '#3c4043' }} 
+      dangerouslySetInnerHTML={{ __html: processedHtml }} 
+    />
+  ); 
+}
 
 const translationCache = {};
 async function translateToPolish(text) { if (!text) return ''; const plainText = text.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim(); if (!plainText) return ''; if (translationCache[plainText]) return translationCache[plainText]; try { const response = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(plainText)}&langpair=en|pl`); const data = await response.json(); if (data.responseStatus === 200 && data.responseData?.translatedText) { translationCache[plainText] = data.responseData.translatedText; return data.responseData.translatedText; } return plainText; } catch { return plainText; } }
@@ -780,7 +864,8 @@ function TaskDetail({ task, updateTask, deleteTask, onClose, currentUser, isMana
                 <div className="flex-1">
                   <div className="rounded-xl p-3" style={{ background: '#f1f3f4' }}>
                     <div className="flex items-center gap-2 mb-1"><span className="text-sm font-medium" style={{ color: '#202124' }}>{isExternal ? (c.authorName || task.submittedBy || 'Zewnętrzny') : (author?.name || 'Nieznany')}</span><span className="text-xs" style={{ color: '#9aa0a6' }}>{formatDateTime(c.createdAt)}</span>{c.editedAt && <span className="text-xs" style={{ color: '#9aa0a6' }}>(edytowano)</span>}</div>
-                    <p className="text-sm" style={{ color: '#3c4043' }}>{c.text}</p>
+                    {/* Linkified comment text */}
+                    <LinkifiedText text={c.text} className="text-sm" style={{ color: '#3c4043' }} />
                     {c.attachments && c.attachments.length > 0 && <AttachmentList attachments={c.attachments} showRemove={false} compact />}
                   </div>
                   {isMyComment && <div className="flex gap-2 mt-1 opacity-0 group-hover:opacity-100"><button onClick={() => editComment(c.id)} className="text-xs px-2 py-0.5 rounded hover:bg-gray-100" style={{ color: '#5f6368' }}>Edytuj</button><button onClick={() => deleteComment(c.id)} className="text-xs px-2 py-0.5 rounded hover:bg-red-50" style={{ color: '#ea4335' }}>Usuń</button></div>}
