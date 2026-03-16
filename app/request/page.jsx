@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef } from 'react';
-import { CheckCircle, Send, Bold, Italic, Underline, List, ListOrdered, Link2, Undo, Redo, X, Check, Copy, ExternalLink, Paperclip, File, FileText, Image, FileSpreadsheet, Loader2 } from 'lucide-react';
+import { CheckCircle, Send, Bold, Italic, Underline, List, ListOrdered, Link2, Undo, Redo, X, Check, Copy, ExternalLink, Paperclip, File, FileText, Image, FileSpreadsheet, Loader2, Flag } from 'lucide-react';
 import { createTask, uploadFile } from '../../lib/supabase';
 
 const TEAM_MEMBERS = [
@@ -11,6 +11,7 @@ const TEAM_MEMBERS = [
   { id: 'damian_w', name: 'Damian Wójcicki', color: '#fbbc04' },
   { id: 'wojciech', name: 'Wojciech Pisarski', color: '#ea4335' },
   { id: 'klaudia', name: 'Klaudia Gołembiowska', color: '#e91e63' },
+  { id: 'rohan', name: 'Raj Patel', color: '#00acc1' },
 ];
 
 const MARKETS = [
@@ -18,6 +19,14 @@ const MARKETS = [
   { id: 'pl', name: 'Poland', icon: '🇵🇱' },
   { id: 'it', name: 'Italy', icon: '🇮🇹' },
   { id: 'exchange', name: 'Exchange', icon: '🇺🇸' },
+];
+
+const PRIORITIES = [
+  { id: null, name: 'None', color: '#9aa0a6', bg: '#f1f3f4' },
+  { id: 'low', name: 'Low', color: '#34a853', bg: '#e6f4ea' },
+  { id: 'medium', name: 'Medium', color: '#fbbc04', bg: '#fef7e0' },
+  { id: 'high', name: 'High', color: '#ea4335', bg: '#fce8e6' },
+  { id: 'urgent', name: 'Urgent', color: '#d93025', bg: '#fce8e6' },
 ];
 
 const getInitials = (name) => {
@@ -47,7 +56,8 @@ export default function RequestPage() {
     email: '', 
     market: 'ns',
     assignees: [],
-    attachments: []
+    attachments: [],
+    priority: null
   });
   const [submitted, setSubmitted] = useState(false);
   const [publicToken, setPublicToken] = useState('');
@@ -121,6 +131,7 @@ export default function RequestPage() {
         comments: [],
         subtasks: [],
         attachments: form.attachments,
+        priority: form.priority,
         submittedBy: form.submittedBy.trim(),
         submitterEmail: form.email.trim(),
         isExternal: true,
@@ -161,6 +172,7 @@ export default function RequestPage() {
   };
 
   const selectedMarket = MARKETS.find(m => m.id === form.market);
+  const selectedPriority = PRIORITIES.find(p => p.id === form.priority);
   const trackingUrl = typeof window !== 'undefined' && publicToken 
     ? `${window.location.origin}/task/${publicToken}` 
     : '';
@@ -346,6 +358,32 @@ export default function RequestPage() {
                   </select>
                 </div>
               </div>
+            </div>
+            
+            {/* Priority selector */}
+            <div className="px-6 py-4 border-t" style={{ borderColor: '#e8eaed' }}>
+              <label className="text-sm font-medium block mb-3" style={{ color: '#202124' }}>Priority</label>
+              <div className="flex flex-wrap gap-2">
+                {PRIORITIES.map(p => (
+                  <button
+                    key={p.id || 'none'}
+                    type="button"
+                    onClick={() => setForm({ ...form, priority: p.id })}
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-full text-sm font-medium transition-all"
+                    style={{ 
+                      background: form.priority === p.id ? p.bg : '#f1f3f4', 
+                      color: form.priority === p.id ? p.color : '#5f6368',
+                      border: form.priority === p.id ? `2px solid ${p.color}` : '2px solid transparent'
+                    }}
+                  >
+                    {p.id && <Flag size={14} />}
+                    {p.name}
+                  </button>
+                ))}
+              </div>
+              <p className="text-xs mt-2" style={{ color: '#9aa0a6' }}>
+                Select priority only if this is urgent. Default is none.
+              </p>
             </div>
           </div>
 
