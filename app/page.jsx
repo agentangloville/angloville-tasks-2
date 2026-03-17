@@ -149,13 +149,14 @@ function sortTasks(tasks, sortBy) {
 }
 
 // =============================================
-// NOTIFICATION BELL - FIX 1 (read stay visible) + FIX 6 (only assigned/mentioned)
+// NOTIFICATION BELL - FIX: fixed dropdown positioning
 // =============================================
 
 function NotificationBell({ tasks, currentUser, readTimestamps, teamMembers, onSelectTask, t, lang }) {
   const [open, setOpen] = useState(false);
   const [soundEnabled, setSoundEnabledState] = useState(true);
   const ref = useRef(null);
+  const buttonRef = useRef(null);
   const prevCountRef = useRef(0);
   
   useEffect(() => {
@@ -184,7 +185,6 @@ function NotificationBell({ tasks, currentUser, readTimestamps, teamMembers, onS
       if (task.status === 'pending') return;
       if (!task.comments?.length) return;
       
-      // FIX 6: Only show notifications for tasks where user is assigned or mentioned
       const isAssigned = task.assignees?.includes(currentUser);
       const isCreator = task.createdBy === currentUser;
       const isMentionedInAnyComment = task.comments.some(c => {
@@ -248,10 +248,21 @@ function NotificationBell({ tasks, currentUser, readTimestamps, teamMembers, onS
   };
   
   const formatTime = lang === 'en' ? formatTimeAgoEn : formatTimeAgo;
+
+  // Calculate dropdown position from button
+  const getDropdownPosition = () => {
+    if (!buttonRef.current) return {};
+    const rect = buttonRef.current.getBoundingClientRect();
+    return {
+      top: rect.bottom + 8,
+      right: Math.max(8, window.innerWidth - rect.right),
+    };
+  };
   
   return (
     <div className="relative" ref={ref}>
       <button
+        ref={buttonRef}
         onClick={() => setOpen(!open)}
         className="relative p-2 rounded-full hover:bg-gray-100 transition-colors"
         style={{ color: totalCount > 0 ? '#1a73e8' : '#5f6368' }}
@@ -269,8 +280,8 @@ function NotificationBell({ tasks, currentUser, readTimestamps, teamMembers, onS
       
       {open && (
         <div 
-          className="absolute right-0 top-full mt-2 w-96 max-w-[calc(100vw-2rem)] bg-white rounded-xl overflow-hidden z-50"
-          style={{ boxShadow: '0 4px 20px rgba(0,0,0,.15)', border: '1px solid #e8eaed', maxHeight: '80vh' }}
+          className="fixed w-96 max-w-[calc(100vw-2rem)] bg-white rounded-xl overflow-hidden"
+          style={{ boxShadow: '0 4px 20px rgba(0,0,0,.15)', border: '1px solid #e8eaed', maxHeight: '80vh', zIndex: 9999, ...getDropdownPosition() }}
         >
           <div className="px-4 py-3 border-b flex items-center justify-between" style={{ borderColor: '#e8eaed', background: '#f8f9fa' }}>
             <div className="flex items-center gap-2">
@@ -392,7 +403,7 @@ function NotificationBell({ tasks, currentUser, readTimestamps, teamMembers, onS
 }
 
 // =============================================
-// MENTION INPUT - FIX 2 (use member.id for disambiguation)
+// MENTION INPUT
 // =============================================
 
 function MentionInput({ value, onChange, onSubmit, placeholder, teamMembers }) {
@@ -441,7 +452,6 @@ function MentionInput({ value, onChange, onSubmit, placeholder, teamMembers }) {
     
     const before = value.substring(0, mentionStart);
     const after = value.substring(cursorPosition);
-    // FIX 2: Use member.id for unambiguous mentions (e.g. @damian_l vs @damian_w)
     const mentionText = `@${member.id} `;
     const newValue = before + mentionText + after;
     
@@ -520,11 +530,8 @@ function MentionInput({ value, onChange, onSubmit, placeholder, teamMembers }) {
   );
 }
 
-// FIX 3: Comment text with clickable links AND @mentions
 function CommentText({ text, teamMembers }) {
-  // Split on URLs and @mentions
   const urlRegex = /(https?:\/\/[^\s]+)/g;
-  const mentionRegex = /(@\w+)/g;
   const combinedRegex = /(https?:\/\/[^\s]+|@\w+)/g;
   
   const parts = text.split(combinedRegex);
@@ -825,7 +832,7 @@ function TaskItem({ task, isSelected, onClick, onStatusChange, onDragStart, onDr
 }
 
 // =============================================
-// TASK DETAIL - FIX 4 (canContribute for assigned users)
+// TASK DETAIL
 // =============================================
 
 function TaskDetail({ task, updateTask, deleteTask, onClose, currentUser, isManager, onMarkUnread, readTimestamps, t, lang, teamMembers }) {
@@ -846,7 +853,6 @@ function TaskDetail({ task, updateTask, deleteTask, onClose, currentUser, isMana
   const me = teamMembers.find(m => m.id === currentUser);
   const subtasks = task.subtasks || [];
   const canEdit = isManager || task.createdBy === currentUser;
-  // FIX 4: Anyone assigned to the task can add people, attachments, subtasks
   const canContribute = canEdit || task.assignees?.includes(currentUser);
   const publicLink = task.publicToken ? `${typeof window !== 'undefined' ? window.location.origin : ''}/task/${task.publicToken}` : null;
 
@@ -910,7 +916,6 @@ function TaskDetail({ task, updateTask, deleteTask, onClose, currentUser, isMana
         
         {task.links && <div><label className="block mb-2 text-xs font-medium" style={{ color: '#5f6368' }}>{t.links}</label><div className="rounded-lg border p-1" style={{ background: '#f8f9fa', borderColor: '#e8eaed' }}><ClickableLinks text={task.links} /></div></div>}
         
-        {/* FIX 4: canContribute instead of canEdit for attachments */}
         <div><div className="flex items-center justify-between mb-2"><div className="flex items-center gap-2"><Paperclip size={16} style={{ color: '#5f6368' }} /><label className="text-sm font-medium" style={{ color: '#202124' }}>{t.attachments} ({task.attachments?.length || 0})</label></div>{canContribute && <AttachmentUploader onUpload={handleTaskAttachmentUpload} uploading={uploading} />}</div><AttachmentList attachments={task.attachments} onRemove={canContribute ? handleRemoveTaskAttachment : undefined} showRemove={canContribute} />{(!task.attachments || task.attachments.length === 0) && <p className="text-xs" style={{ color: '#9aa0a6' }}>{t.noAttachments}</p>}</div>
         
         <div><div className="flex items-center justify-between mb-3"><div className="flex items-center gap-2"><ListTodo size={18} style={{ color: '#5f6368' }} /><label className="text-sm font-medium" style={{ color: '#202124' }}>{t.subtasks} ({subtasks.filter(s => s.status === 'closed').length}/{subtasks.length})</label></div>{!showSubtaskForm && canContribute && <button onClick={() => setShowSubtaskForm(true)} className="text-sm flex items-center gap-1 px-3 py-1 rounded-full hover:bg-gray-100" style={{ color: '#1a73e8' }}><Plus size={16} /> {t.add}</button>}</div><div className="space-y-1">{subtasks.map(sub => { const assignee = teamMembers.find(m => m.id === sub.assignee); const isDone = sub.status === 'closed'; return <div key={sub.id} className="flex items-center gap-2 px-3 py-2 rounded-lg group hover:bg-gray-50"><button onClick={() => toggleSubtask(sub.id)} className="flex-shrink-0">{isDone ? <CheckSquare size={20} style={{ color: '#34a853' }} /> : <Square size={20} style={{ color: '#dadce0' }} />}</button><span className="flex-1 text-sm" style={{ color: isDone ? '#9aa0a6' : '#202124', textDecoration: isDone ? 'line-through' : 'none' }}>{sub.title}</span>{assignee ? <div className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-medium" style={{ background: assignee.color }} title={assignee.name}>{getInitials(assignee.name)}</div> : canContribute && <select onChange={(e) => updateSubtaskAssignee(sub.id, e.target.value)} className="text-xs px-2 py-1 rounded border opacity-0 group-hover:opacity-100" style={{ borderColor: '#dadce0', color: '#5f6368' }} value=""><option value="">+ {lang === 'en' ? 'Assign' : 'Przypisz'}</option>{teamMembers.filter(m => m.isActive !== false).map(m => <option key={m.id} value={m.id}>{m.name}</option>)}</select>}{canContribute && <button onClick={() => deleteSubtask(sub.id)} className="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-50 rounded-full" style={{ color: '#ea4335' }}><X size={16} /></button>}</div>; })}</div>{showSubtaskForm && <div className="mt-3 p-3 rounded-lg border" style={{ borderColor: '#1a73e8', background: '#f8fbff' }}><input type="text" value={newSubtask} onChange={(e) => setNewSubtask(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addSubtask()} placeholder={t.subtaskName} className="w-full px-3 py-2 border rounded-lg text-sm mb-2" style={{ borderColor: '#dadce0' }} autoFocus /><div className="flex items-center gap-2"><select value={subtaskAssignee} onChange={(e) => setSubtaskAssignee(e.target.value)} className="flex-1 px-2 py-1.5 border rounded-lg text-sm" style={{ borderColor: '#dadce0' }}><option value="">{t.noAssignment}</option>{teamMembers.filter(m => m.isActive !== false).map(m => <option key={m.id} value={m.id}>{m.name}</option>)}</select><button onClick={addSubtask} className="px-4 py-1.5 rounded-lg text-sm font-medium" style={{ background: '#1a73e8', color: 'white' }}>{t.add}</button><button onClick={() => { setShowSubtaskForm(false); setNewSubtask(''); }} className="px-3 py-1.5 rounded-lg text-sm" style={{ color: '#5f6368' }}>{t.cancel}</button></div></div>}</div>
@@ -919,7 +924,6 @@ function TaskDetail({ task, updateTask, deleteTask, onClose, currentUser, isMana
         
         {task.market === 'pl' && <div><label className="block mb-2 text-sm font-medium" style={{ color: '#202124' }}>{t.subcategory}</label><div className="flex flex-wrap gap-2"><button onClick={() => updateTask(task.id, { subcategory: null })} className="px-4 py-2 rounded-full text-sm font-medium" style={{ background: !task.subcategory ? '#f1f3f4' : 'white', color: '#5f6368', border: !task.subcategory ? '2px solid #5f6368' : '2px solid #dadce0' }}>{t.none}</button>{PL_SUBCATEGORIES.map(s => <button key={s.id} onClick={() => updateTask(task.id, { subcategory: s.id })} className="px-4 py-2 rounded-full text-sm font-medium" style={{ background: task.subcategory === s.id ? s.bg : 'white', color: task.subcategory === s.id ? s.color : '#5f6368', border: task.subcategory === s.id ? `2px solid ${s.color}` : '2px solid #dadce0' }}>{s.name}</button>)}</div></div>}
         
-        {/* FIX 4: canContribute instead of canEdit for adding assignees */}
         <div><label className="block mb-2 text-sm font-medium" style={{ color: '#202124' }}>{t.assigned}</label><div className="flex flex-wrap gap-2">{task.assignees?.map(aId => { const m = teamMembers.find(x => x.id === aId); return m && <div key={aId} className="flex items-center gap-2 rounded-full px-3 py-1.5" style={{ background: '#f1f3f4' }}><div className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-medium" style={{ background: m.color }}>{getInitials(m.name)}</div><span className="text-sm" style={{ color: '#202124' }}>{m.name}</span>{canEdit && <button onClick={() => updateTask(task.id, { assignees: task.assignees.filter(a => a !== aId) })} className="hover:text-red-500" style={{ color: '#9aa0a6' }}><X size={14} /></button>}</div>; })}{canContribute && <select onChange={(e) => { if (e.target.value && !task.assignees?.includes(e.target.value)) { updateTask(task.id, { assignees: [...(task.assignees || []), e.target.value] }); const m = teamMembers.find(x => x.id === e.target.value); if (m) sendEmailNotification(m.email, m.name, task.title, me?.name); } e.target.value = ''; }} className="rounded-full px-3 py-1.5 text-sm cursor-pointer" style={{ background: '#f1f3f4', border: '1px dashed #dadce0', color: '#5f6368' }} defaultValue=""><option value="">{t.addPerson}</option>{teamMembers.filter(m => m.isActive !== false && !task.assignees?.includes(m.id)).map(m => <option key={m.id} value={m.id}>{m.name}</option>)}</select>}</div></div>
         
         <div>
@@ -965,7 +969,6 @@ function TaskDetail({ task, updateTask, deleteTask, onClose, currentUser, isMana
                           </span>
                         )}
                       </div>
-                      {/* FIX 3: CommentText now renders clickable links */}
                       <p className="text-sm" style={{ color: '#3c4043' }}>
                         <CommentText text={c.text} teamMembers={teamMembers} />
                       </p>
@@ -1028,7 +1031,7 @@ function NewTaskModal({ onClose, onSave, currentUser, restrictedMarket, t, lang,
 }
 
 // =============================================
-// MAIN APP - FIX 5 (responsive layout with sidebar toggle)
+// MAIN APP - FIX: filter persistence + responsive
 // =============================================
 
 export default function TaskApp() {
@@ -1052,6 +1055,7 @@ export default function TaskApp() {
   const [readTimestamps, setReadTimestamps] = useState({});
   const [seenTaskIds, setSeenTaskIds] = useState([]);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const filtersInitialized = useRef(false);
 
   useEffect(() => { async function loadTeam() { setLoadingTeam(true); const members = await getTeamMembers(); if (members.length > 0) setTeamMembers(members); setLoadingTeam(false); } loadTeam(); }, []);
 
@@ -1066,6 +1070,21 @@ export default function TaskApp() {
   useEffect(() => { const savedUser = localStorage.getItem('av_tasks_user'); if (savedUser) { const checkUser = async () => { const members = await getTeamMembers(); if (members.find(m => m.id === savedUser)) { setCurrentUser(savedUser); setTeamMembers(members); } setCheckingAuth(false); }; checkUser(); } else { setCheckingAuth(false); } }, []);
   useEffect(() => { if (restrictedMarket) setFilterMarket(restrictedMarket); }, [restrictedMarket]);
   
+  // FIX: Restore filters from localStorage (runs once on login)
+  useEffect(() => {
+    if (!currentUser || filtersInitialized.current) return;
+    filtersInitialized.current = true;
+    const savedMarket = localStorage.getItem(`av_filter_market_${currentUser}`);
+    const savedPerson = localStorage.getItem(`av_filter_person_${currentUser}`);
+    if (!restrictedMarket && savedMarket) setFilterMarket(savedMarket);
+    if (savedPerson) setFilterPerson(savedPerson);
+    else if (!isManager) setFilterPerson(currentUser);
+  }, [currentUser, isManager, restrictedMarket]);
+  
+  // FIX: Save filter changes to localStorage
+  useEffect(() => { if (currentUser && !restrictedMarket) localStorage.setItem(`av_filter_market_${currentUser}`, filterMarket); }, [filterMarket, currentUser, restrictedMarket]);
+  useEffect(() => { if (currentUser) localStorage.setItem(`av_filter_person_${currentUser}`, filterPerson); }, [filterPerson, currentUser]);
+  
   const loadTasks = async () => { const data = await getTasks(); setTasks(data); setLoading(false); };
   useEffect(() => { if (currentUser) loadTasks(); }, [currentUser]);
   
@@ -1075,7 +1094,7 @@ export default function TaskApp() {
     return () => clearInterval(interval);
   }, [currentUser]);
   
-  const handleLogout = () => { localStorage.removeItem('av_tasks_user'); setCurrentUser(null); setTasks([]); setSelectedTask(null); setShowUsersPanel(false); };
+  const handleLogout = () => { localStorage.removeItem('av_tasks_user'); setCurrentUser(null); setTasks([]); setSelectedTask(null); setShowUsersPanel(false); filtersInitialized.current = false; };
   const handleSelectTask = useCallback((task) => { setSelectedTask(task); setShowUsersPanel(false); setSidebarOpen(false); if (currentUser && task) { setTaskRead(task.id, currentUser); setReadTimestamps(prev => ({ ...prev, [task.id]: new Date().toISOString() })); markTaskAsSeen(task.id, currentUser); setSeenTaskIds(prev => prev.includes(task.id) ? prev : [...prev, task.id]); } }, [currentUser]);
   const handleMarkUnread = useCallback((taskId) => { if (currentUser) { setTaskUnread(taskId, currentUser); setReadTimestamps(prev => { const ns = { ...prev }; delete ns[taskId]; return ns; }); } }, [currentUser]);
   const reloadTeamMembers = async () => { const members = await getTeamMembers(); if (members.length > 0) setTeamMembers(members); };
@@ -1134,10 +1153,8 @@ export default function TaskApp() {
 
   return (
     <div className="min-h-screen flex" style={{ background: '#f8f9fa' }}>
-      {/* Mobile sidebar overlay */}
       {sidebarOpen && <div className="fixed inset-0 bg-black/50 z-30 lg:hidden" onClick={() => setSidebarOpen(false)} />}
       
-      {/* FIX 5: Responsive sidebar - hidden on mobile, shown on desktop */}
       <aside className={`w-56 flex flex-col min-h-screen flex-shrink-0 border-r bg-white fixed lg:static z-30 transition-transform lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`} style={{ borderColor: '#e8eaed' }}>
         <div className="p-4 border-b flex items-center justify-between" style={{ borderColor: '#e8eaed' }}>
           <div>
@@ -1170,7 +1187,6 @@ export default function TaskApp() {
       <main className="flex-1 flex flex-col overflow-hidden min-w-0">
         <header className="bg-white border-b px-4 lg:px-6 py-3 flex items-center justify-between gap-2" style={{ borderColor: '#e8eaed' }}>
           <div className="flex items-center gap-2 min-w-0">
-            {/* FIX 5: Hamburger menu for mobile */}
             <button onClick={() => setSidebarOpen(true)} className="p-2 rounded-full hover:bg-gray-100 lg:hidden flex-shrink-0" style={{ color: '#5f6368' }}><Menu size={22} /></button>
             <div className="min-w-0">
               <h2 className="text-base lg:text-lg font-medium truncate" style={{ color: '#202124' }}>{showUsersPanel ? t.usersPanel : activeTab === 'pending' ? t.pendingApproval : filterStatus === 'active' ? t.activeTasks : filterStatus === 'open' ? t.openTasks : filterStatus === 'longterm' ? t.longtermTasks : filterStatus === 'paused' ? t.pausedTasks : filterStatus === 'monitoring' ? t.monitoringTasks : t.closedTasks}</h2>
