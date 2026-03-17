@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { Plus, Check, X, Edit3, Trash2, CheckCircle, Circle, Send, MessageSquare, ChevronDown, ChevronRight, Clock, AlertCircle, ExternalLink, Copy, Languages, Loader2, ListTodo, Square, CheckSquare, Bold, Italic, List, ListOrdered, LogOut, Lock, GripVertical, Filter, Underline, Link2, Undo, Redo, Inbox, Sparkles, Mail, MailCheck, MailX, RefreshCw, Paperclip, File, FileText, Image, FileSpreadsheet, Download, Flag, Users, UserPlus, Globe, EyeOff, ArrowUpDown, ArrowDown, ArrowUp, Activity } from 'lucide-react';
+import { Plus, Check, X, Edit3, Trash2, CheckCircle, Circle, Send, MessageSquare, ChevronDown, ChevronRight, Clock, AlertCircle, ExternalLink, Copy, Languages, Loader2, ListTodo, Square, CheckSquare, Bold, Italic, List, ListOrdered, LogOut, Lock, GripVertical, Filter, Underline, Link2, Undo, Redo, Inbox, Sparkles, Mail, MailCheck, MailX, RefreshCw, Paperclip, File, FileText, Image, FileSpreadsheet, Download, Flag, Users, UserPlus, Globe, EyeOff, ArrowUpDown, ArrowDown, ArrowUp, Activity, Bell, AtSign, Volume2 } from 'lucide-react';
 import { getTasks, createTask, updateTask as updateTaskDb, deleteTask as deleteTaskDb, getQuickLinks, createQuickLink, deleteQuickLink, uploadFile, getTeamMembers, getAllTeamMembers, createTeamMember, updateTeamMember } from '../lib/supabase';
 
 const FALLBACK_TEAM = [
@@ -46,28 +46,86 @@ const STATUSES = [
 
 const COLORS = ['#4285f4', '#a142f4', '#34a853', '#fbbc04', '#ea4335', '#e91e63', '#00acc1', '#ff7043', '#8d6e63', '#607d8b'];
 
+// Notification sound - base64 encoded short beep
+const NOTIFICATION_SOUND = 'data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdH2DgoODg4ODgoJ/fHl2c3BtamhlYl9cWVZTUE1KR0RBOQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==';
+
 const TRANSLATIONS = {
   pl: {
-    marketingTasks: 'Marketing Tasks', loginTitle: 'Zaloguj się do panelu', person: 'Osoba', select: 'Wybierz...', pin: 'PIN', login: 'Zaloguj się', incorrectPin: 'Nieprawidłowy PIN', selectPerson: 'Wybierz osobę', allMarkets: 'Wszystkie rynki', everyone: 'Wszyscy', pending: 'Oczekujące', active: 'Aktywne', open: 'Otwarte', longterm: 'Long-term', closed: 'Zamknięte', formEn: 'Formularz EN:', myLinks: '📌 Moje linki', addLink: 'Dodaj link', noLinks: 'Brak linków', manager: 'Manager', pendingApproval: 'Oczekujące na akceptację', activeTasks: 'Aktywne zadania', openTasks: 'Otwarte zadania', longtermTasks: 'Zadania long-term', closedTasks: 'Zamknięte zadania', allTasks: 'Wszystkie zadania', filter: 'Filtr', newTask: 'Nowe zadanie', noTasksToShow: 'Brak zadań do wyświetlenia', noPending: 'Brak oczekujących', external: 'Zewnętrzne', assignTo: 'Przypisz:', approve: 'Zatwierdź', title: 'Tytuł', description: 'Opis', attachments: 'Załączniki', noAttachments: 'Brak załączników', subtasks: 'Subtaski', add: 'Dodaj', subtaskName: 'Nazwa subtaska...', noAssignment: 'Bez przypisania', cancel: 'Anuluj', status: 'Status', subcategory: 'Podkategoria', none: 'Brak', assigned: 'Przypisani', addPerson: '+ Dodaj', comments: 'Komentarze', markUnread: 'Oznacz nieprzeczytane', edit: 'Edytuj', delete: 'Usuń', writeComment: 'Napisz komentarz...', emailNotifications: 'Powiadomienia email', submittedBy: 'Zgłaszający', unknown: 'Nieznany', noEmail: 'Brak adresu email', history: 'Historia:', by: 'przez', system: 'System', resend: 'Wyślij ponownie', sendEmail: 'Wyślij email', created: 'Utworzono', byPerson: 'Przez', save: 'Zapisz', taskDetails: 'Szczegóły zadania...', whatToDo: 'Co trzeba zrobić?', market: 'Rynek', type: 'Typ', assignToPerson: 'Przypisz do', createTask: 'Utwórz zadanie', links: 'Linki', copyLink: 'Kopiuj link', copied: 'Skopiowano', from: 'Od', priority: 'Priorytet', clickToAddAttachments: 'Kliknij 📎 aby dodać załączniki', loading: 'Ładowanie...', deleteTask: 'Usunąć zadanie?', lt: 'LT', new: 'Nowy', users: 'Użytkownicy', usersPanel: 'Zarządzanie użytkownikami', addUser: 'Dodaj użytkownika', editUser: 'Edytuj użytkownika', name: 'Imię i nazwisko', email: 'Email', role: 'Rola', language: 'Język', polish: 'Polski', english: 'Angielski', restrictedMarket: 'Ograniczenie do rynku', allMarketsAccess: 'Wszystkie rynki', seeOnlyAssigned: 'Widzi tylko przypisane', seeAll: 'Widzi wszystkie zadania', isManager: 'Administrator', deactivate: 'Dezaktywuj', activate: 'Aktywuj', color: 'Kolor', unread: 'Nieodczytane', newTasks: 'Nowe zadania',
-    // Sortowanie
+    marketingTasks: 'Marketing Tasks', loginTitle: 'Zaloguj się do panelu', person: 'Osoba', select: 'Wybierz...', pin: 'PIN', login: 'Zaloguj się', incorrectPin: 'Nieprawidłowy PIN', selectPerson: 'Wybierz osobę', allMarkets: 'Wszystkie rynki', everyone: 'Wszyscy', pending: 'Oczekujące', active: 'Aktywne', open: 'Otwarte', longterm: 'Long-term', closed: 'Zamknięte', formEn: 'Formularz EN:', myLinks: '📌 Moje linki', addLink: 'Dodaj link', noLinks: 'Brak linków', manager: 'Manager', pendingApproval: 'Oczekujące na akceptację', activeTasks: 'Aktywne zadania', openTasks: 'Otwarte zadania', longtermTasks: 'Zadania long-term', closedTasks: 'Zamknięte zadania', allTasks: 'Wszystkie zadania', filter: 'Filtr', newTask: 'Nowe zadanie', noTasksToShow: 'Brak zadań do wyświetlenia', noPending: 'Brak oczekujących', external: 'Zewnętrzne', assignTo: 'Przypisz:', approve: 'Zatwierdź', title: 'Tytuł', description: 'Opis', attachments: 'Załączniki', noAttachments: 'Brak załączników', subtasks: 'Subtaski', add: 'Dodaj', subtaskName: 'Nazwa subtaska...', noAssignment: 'Bez przypisania', cancel: 'Anuluj', status: 'Status', subcategory: 'Podkategoria', none: 'Brak', assigned: 'Przypisani', addPerson: '+ Dodaj', comments: 'Komentarze', markUnread: 'Oznacz nieprzeczytane', edit: 'Edytuj', delete: 'Usuń', writeComment: 'Napisz komentarz... (użyj @ aby oznaczyć)', emailNotifications: 'Powiadomienia email', submittedBy: 'Zgłaszający', unknown: 'Nieznany', noEmail: 'Brak adresu email', history: 'Historia:', by: 'przez', system: 'System', resend: 'Wyślij ponownie', sendEmail: 'Wyślij email', created: 'Utworzono', byPerson: 'Przez', save: 'Zapisz', taskDetails: 'Szczegóły zadania...', whatToDo: 'Co trzeba zrobić?', market: 'Rynek', type: 'Typ', assignToPerson: 'Przypisz do', createTask: 'Utwórz zadanie', links: 'Linki', copyLink: 'Kopiuj link', copied: 'Skopiowano', from: 'Od', priority: 'Priorytet', clickToAddAttachments: 'Kliknij 📎 aby dodać załączniki', loading: 'Ładowanie...', deleteTask: 'Usunąć zadanie?', lt: 'LT', new: 'Nowy', users: 'Użytkownicy', usersPanel: 'Zarządzanie użytkownikami', addUser: 'Dodaj użytkownika', editUser: 'Edytuj użytkownika', name: 'Imię i nazwisko', email: 'Email', role: 'Rola', language: 'Język', polish: 'Polski', english: 'Angielski', restrictedMarket: 'Ograniczenie do rynku', allMarketsAccess: 'Wszystkie rynki', seeOnlyAssigned: 'Widzi tylko przypisane', seeAll: 'Widzi wszystkie zadania', isManager: 'Administrator', deactivate: 'Dezaktywuj', activate: 'Aktywuj', color: 'Kolor', unread: 'Nieodczytane', newTasks: 'Nowe zadania',
     sortBy: 'Sortuj', sortNewest: 'Od najnowszych', sortOldest: 'Od najstarszych', sortPriority: 'Po priorytecie', sortActivity: 'Po aktywności',
+    notifications: 'Powiadomienia', noNotifications: 'Brak powiadomień', newComment: 'Nowy komentarz', mentionedYou: 'oznaczył(a) Cię', inTask: 'w zadaniu', markAllRead: 'Oznacz wszystkie jako przeczytane', soundOn: 'Dźwięk włączony', soundOff: 'Dźwięk wyłączony',
   },
   en: {
-    marketingTasks: 'Marketing Tasks', loginTitle: 'Login to panel', person: 'Person', select: 'Select...', pin: 'PIN', login: 'Login', incorrectPin: 'Incorrect PIN', selectPerson: 'Select person', allMarkets: 'All markets', everyone: 'Everyone', pending: 'Pending', active: 'Active', open: 'Open', longterm: 'Long-term', closed: 'Closed', formEn: 'EN Form:', myLinks: '📌 My links', addLink: 'Add link', noLinks: 'No links', manager: 'Manager', pendingApproval: 'Pending approval', activeTasks: 'Active tasks', openTasks: 'Open tasks', longtermTasks: 'Long-term tasks', closedTasks: 'Closed tasks', allTasks: 'All tasks', filter: 'Filter', newTask: 'New task', noTasksToShow: 'No tasks to display', noPending: 'No pending tasks', external: 'External', assignTo: 'Assign to:', approve: 'Approve', title: 'Title', description: 'Description', attachments: 'Attachments', noAttachments: 'No attachments', subtasks: 'Subtasks', add: 'Add', subtaskName: 'Subtask name...', noAssignment: 'Unassigned', cancel: 'Cancel', status: 'Status', subcategory: 'Subcategory', none: 'None', assigned: 'Assigned', addPerson: '+ Add', comments: 'Comments', markUnread: 'Mark as unread', edit: 'Edit', delete: 'Delete', writeComment: 'Write a comment...', emailNotifications: 'Email notifications', submittedBy: 'Submitted by', unknown: 'Unknown', noEmail: 'No email address', history: 'History:', by: 'by', system: 'System', resend: 'Resend', sendEmail: 'Send email', created: 'Created', byPerson: 'By', save: 'Save', taskDetails: 'Task details...', whatToDo: 'What needs to be done?', market: 'Market', type: 'Type', assignToPerson: 'Assign to', createTask: 'Create task', links: 'Links', copyLink: 'Copy link', copied: 'Copied', from: 'From', priority: 'Priority', clickToAddAttachments: 'Click 📎 to add attachments', loading: 'Loading...', deleteTask: 'Delete task?', lt: 'LT', new: 'New', users: 'Users', usersPanel: 'User management', addUser: 'Add user', editUser: 'Edit user', name: 'Full name', email: 'Email', role: 'Role', language: 'Language', polish: 'Polish', english: 'English', restrictedMarket: 'Restricted to market', allMarketsAccess: 'All markets', seeOnlyAssigned: 'See only assigned', seeAll: 'See all tasks', isManager: 'Administrator', deactivate: 'Deactivate', activate: 'Activate', color: 'Color', unread: 'Unread', newTasks: 'New tasks',
-    // Sorting
+    marketingTasks: 'Marketing Tasks', loginTitle: 'Login to panel', person: 'Person', select: 'Select...', pin: 'PIN', login: 'Login', incorrectPin: 'Incorrect PIN', selectPerson: 'Select person', allMarkets: 'All markets', everyone: 'Everyone', pending: 'Pending', active: 'Active', open: 'Open', longterm: 'Long-term', closed: 'Closed', formEn: 'EN Form:', myLinks: '📌 My links', addLink: 'Add link', noLinks: 'No links', manager: 'Manager', pendingApproval: 'Pending approval', activeTasks: 'Active tasks', openTasks: 'Open tasks', longtermTasks: 'Long-term tasks', closedTasks: 'Closed tasks', allTasks: 'All tasks', filter: 'Filter', newTask: 'New task', noTasksToShow: 'No tasks to display', noPending: 'No pending tasks', external: 'External', assignTo: 'Assign to:', approve: 'Approve', title: 'Title', description: 'Description', attachments: 'Attachments', noAttachments: 'No attachments', subtasks: 'Subtasks', add: 'Add', subtaskName: 'Subtask name...', noAssignment: 'Unassigned', cancel: 'Cancel', status: 'Status', subcategory: 'Subcategory', none: 'None', assigned: 'Assigned', addPerson: '+ Add', comments: 'Comments', markUnread: 'Mark as unread', edit: 'Edit', delete: 'Delete', writeComment: 'Write a comment... (use @ to mention)', emailNotifications: 'Email notifications', submittedBy: 'Submitted by', unknown: 'Unknown', noEmail: 'No email address', history: 'History:', by: 'by', system: 'System', resend: 'Resend', sendEmail: 'Send email', created: 'Created', byPerson: 'By', save: 'Save', taskDetails: 'Task details...', whatToDo: 'What needs to be done?', market: 'Market', type: 'Type', assignToPerson: 'Assign to', createTask: 'Create task', links: 'Links', copyLink: 'Copy link', copied: 'Copied', from: 'From', priority: 'Priority', clickToAddAttachments: 'Click 📎 to add attachments', loading: 'Loading...', deleteTask: 'Delete task?', lt: 'LT', new: 'New', users: 'Users', usersPanel: 'User management', addUser: 'Add user', editUser: 'Edit user', name: 'Full name', email: 'Email', role: 'Role', language: 'Language', polish: 'Polish', english: 'English', restrictedMarket: 'Restricted to market', allMarketsAccess: 'All markets', seeOnlyAssigned: 'See only assigned', seeAll: 'See all tasks', isManager: 'Administrator', deactivate: 'Deactivate', activate: 'Activate', color: 'Color', unread: 'Unread', newTasks: 'New tasks',
     sortBy: 'Sort', sortNewest: 'Newest first', sortOldest: 'Oldest first', sortPriority: 'By priority', sortActivity: 'By activity',
+    notifications: 'Notifications', noNotifications: 'No notifications', newComment: 'New comment', mentionedYou: 'mentioned you', inTask: 'in task', markAllRead: 'Mark all as read', soundOn: 'Sound on', soundOff: 'Sound off',
   }
 };
 
 const getInitials = (name) => { const parts = name.split(' '); if (parts.length >= 2) return parts[0][0] + parts[1][0]; return name[0]; };
 function PriorityBadge({ priority, size = 'normal', lang = 'pl' }) { if (!priority) return null; const p = PRIORITIES.find(pr => pr.id === priority); if (!p || !p.id) return null; const isSmall = size === 'small'; return <span className={`inline-flex items-center gap-1 ${isSmall ? 'px-1.5 py-0.5 text-xs' : 'px-2 py-1 text-xs'} rounded-full font-medium`} style={{ background: p.bg, color: p.color }}><Flag size={isSmall ? 10 : 12} />{lang === 'en' ? p.nameEn : p.name}</span>; }
 
+// =============================================
+// NOTIFICATION SYSTEM
+// =============================================
+
 const getReadTimestamps = (userId) => { try { return JSON.parse(localStorage.getItem(`av_read_${userId}`) || '{}'); } catch { return {}; } };
 const setTaskRead = (taskId, userId) => { const ts = getReadTimestamps(userId); ts[taskId] = new Date().toISOString(); localStorage.setItem(`av_read_${userId}`, JSON.stringify(ts)); };
 const setTaskUnread = (taskId, userId) => { const ts = getReadTimestamps(userId); delete ts[taskId]; localStorage.setItem(`av_read_${userId}`, JSON.stringify(ts)); };
-const getUnreadCount = (task, userId, timestamps) => { if (!task.comments?.length) return 0; const lastRead = timestamps[task.id]; if (!lastRead) return task.comments.filter(c => c.author !== userId).length; return task.comments.filter(c => c.author !== userId && new Date(c.createdAt) > new Date(lastRead)).length; };
+const setAllTasksRead = (tasks, userId) => { const ts = getReadTimestamps(userId); const now = new Date().toISOString(); tasks.forEach(t => { ts[t.id] = now; }); localStorage.setItem(`av_read_${userId}`, JSON.stringify(ts)); };
+
+const getUnreadComments = (task, userId, timestamps) => { 
+  if (!task.comments?.length) return []; 
+  const lastRead = timestamps[task.id]; 
+  if (!lastRead) return task.comments.filter(c => c.author !== userId);
+  return task.comments.filter(c => c.author !== userId && new Date(c.createdAt) > new Date(lastRead));
+};
+
+const getUnreadCount = (task, userId, timestamps) => getUnreadComments(task, userId, timestamps).length;
+
+// Parse @mentions from comment text
+const parseMentions = (text) => {
+  const mentionRegex = /@(\w+)/g;
+  const mentions = [];
+  let match;
+  while ((match = mentionRegex.exec(text)) !== null) {
+    mentions.push(match[1].toLowerCase());
+  }
+  return mentions;
+};
+
+// Check if user is mentioned in comments
+const getMentionsForUser = (task, userId, timestamps, teamMembers) => {
+  const unreadComments = getUnreadComments(task, userId, timestamps);
+  const userMember = teamMembers.find(m => m.id === userId);
+  if (!userMember) return [];
+  
+  const userIdentifiers = [
+    userId.toLowerCase(),
+    userMember.name.split(' ')[0].toLowerCase(),
+    userMember.name.toLowerCase().replace(/\s+/g, '_'),
+    userMember.name.toLowerCase().replace(/\s+/g, ''),
+  ];
+  
+  return unreadComments.filter(c => {
+    const mentions = parseMentions(c.text);
+    return mentions.some(m => userIdentifiers.includes(m));
+  });
+};
+
 const getSeenTaskIds = (userId) => { try { return JSON.parse(localStorage.getItem(`av_seen_${userId}`) || '[]'); } catch { return []; } };
 const markTaskAsSeen = (taskId, userId) => { const seen = getSeenTaskIds(userId); if (!seen.includes(taskId)) { seen.push(taskId); localStorage.setItem(`av_seen_${userId}`, JSON.stringify(seen)); } };
+
+const getSoundEnabled = (userId) => { try { return localStorage.getItem(`av_sound_${userId}`) !== 'false'; } catch { return true; } };
+const setSoundEnabled = (userId, enabled) => { localStorage.setItem(`av_sound_${userId}`, enabled ? 'true' : 'false'); };
+
+const playNotificationSound = () => {
+  try {
+    const audio = new Audio(NOTIFICATION_SOUND);
+    audio.volume = 0.3;
+    audio.play().catch(() => {});
+  } catch (e) {}
+};
 
 const getFileIcon = (type) => { if (type?.startsWith('image/')) return Image; if (type?.includes('spreadsheet') || type?.includes('excel')) return FileSpreadsheet; if (type?.includes('pdf') || type?.includes('document')) return FileText; return File; };
 const formatFileSize = (bytes) => { if (bytes < 1024) return bytes + ' B'; if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB'; return (bytes / (1024 * 1024)).toFixed(1) + ' MB'; };
@@ -75,37 +133,417 @@ const generateId = () => Math.random().toString(36).substr(2, 9);
 const formatDateTime = (date) => new Date(date).toLocaleString('pl-PL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 const formatDateTimeEn = (date) => new Date(date).toLocaleString('en-US', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 const formatTimeAgo = (date) => { const diffMins = Math.floor((new Date() - new Date(date)) / 60000); if (diffMins < 1) return 'teraz'; if (diffMins < 60) return `${diffMins} min`; if (diffMins < 1440) return `${Math.floor(diffMins/60)} godz.`; return `${Math.floor(diffMins/1440)} dni`; };
+const formatTimeAgoEn = (date) => { const diffMins = Math.floor((new Date() - new Date(date)) / 60000); if (diffMins < 1) return 'now'; if (diffMins < 60) return `${diffMins} min`; if (diffMins < 1440) return `${Math.floor(diffMins/60)}h`; return `${Math.floor(diffMins/1440)}d`; };
+
 async function sendEmailNotification(to, assigneeName, taskTitle, assignedBy) { try { await fetch('/api/notify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ to, assigneeName, taskTitle, assignedBy }) }); } catch (e) { console.log('Email skipped:', e); } }
 async function sendCompletedEmail(task, completedByName) { if (!task.submitterEmail || !task.isExternal) return { sent: false }; try { const response = await fetch('/api/notify-completed', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ to: task.submitterEmail, requesterName: task.submittedBy, taskTitle: task.title, completedBy: completedByName, publicToken: task.publicToken }) }); const data = await response.json(); return { sent: data.success || false, messageId: data.messageId }; } catch (e) { return { sent: false, error: e.message }; } }
 
-// Funkcja sortowania
 function sortTasks(tasks, sortBy) {
   const sorted = [...tasks];
   switch (sortBy) {
-    case 'newest':
-      return sorted.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-    case 'oldest':
-      return sorted.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
-    case 'priority':
-      return sorted.sort((a, b) => {
-        const orderA = PRIORITY_ORDER[a.priority] ?? 4;
-        const orderB = PRIORITY_ORDER[b.priority] ?? 4;
-        if (orderA !== orderB) return orderA - orderB;
-        return new Date(b.createdAt) - new Date(a.createdAt);
-      });
-    case 'activity':
-      return sorted.sort((a, b) => {
-        const lastActivityA = a.comments?.length > 0 
-          ? Math.max(...a.comments.map(c => new Date(c.createdAt).getTime())) 
-          : new Date(a.createdAt).getTime();
-        const lastActivityB = b.comments?.length > 0 
-          ? Math.max(...b.comments.map(c => new Date(c.createdAt).getTime())) 
-          : new Date(b.createdAt).getTime();
-        return lastActivityB - lastActivityA;
-      });
-    default:
-      return sorted;
+    case 'newest': return sorted.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    case 'oldest': return sorted.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+    case 'priority': return sorted.sort((a, b) => { const orderA = PRIORITY_ORDER[a.priority] ?? 4; const orderB = PRIORITY_ORDER[b.priority] ?? 4; if (orderA !== orderB) return orderA - orderB; return new Date(b.createdAt) - new Date(a.createdAt); });
+    case 'activity': return sorted.sort((a, b) => { const lastActivityA = a.comments?.length > 0 ? Math.max(...a.comments.map(c => new Date(c.createdAt).getTime())) : new Date(a.createdAt).getTime(); const lastActivityB = b.comments?.length > 0 ? Math.max(...b.comments.map(c => new Date(c.createdAt).getTime())) : new Date(b.createdAt).getTime(); return lastActivityB - lastActivityA; });
+    default: return sorted;
   }
+}
+
+// =============================================
+// NOTIFICATION BELL COMPONENT
+// =============================================
+
+function NotificationBell({ tasks, currentUser, readTimestamps, teamMembers, onSelectTask, t, lang }) {
+  const [open, setOpen] = useState(false);
+  const [soundEnabled, setSoundEnabledState] = useState(true);
+  const ref = useRef(null);
+  const prevCountRef = useRef(0);
+  
+  useEffect(() => {
+    setSoundEnabledState(getSoundEnabled(currentUser));
+  }, [currentUser]);
+  
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+  
+  // Collect all notifications
+  const notifications = useMemo(() => {
+    const notifs = [];
+    
+    tasks.forEach(task => {
+      if (task.status === 'pending') return;
+      
+      const unreadComments = getUnreadComments(task, currentUser, readTimestamps);
+      const mentions = getMentionsForUser(task, currentUser, readTimestamps, teamMembers);
+      
+      // Add mention notifications first (higher priority)
+      mentions.forEach(comment => {
+        const author = teamMembers.find(m => m.id === comment.author);
+        notifs.push({
+          id: `mention-${comment.id}`,
+          type: 'mention',
+          task,
+          comment,
+          author,
+          createdAt: comment.createdAt,
+        });
+      });
+      
+      // Add regular comment notifications (excluding mentions already added)
+      const mentionIds = mentions.map(m => m.id);
+      unreadComments.filter(c => !mentionIds.includes(c.id)).forEach(comment => {
+        const author = teamMembers.find(m => m.id === comment.author);
+        notifs.push({
+          id: `comment-${comment.id}`,
+          type: 'comment',
+          task,
+          comment,
+          author,
+          createdAt: comment.createdAt,
+        });
+      });
+    });
+    
+    // Sort by date, newest first
+    return notifs.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  }, [tasks, currentUser, readTimestamps, teamMembers]);
+  
+  const totalCount = notifications.length;
+  const mentionCount = notifications.filter(n => n.type === 'mention').length;
+  
+  // Play sound when new notifications appear
+  useEffect(() => {
+    if (totalCount > prevCountRef.current && soundEnabled) {
+      playNotificationSound();
+    }
+    prevCountRef.current = totalCount;
+  }, [totalCount, soundEnabled]);
+  
+  const toggleSound = () => {
+    const newValue = !soundEnabled;
+    setSoundEnabledState(newValue);
+    setSoundEnabled(currentUser, newValue);
+  };
+  
+  const handleMarkAllRead = () => {
+    setAllTasksRead(tasks, currentUser);
+    window.location.reload(); // Simple refresh to update state
+  };
+  
+  const handleNotificationClick = (notif) => {
+    onSelectTask(notif.task);
+    setOpen(false);
+  };
+  
+  const formatTime = lang === 'en' ? formatTimeAgoEn : formatTimeAgo;
+  
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        onClick={() => setOpen(!open)}
+        className="relative p-2 rounded-full hover:bg-gray-100 transition-colors"
+        style={{ color: totalCount > 0 ? '#1a73e8' : '#5f6368' }}
+      >
+        <Bell size={22} className={totalCount > 0 ? 'animate-pulse' : ''} />
+        {totalCount > 0 && (
+          <span 
+            className="absolute -top-1 -right-1 min-w-[20px] h-5 flex items-center justify-center px-1 rounded-full text-xs font-bold text-white"
+            style={{ background: mentionCount > 0 ? '#ea4335' : '#fbbc04' }}
+          >
+            {totalCount > 99 ? '99+' : totalCount}
+          </span>
+        )}
+      </button>
+      
+      {open && (
+        <div 
+          className="absolute right-0 top-full mt-2 w-96 bg-white rounded-xl overflow-hidden z-50"
+          style={{ boxShadow: '0 4px 20px rgba(0,0,0,.15)', border: '1px solid #e8eaed', maxHeight: '80vh' }}
+        >
+          {/* Header */}
+          <div className="px-4 py-3 border-b flex items-center justify-between" style={{ borderColor: '#e8eaed', background: '#f8f9fa' }}>
+            <div className="flex items-center gap-2">
+              <Bell size={18} style={{ color: '#1a73e8' }} />
+              <h3 className="font-medium" style={{ color: '#202124' }}>{t.notifications}</h3>
+              {totalCount > 0 && (
+                <span className="px-2 py-0.5 rounded-full text-xs font-medium" style={{ background: '#e8f0fe', color: '#1a73e8' }}>
+                  {totalCount}
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={toggleSound}
+                className="p-1.5 rounded-full hover:bg-gray-200 transition-colors"
+                style={{ color: soundEnabled ? '#1a73e8' : '#9aa0a6' }}
+                title={soundEnabled ? t.soundOn : t.soundOff}
+              >
+                <Volume2 size={16} />
+              </button>
+              {totalCount > 0 && (
+                <button
+                  onClick={handleMarkAllRead}
+                  className="text-xs px-2 py-1 rounded hover:bg-gray-200 transition-colors"
+                  style={{ color: '#1a73e8' }}
+                >
+                  {t.markAllRead}
+                </button>
+              )}
+            </div>
+          </div>
+          
+          {/* Notifications list */}
+          <div className="overflow-y-auto" style={{ maxHeight: '400px' }}>
+            {notifications.length === 0 ? (
+              <div className="py-12 text-center">
+                <Bell size={32} className="mx-auto mb-3" style={{ color: '#dadce0' }} />
+                <p className="text-sm" style={{ color: '#9aa0a6' }}>{t.noNotifications}</p>
+              </div>
+            ) : (
+              <div>
+                {notifications.slice(0, 20).map(notif => {
+                  const isMention = notif.type === 'mention';
+                  const market = MARKETS.find(m => m.id === notif.task.market);
+                  
+                  return (
+                    <button
+                      key={notif.id}
+                      onClick={() => handleNotificationClick(notif)}
+                      className="w-full px-4 py-3 flex gap-3 hover:bg-gray-50 transition-colors text-left border-b"
+                      style={{ borderColor: '#f1f3f4' }}
+                    >
+                      {/* Avatar */}
+                      <div className="relative flex-shrink-0">
+                        <div 
+                          className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-medium"
+                          style={{ background: notif.author?.color || '#5f6368' }}
+                        >
+                          {notif.author ? getInitials(notif.author.name) : '?'}
+                        </div>
+                        {isMention && (
+                          <div 
+                            className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center"
+                            style={{ background: '#ea4335' }}
+                          >
+                            <AtSign size={12} className="text-white" />
+                          </div>
+                        )}
+                      </div>
+                      
+                      {/* Content */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-0.5">
+                          <span className="font-medium text-sm" style={{ color: '#202124' }}>
+                            {notif.author?.name || 'Unknown'}
+                          </span>
+                          <span className="text-xs" style={{ color: '#9aa0a6' }}>
+                            {formatTime(notif.createdAt)}
+                          </span>
+                        </div>
+                        <p className="text-sm mb-1" style={{ color: isMention ? '#ea4335' : '#5f6368' }}>
+                          {isMention ? t.mentionedYou : t.newComment}
+                        </p>
+                        <div className="flex items-center gap-1.5">
+                          <span>{market?.icon}</span>
+                          <span className="text-sm truncate" style={{ color: '#202124' }}>
+                            {notif.task.title}
+                          </span>
+                        </div>
+                        {/* Comment preview */}
+                        <p className="text-xs mt-1 truncate" style={{ color: '#9aa0a6' }}>
+                          "{notif.comment.text.substring(0, 60)}{notif.comment.text.length > 60 ? '...' : ''}"
+                        </p>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// =============================================
+// MENTION INPUT COMPONENT
+// =============================================
+
+function MentionInput({ value, onChange, onSubmit, placeholder, teamMembers }) {
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [suggestions, setSuggestions] = useState([]);
+  const [cursorPosition, setCursorPosition] = useState(0);
+  const [mentionStart, setMentionStart] = useState(-1);
+  const inputRef = useRef(null);
+  const suggestionsRef = useRef(null);
+  
+  const handleChange = (e) => {
+    const newValue = e.target.value;
+    const cursor = e.target.selectionStart;
+    onChange(newValue);
+    setCursorPosition(cursor);
+    
+    // Check for @ mention
+    const textBeforeCursor = newValue.substring(0, cursor);
+    const lastAtIndex = textBeforeCursor.lastIndexOf('@');
+    
+    if (lastAtIndex !== -1) {
+      const textAfterAt = textBeforeCursor.substring(lastAtIndex + 1);
+      // Check if there's a space before @ (or it's at the start)
+      const charBeforeAt = lastAtIndex > 0 ? newValue[lastAtIndex - 1] : ' ';
+      
+      if ((charBeforeAt === ' ' || charBeforeAt === '\n' || lastAtIndex === 0) && !textAfterAt.includes(' ')) {
+        setMentionStart(lastAtIndex);
+        const query = textAfterAt.toLowerCase();
+        const filtered = teamMembers.filter(m => 
+          m.isActive !== false && (
+            m.name.toLowerCase().includes(query) ||
+            m.id.toLowerCase().includes(query) ||
+            m.name.split(' ')[0].toLowerCase().includes(query)
+          )
+        );
+        setSuggestions(filtered.slice(0, 5));
+        setShowSuggestions(filtered.length > 0);
+        return;
+      }
+    }
+    
+    setShowSuggestions(false);
+    setMentionStart(-1);
+  };
+  
+  const insertMention = (member) => {
+    if (mentionStart === -1) return;
+    
+    const before = value.substring(0, mentionStart);
+    const after = value.substring(cursorPosition);
+    const mentionText = `@${member.name.split(' ')[0]} `;
+    const newValue = before + mentionText + after;
+    
+    onChange(newValue);
+    setShowSuggestions(false);
+    setMentionStart(-1);
+    
+    // Focus and set cursor position
+    setTimeout(() => {
+      if (inputRef.current) {
+        inputRef.current.focus();
+        const newPos = mentionStart + mentionText.length;
+        inputRef.current.setSelectionRange(newPos, newPos);
+      }
+    }, 0);
+  };
+  
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey && !showSuggestions) {
+      e.preventDefault();
+      onSubmit();
+    }
+    if (e.key === 'Escape') {
+      setShowSuggestions(false);
+    }
+    if (showSuggestions && suggestions.length > 0) {
+      if (e.key === 'Tab' || (e.key === 'Enter' && showSuggestions)) {
+        e.preventDefault();
+        insertMention(suggestions[0]);
+      }
+    }
+  };
+  
+  // Render text with highlighted mentions
+  const renderMentions = (text) => {
+    const parts = text.split(/(@\w+)/g);
+    return parts.map((part, i) => {
+      if (part.startsWith('@')) {
+        return <span key={i} style={{ color: '#1a73e8', fontWeight: 500 }}>{part}</span>;
+      }
+      return part;
+    });
+  };
+  
+  return (
+    <div className="relative flex-1">
+      <input
+        ref={inputRef}
+        type="text"
+        value={value}
+        onChange={handleChange}
+        onKeyDown={handleKeyDown}
+        placeholder={placeholder}
+        className="w-full px-4 py-2.5 rounded-xl text-sm"
+        style={{ background: '#f1f3f4', border: '1px solid #e8eaed' }}
+      />
+      
+      {/* Suggestions dropdown */}
+      {showSuggestions && (
+        <div 
+          ref={suggestionsRef}
+          className="absolute left-0 bottom-full mb-1 w-64 bg-white rounded-lg overflow-hidden z-50"
+          style={{ boxShadow: '0 4px 12px rgba(0,0,0,.15)', border: '1px solid #e8eaed' }}
+        >
+          <div className="px-3 py-2 border-b" style={{ borderColor: '#e8eaed', background: '#f8f9fa' }}>
+            <span className="text-xs font-medium" style={{ color: '#5f6368' }}>Oznacz osobę</span>
+          </div>
+          {suggestions.map(member => (
+            <button
+              key={member.id}
+              onClick={() => insertMention(member)}
+              className="w-full px-3 py-2 flex items-center gap-2 hover:bg-gray-50 transition-colors text-left"
+            >
+              <div 
+                className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-medium"
+                style={{ background: member.color }}
+              >
+                {getInitials(member.name)}
+              </div>
+              <div>
+                <p className="text-sm font-medium" style={{ color: '#202124' }}>{member.name}</p>
+                <p className="text-xs" style={{ color: '#9aa0a6' }}>@{member.name.split(' ')[0].toLowerCase()}</p>
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Render comment text with clickable mentions
+function CommentText({ text, teamMembers }) {
+  const parts = text.split(/(@\w+)/g);
+  
+  return (
+    <span>
+      {parts.map((part, i) => {
+        if (part.startsWith('@')) {
+          const name = part.substring(1).toLowerCase();
+          const member = teamMembers.find(m => 
+            m.name.split(' ')[0].toLowerCase() === name ||
+            m.id.toLowerCase() === name ||
+            m.name.toLowerCase().replace(/\s+/g, '') === name
+          );
+          
+          return (
+            <span 
+              key={i} 
+              className="inline-flex items-center gap-0.5 px-1 py-0.5 rounded"
+              style={{ background: '#e8f0fe', color: '#1a73e8', fontWeight: 500 }}
+            >
+              <AtSign size={12} />
+              {member ? member.name.split(' ')[0] : part.substring(1)}
+            </span>
+          );
+        }
+        return part;
+      })}
+    </span>
+  );
 }
 
 function AttachmentUploader({ onUpload, uploading }) { const ref = useRef(null); const handleSelect = async (e) => { const files = Array.from(e.target.files); if (files.length > 0) await onUpload(files); e.target.value = ''; }; return <><input ref={ref} type="file" multiple onChange={handleSelect} className="hidden" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.ppt,.pptx" /><button type="button" onClick={() => ref.current?.click()} disabled={uploading} className="p-2 rounded-full hover:bg-gray-100 disabled:opacity-50" style={{ color: '#5f6368' }}>{uploading ? <Loader2 size={18} className="animate-spin" /> : <Paperclip size={18} />}</button></>; }
@@ -235,7 +673,6 @@ function QuickLinksSection({ currentUser, t }) {
   return <div className="mt-4 mx-2"><button onClick={() => setExpanded(!expanded)} className="w-full flex items-center justify-between px-2 py-1 text-xs font-medium rounded hover:bg-gray-100" style={{ color: '#5f6368' }}><span>{t.myLinks}</span><ChevronDown size={14} className={`transition-transform ${expanded ? '' : '-rotate-90'}`} /></button>{expanded && <div className="mt-2 space-y-1">{loading ? <Loader2 size={14} className="animate-spin mx-auto" style={{ color: '#5f6368' }} /> : <>{links.map(link => <div key={link.id} className="flex items-center gap-1 group"><a href={link.url} target="_blank" rel="noopener noreferrer" className="flex-1 text-xs px-2 py-1.5 rounded hover:bg-gray-100 truncate" style={{ color: '#1a73e8' }}>{link.name}</a><button onClick={() => handleDelete(link.id)} className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-red-50" style={{ color: '#ea4335' }}><X size={12} /></button></div>)}{links.length === 0 && !showAdd && <p className="text-xs px-2" style={{ color: '#9aa0a6' }}>{t.noLinks}</p>}{showAdd ? <div className="p-2 rounded-lg" style={{ background: '#f1f3f4' }}><input type="text" value={newLink.name} onChange={e => setNewLink({ ...newLink, name: e.target.value })} className="w-full px-2 py-1 text-xs rounded border mb-1" style={{ borderColor: '#dadce0' }} placeholder="Nazwa" /><input type="url" value={newLink.url} onChange={e => setNewLink({ ...newLink, url: e.target.value })} className="w-full px-2 py-1 text-xs rounded border mb-2" style={{ borderColor: '#dadce0' }} placeholder="https://..." /><div className="flex gap-1"><button onClick={handleAdd} className="flex-1 py-1 rounded text-xs font-medium" style={{ background: '#1a73e8', color: 'white' }}>{t.add}</button><button onClick={() => { setShowAdd(false); setNewLink({ name: '', url: '' }); }} className="px-2 py-1 rounded text-xs" style={{ color: '#5f6368' }}>{t.cancel}</button></div></div> : <button onClick={() => setShowAdd(true)} className="w-full text-xs px-2 py-1.5 rounded hover:bg-gray-100 text-left" style={{ color: '#1a73e8' }}>+ {t.addLink}</button>}</>}</div>}</div>;
 }
 
-// Komponent sortowania
 function SortDropdown({ value, onChange, t }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
@@ -324,6 +761,7 @@ function TaskItem({ task, isSelected, onClick, onStatusChange, onDragStart, onDr
   const cycle = (e) => { e.stopPropagation(); onStatusChange(task.status === 'open' ? 'closed' : 'open'); };
   const isDropTarget = dragOverId === task.id;
   const unreadCount = getUnreadCount(task, currentUser, readTimestamps);
+  const mentionCount = getMentionsForUser(task, currentUser, readTimestamps, teamMembers).length;
   const isNewTask = task.assignees?.includes(currentUser) && task.createdBy !== currentUser && !seenTaskIds.includes(task.id);
   const hasEmailPending = task.isExternal && task.submitterEmail && task.status === 'closed' && !(task.emailHistory || []).some(e => e.type === 'completed' && e.success);
   const hasAttachments = task.attachments?.length > 0;
@@ -338,7 +776,8 @@ function TaskItem({ task, isSelected, onClick, onStatusChange, onDragStart, onDr
         <div className="flex items-center gap-2 flex-shrink-0">
           <PriorityBadge priority={task.priority} size="small" lang={lang} />
           {isNewTask && <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs font-medium" style={{ background: '#1a73e8', color: 'white' }}><Sparkles size={10} />{t.new}</span>}
-          {unreadCount > 0 && <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs font-medium" style={{ background: '#fbbc04', color: 'white' }}><MessageSquare size={10} />{unreadCount}</span>}
+          {mentionCount > 0 && <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs font-medium" style={{ background: '#ea4335', color: 'white' }}><AtSign size={10} />{mentionCount}</span>}
+          {unreadCount > 0 && mentionCount === 0 && <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs font-medium" style={{ background: '#fbbc04', color: 'white' }}><MessageSquare size={10} />{unreadCount}</span>}
           {hasEmailPending && <span className="px-1.5 py-0.5 rounded-full text-xs font-medium" style={{ background: '#ea4335', color: 'white' }}><MailX size={10} /></span>}
           {hasAttachments && <span className="flex items-center gap-1 text-xs" style={{ color: '#5f6368' }}><Paperclip size={12} />{task.attachments.length}</span>}
           {task.isExternal && <ExternalLink size={12} style={{ color: '#fbbc04' }} />}
@@ -381,7 +820,22 @@ function TaskDetail({ task, updateTask, deleteTask, onClose, currentUser, isMana
   const handleRemoveTaskAttachment = async (attachmentId) => { await updateTask(task.id, { attachments: (task.attachments || []).filter(a => a.id !== attachmentId) }); };
   const handleCommentAttachmentUpload = async (files) => { setUploadingComment(true); for (const file of files) { const result = await uploadFile(file, `comments/${task.id}`); if (result) { result.uploadedBy = currentUser; setCommentAttachments(prev => [...prev, result]); } } setUploadingComment(false); };
   const removeCommentAttachment = (id) => { setCommentAttachments(prev => prev.filter(a => a.id !== id)); };
-  const addComment = async () => { if (!comment.trim() && commentAttachments.length === 0) return; const newCommentObj = { id: generateId(), text: comment.trim(), author: currentUser, createdAt: new Date().toISOString(), attachments: commentAttachments.length > 0 ? commentAttachments : undefined }; updateTask(task.id, { comments: [...(task.comments || []), newCommentObj] }); setComment(''); setCommentAttachments([]); };
+  
+  const addComment = async () => { 
+    if (!comment.trim() && commentAttachments.length === 0) return; 
+    const newCommentObj = { 
+      id: generateId(), 
+      text: comment.trim(), 
+      author: currentUser, 
+      createdAt: new Date().toISOString(), 
+      attachments: commentAttachments.length > 0 ? commentAttachments : undefined,
+      mentions: parseMentions(comment.trim())
+    }; 
+    updateTask(task.id, { comments: [...(task.comments || []), newCommentObj] }); 
+    setComment(''); 
+    setCommentAttachments([]); 
+  };
+  
   const save = () => { updateTask(task.id, { title: form.title, description: form.description }); setEditing(false); };
   const addSubtask = () => { if (!newSubtask.trim()) return; updateTask(task.id, { subtasks: [...subtasks, { id: generateId(), title: newSubtask.trim(), assignee: subtaskAssignee || null, status: 'open', createdAt: new Date().toISOString() }] }); setNewSubtask(''); setSubtaskAssignee(''); setShowSubtaskForm(false); };
   const toggleSubtask = (subId) => { updateTask(task.id, { subtasks: subtasks.map(s => s.id === subId ? { ...s, status: s.status === 'open' ? 'closed' : 'open' } : s) }); };
@@ -430,7 +884,75 @@ function TaskDetail({ task, updateTask, deleteTask, onClose, currentUser, isMana
         
         <div><label className="block mb-2 text-sm font-medium" style={{ color: '#202124' }}>{t.assigned}</label><div className="flex flex-wrap gap-2">{task.assignees?.map(aId => { const m = teamMembers.find(x => x.id === aId); return m && <div key={aId} className="flex items-center gap-2 rounded-full px-3 py-1.5" style={{ background: '#f1f3f4' }}><div className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-medium" style={{ background: m.color }}>{getInitials(m.name)}</div><span className="text-sm" style={{ color: '#202124' }}>{m.name}</span>{canEdit && <button onClick={() => updateTask(task.id, { assignees: task.assignees.filter(a => a !== aId) })} className="hover:text-red-500" style={{ color: '#9aa0a6' }}><X size={14} /></button>}</div>; })}{canEdit && <select onChange={(e) => { if (e.target.value && !task.assignees?.includes(e.target.value)) { updateTask(task.id, { assignees: [...(task.assignees || []), e.target.value] }); const m = teamMembers.find(x => x.id === e.target.value); if (m) sendEmailNotification(m.email, m.name, task.title, me?.name); } e.target.value = ''; }} className="rounded-full px-3 py-1.5 text-sm cursor-pointer" style={{ background: '#f1f3f4', border: '1px dashed #dadce0', color: '#5f6368' }} defaultValue=""><option value="">{t.addPerson}</option>{teamMembers.filter(m => m.isActive !== false && !task.assignees?.includes(m.id)).map(m => <option key={m.id} value={m.id}>{m.name}</option>)}</select>}</div></div>
         
-        <div><div className="flex items-center justify-between mb-3"><label className="text-sm font-medium" style={{ color: '#202124' }}>{t.comments} ({task.comments?.length || 0})</label>{onMarkUnread && getUnreadCount(task, currentUser, readTimestamps) === 0 && task.comments?.length > 0 && <button onClick={() => onMarkUnread(task.id)} className="text-xs px-2 py-1 rounded hover:bg-gray-100" style={{ color: '#5f6368' }}>{t.markUnread}</button>}</div><div className="space-y-3 mb-4">{task.comments?.map(c => { const author = teamMembers.find(m => m.id === c.author); const isExternal = c.author === 'external'; return <div key={c.id} className="flex gap-3"><div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-medium flex-shrink-0" style={{ background: isExternal ? '#5f6368' : (author?.color || '#999') }}>{isExternal ? '👤' : getInitials(author?.name || '?')}</div><div className="flex-1"><div className="rounded-xl p-3" style={{ background: '#f1f3f4' }}><div className="flex items-center gap-2 mb-1"><span className="text-sm font-medium" style={{ color: '#202124' }}>{isExternal ? (c.authorName || task.submittedBy || 'Zewnętrzny') : (author?.name || t.unknown)}</span><span className="text-xs" style={{ color: '#9aa0a6' }}>{formatDate(c.createdAt)}</span></div><p className="text-sm" style={{ color: '#3c4043' }}>{c.text}</p><AttachmentList attachments={c.attachments} showRemove={false} /></div></div></div>; })}</div><div className="flex gap-2 items-start"><div className="flex-1"><input type="text" value={comment} onChange={(e) => setComment(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addComment()} placeholder={t.writeComment} className="w-full px-4 py-2.5 rounded-xl text-sm" style={{ background: '#f1f3f4', border: '1px solid #e8eaed' }} /><AttachmentList attachments={commentAttachments} onRemove={removeCommentAttachment} /></div><AttachmentUploader onUpload={handleCommentAttachmentUpload} uploading={uploadingComment} /><button onClick={addComment} className="p-2.5 rounded-xl" style={{ background: '#1a73e8', color: 'white' }}><Send size={18} /></button></div></div>
+        {/* Comments with @mentions */}
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <label className="text-sm font-medium" style={{ color: '#202124' }}>{t.comments} ({task.comments?.length || 0})</label>
+            {onMarkUnread && getUnreadCount(task, currentUser, readTimestamps) === 0 && task.comments?.length > 0 && <button onClick={() => onMarkUnread(task.id)} className="text-xs px-2 py-1 rounded hover:bg-gray-100" style={{ color: '#5f6368' }}>{t.markUnread}</button>}
+          </div>
+          <div className="space-y-3 mb-4">
+            {task.comments?.map(c => { 
+              const author = teamMembers.find(m => m.id === c.author); 
+              const isExternal = c.author === 'external'; 
+              const hasMentionOfMe = c.mentions?.some(m => {
+                const myMember = teamMembers.find(tm => tm.id === currentUser);
+                if (!myMember) return false;
+                const myIdentifiers = [
+                  currentUser.toLowerCase(),
+                  myMember.name.split(' ')[0].toLowerCase(),
+                ];
+                return myIdentifiers.includes(m.toLowerCase());
+              });
+              
+              return (
+                <div key={c.id} className="flex gap-3">
+                  <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-medium flex-shrink-0" style={{ background: isExternal ? '#5f6368' : (author?.color || '#999') }}>
+                    {isExternal ? '👤' : getInitials(author?.name || '?')}
+                  </div>
+                  <div className="flex-1">
+                    <div 
+                      className="rounded-xl p-3" 
+                      style={{ 
+                        background: hasMentionOfMe ? '#fce8e6' : '#f1f3f4',
+                        border: hasMentionOfMe ? '1px solid #f5c6cb' : 'none'
+                      }}
+                    >
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-sm font-medium" style={{ color: '#202124' }}>
+                          {isExternal ? (c.authorName || task.submittedBy || 'Zewnętrzny') : (author?.name || t.unknown)}
+                        </span>
+                        <span className="text-xs" style={{ color: '#9aa0a6' }}>{formatDate(c.createdAt)}</span>
+                        {hasMentionOfMe && (
+                          <span className="flex items-center gap-1 px-1.5 py-0.5 rounded text-xs" style={{ background: '#ea4335', color: 'white' }}>
+                            <AtSign size={10} />
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-sm" style={{ color: '#3c4043' }}>
+                        <CommentText text={c.text} teamMembers={teamMembers} />
+                      </p>
+                      <AttachmentList attachments={c.attachments} showRemove={false} />
+                    </div>
+                  </div>
+                </div>
+              ); 
+            })}
+          </div>
+          
+          {/* Comment input with @mention support */}
+          <div className="flex gap-2 items-start">
+            <MentionInput 
+              value={comment}
+              onChange={setComment}
+              onSubmit={addComment}
+              placeholder={t.writeComment}
+              teamMembers={teamMembers}
+            />
+            <AttachmentUploader onUpload={handleCommentAttachmentUpload} uploading={uploadingComment} />
+            <button onClick={addComment} className="p-2.5 rounded-xl" style={{ background: '#1a73e8', color: 'white' }}><Send size={18} /></button>
+          </div>
+          <AttachmentList attachments={commentAttachments} onRemove={removeCommentAttachment} />
+        </div>
         
         <div className="pt-4 border-t text-xs" style={{ borderColor: '#e8eaed', color: '#9aa0a6' }}><p>{t.created}: {formatDate(task.createdAt)}</p>{task.createdBy && <p>{t.byPerson}: {teamMembers.find(m => m.id === task.createdBy)?.name}</p>}</div>
       </div>
@@ -505,6 +1027,15 @@ export default function TaskApp() {
   const loadTasks = async () => { const data = await getTasks(); setTasks(data); setLoading(false); };
   useEffect(() => { if (currentUser) loadTasks(); }, [currentUser]);
   
+  // Auto-refresh tasks every 30 seconds to catch new comments
+  useEffect(() => {
+    if (!currentUser) return;
+    const interval = setInterval(() => {
+      loadTasks();
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [currentUser]);
+  
   const handleLogout = () => { localStorage.removeItem('av_tasks_user'); setCurrentUser(null); setTasks([]); setSelectedTask(null); setShowUsersPanel(false); };
   const handleSelectTask = useCallback((task) => { setSelectedTask(task); setShowUsersPanel(false); if (currentUser && task) { setTaskRead(task.id, currentUser); setReadTimestamps(prev => ({ ...prev, [task.id]: new Date().toISOString() })); markTaskAsSeen(task.id, currentUser); setSeenTaskIds(prev => prev.includes(task.id) ? prev : [...prev, task.id]); } }, [currentUser]);
   const handleMarkUnread = useCallback((taskId) => { if (currentUser) { setTaskUnread(taskId, currentUser); setReadTimestamps(prev => { const ns = { ...prev }; delete ns[taskId]; return ns; }); } }, [currentUser]);
@@ -525,7 +1056,6 @@ export default function TaskApp() {
   
   const getFilteredByStatus = (sf) => { switch (sf) { case 'active': return visibleTasks.filter(t => t.status === 'open' || t.status === 'longterm'); case 'open': return visibleTasks.filter(t => t.status === 'open'); case 'longterm': return visibleTasks.filter(t => t.status === 'longterm'); case 'closed': return visibleTasks.filter(t => t.status === 'closed'); default: return visibleTasks; } };
   
-  // Najpierw filtruj, potem sortuj
   const filteredTasks = sortTasks(getFilteredByStatus(filterStatus), sortBy);
   
   const openTasks = visibleTasks.filter(t => t.status === 'open');
@@ -587,7 +1117,18 @@ export default function TaskApp() {
       <main className="flex-1 flex flex-col overflow-hidden">
         <header className="bg-white border-b px-6 py-3 flex items-center justify-between" style={{ borderColor: '#e8eaed' }}>
           <div><h2 className="text-lg font-medium" style={{ color: '#202124' }}>{showUsersPanel ? t.usersPanel : activeTab === 'pending' ? t.pendingApproval : filterStatus === 'active' ? t.activeTasks : filterStatus === 'open' ? t.openTasks : filterStatus === 'longterm' ? t.longtermTasks : t.closedTasks}</h2>{filterPerson !== 'all' && !showUsersPanel && <p className="text-xs" style={{ color: '#5f6368' }}>{t.filter}: {teamMembers.find(m => m.id === filterPerson)?.name}</p>}</div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
+            {/* Notification Bell */}
+            <NotificationBell 
+              tasks={tasks}
+              currentUser={currentUser}
+              readTimestamps={readTimestamps}
+              teamMembers={teamMembers}
+              onSelectTask={handleSelectTask}
+              t={t}
+              lang={lang}
+            />
+            
             {!showUsersPanel && activeTab === 'tasks' && (
               <SortDropdown value={sortBy} onChange={setSortBy} t={t} />
             )}
