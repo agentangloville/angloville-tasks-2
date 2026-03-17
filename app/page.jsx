@@ -152,8 +152,10 @@ function sortTasks(tasks, sortBy) {
 }
 
 // =============================================
-// NOTIFICATION BELL COMPONENT
+// NOTIFICATION BELL COMPONENT - REPLACEMENT
 // =============================================
+// Zamień cały komponent NotificationBell (od "function NotificationBell({" do końca komponentu)
+// na poniższy kod:
 
 function NotificationBell({ tasks, currentUser, readTimestamps, teamMembers, onSelectTask, t, lang }) {
   const [open, setOpen] = useState(false);
@@ -173,40 +175,35 @@ function NotificationBell({ tasks, currentUser, readTimestamps, teamMembers, onS
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
   
-  // Collect all notifications
+  // Collect ALL notifications (read and unread)
   const notifications = useMemo(() => {
     const notifs = [];
     
     tasks.forEach(task => {
       if (task.status === 'pending') return;
+      if (!task.comments?.length) return;
       
       const unreadComments = getUnreadComments(task, currentUser, readTimestamps);
+      const unreadIds = unreadComments.map(c => c.id);
       const mentions = getMentionsForUser(task, currentUser, readTimestamps, teamMembers);
-      
-      // Add mention notifications first (higher priority)
-      mentions.forEach(comment => {
-        const author = teamMembers.find(m => m.id === comment.author);
-        notifs.push({
-          id: `mention-${comment.id}`,
-          type: 'mention',
-          task,
-          comment,
-          author,
-          createdAt: comment.createdAt,
-        });
-      });
-      
-      // Add regular comment notifications (excluding mentions already added)
       const mentionIds = mentions.map(m => m.id);
-      unreadComments.filter(c => !mentionIds.includes(c.id)).forEach(comment => {
+      
+      // Get ALL comments from others (not just unread)
+      const allOtherComments = task.comments.filter(c => c.author !== currentUser);
+      
+      allOtherComments.forEach(comment => {
         const author = teamMembers.find(m => m.id === comment.author);
+        const isUnread = unreadIds.includes(comment.id);
+        const isMention = mentionIds.includes(comment.id) && isUnread;
+        
         notifs.push({
-          id: `comment-${comment.id}`,
-          type: 'comment',
+          id: `${isMention ? 'mention' : 'comment'}-${comment.id}`,
+          type: isMention ? 'mention' : 'comment',
           task,
           comment,
           author,
           createdAt: comment.createdAt,
+          isRead: !isUnread,
         });
       });
     });
@@ -215,8 +212,9 @@ function NotificationBell({ tasks, currentUser, readTimestamps, teamMembers, onS
     return notifs.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
   }, [tasks, currentUser, readTimestamps, teamMembers]);
   
-  const totalCount = notifications.length;
-  const mentionCount = notifications.filter(n => n.type === 'mention').length;
+  const unreadNotifications = notifications.filter(n => !n.isRead);
+  const totalCount = unreadNotifications.length;
+  const mentionCount = unreadNotifications.filter(n => n.type === 'mention').length;
   
   // Play sound when new notifications appear
   useEffect(() => {
@@ -234,7 +232,7 @@ function NotificationBell({ tasks, currentUser, readTimestamps, teamMembers, onS
   
   const handleMarkAllRead = () => {
     setAllTasksRead(tasks, currentUser);
-    window.location.reload(); // Simple refresh to update state
+    window.location.reload();
   };
   
   const handleNotificationClick = (notif) => {
@@ -308,26 +306,33 @@ function NotificationBell({ tasks, currentUser, readTimestamps, teamMembers, onS
               </div>
             ) : (
               <div>
-                {notifications.slice(0, 20).map(notif => {
+                {notifications.slice(0, 30).map(notif => {
                   const isMention = notif.type === 'mention';
                   const market = MARKETS.find(m => m.id === notif.task.market);
+                  const isRead = notif.isRead;
                   
                   return (
                     <button
                       key={notif.id}
                       onClick={() => handleNotificationClick(notif)}
                       className="w-full px-4 py-3 flex gap-3 hover:bg-gray-50 transition-colors text-left border-b"
-                      style={{ borderColor: '#f1f3f4' }}
+                      style={{ 
+                        borderColor: '#f1f3f4',
+                        background: isRead ? '#fafafa' : 'white',
+                        opacity: isRead ? 0.6 : 1,
+                      }}
                     >
                       {/* Avatar */}
                       <div className="relative flex-shrink-0">
                         <div 
                           className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-medium"
-                          style={{ background: notif.author?.color || '#5f6368' }}
+                          style={{ 
+                            background: isRead ? '#9aa0a6' : (notif.author?.color || '#5f6368'),
+                          }}
                         >
                           {notif.author ? getInitials(notif.author.name) : '?'}
                         </div>
-                        {isMention && (
+                        {isMention && !isRead && (
                           <div 
                             className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center"
                             style={{ background: '#ea4335' }}
@@ -340,19 +345,30 @@ function NotificationBell({ tasks, currentUser, readTimestamps, teamMembers, onS
                       {/* Content */}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-0.5">
-                          <span className="font-medium text-sm" style={{ color: '#202124' }}>
+                          <span 
+                            className="font-medium text-sm" 
+                            style={{ color: isRead ? '#9aa0a6' : '#202124' }}
+                          >
                             {notif.author?.name || 'Unknown'}
                           </span>
                           <span className="text-xs" style={{ color: '#9aa0a6' }}>
                             {formatTime(notif.createdAt)}
                           </span>
+                          {isRead && (
+                            <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: '#e8eaed', color: '#9aa0a6' }}>
+                              ✓
+                            </span>
+                          )}
                         </div>
-                        <p className="text-sm mb-1" style={{ color: isMention ? '#ea4335' : '#5f6368' }}>
+                        <p className="text-sm mb-1" style={{ color: isRead ? '#9aa0a6' : (isMention ? '#ea4335' : '#5f6368') }}>
                           {isMention ? t.mentionedYou : t.newComment}
                         </p>
                         <div className="flex items-center gap-1.5">
-                          <span>{market?.icon}</span>
-                          <span className="text-sm truncate" style={{ color: '#202124' }}>
+                          <span style={{ opacity: isRead ? 0.5 : 1 }}>{market?.icon}</span>
+                          <span 
+                            className="text-sm truncate" 
+                            style={{ color: isRead ? '#9aa0a6' : '#202124' }}
+                          >
                             {notif.task.title}
                           </span>
                         </div>
