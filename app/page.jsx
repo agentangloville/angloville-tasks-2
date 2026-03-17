@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { Plus, Check, X, Edit3, Trash2, CheckCircle, Circle, Send, MessageSquare, ChevronDown, ChevronRight, Clock, AlertCircle, ExternalLink, Copy, Languages, Loader2, ListTodo, Square, CheckSquare, Bold, Italic, List, ListOrdered, LogOut, Lock, GripVertical, Filter, Underline, Link2, Undo, Redo, Inbox, Sparkles, Mail, MailCheck, MailX, RefreshCw, Paperclip, File, FileText, Image, FileSpreadsheet, Download, Flag, Users, UserPlus, Globe, EyeOff, ArrowUpDown, ArrowDown, ArrowUp, Activity, Bell, AtSign, Volume2, Pause, Eye } from 'lucide-react';
+import { Plus, Check, X, Edit3, Trash2, CheckCircle, Circle, Send, MessageSquare, ChevronDown, ChevronRight, Clock, AlertCircle, ExternalLink, Copy, Languages, Loader2, ListTodo, Square, CheckSquare, Bold, Italic, List, ListOrdered, LogOut, Lock, GripVertical, Filter, Underline, Link2, Undo, Redo, Inbox, Sparkles, Mail, MailCheck, MailX, RefreshCw, Paperclip, File, FileText, Image, FileSpreadsheet, Download, Flag, Users, UserPlus, Globe, EyeOff, ArrowUpDown, ArrowDown, ArrowUp, Activity, Bell, AtSign, Volume2, Pause, Eye, Menu } from 'lucide-react';
 import { getTasks, createTask, updateTask as updateTaskDb, deleteTask as deleteTaskDb, getQuickLinks, createQuickLink, deleteQuickLink, uploadFile, getTeamMembers, getAllTeamMembers, createTeamMember, updateTeamMember } from '../lib/supabase';
 
 const FALLBACK_TEAM = [
@@ -48,7 +48,6 @@ const STATUSES = [
 
 const COLORS = ['#4285f4', '#a142f4', '#34a853', '#fbbc04', '#ea4335', '#e91e63', '#00acc1', '#ff7043', '#8d6e63', '#607d8b'];
 
-// Notification sound - base64 encoded short beep
 const NOTIFICATION_SOUND = 'data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdH2DgoODg4ODgoJ/fHl2c3BtamhlYl9cWVZTUE1KR0RBOQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==';
 
 const TRANSLATIONS = {
@@ -85,7 +84,6 @@ const getUnreadComments = (task, userId, timestamps) => {
 
 const getUnreadCount = (task, userId, timestamps) => getUnreadComments(task, userId, timestamps).length;
 
-// Parse @mentions from comment text
 const parseMentions = (text) => {
   const mentionRegex = /@(\w+)/g;
   const mentions = [];
@@ -96,7 +94,6 @@ const parseMentions = (text) => {
   return mentions;
 };
 
-// Check if user is mentioned in comments
 const getMentionsForUser = (task, userId, timestamps, teamMembers) => {
   const unreadComments = getUnreadComments(task, userId, timestamps);
   const userMember = teamMembers.find(m => m.id === userId);
@@ -152,10 +149,8 @@ function sortTasks(tasks, sortBy) {
 }
 
 // =============================================
-// NOTIFICATION BELL COMPONENT - REPLACEMENT
+// NOTIFICATION BELL - FIX 1 (read stay visible) + FIX 6 (only assigned/mentioned)
 // =============================================
-// Zamień cały komponent NotificationBell (od "function NotificationBell({" do końca komponentu)
-// na poniższy kod:
 
 function NotificationBell({ tasks, currentUser, readTimestamps, teamMembers, onSelectTask, t, lang }) {
   const [open, setOpen] = useState(false);
@@ -175,20 +170,34 @@ function NotificationBell({ tasks, currentUser, readTimestamps, teamMembers, onS
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
   
-  // Collect ALL notifications (read and unread)
   const notifications = useMemo(() => {
     const notifs = [];
+    const currentMember = teamMembers.find(m => m.id === currentUser);
+    const userIdentifiers = currentMember ? [
+      currentUser.toLowerCase(),
+      currentMember.name.split(' ')[0].toLowerCase(),
+      currentMember.name.toLowerCase().replace(/\s+/g, '_'),
+      currentMember.name.toLowerCase().replace(/\s+/g, ''),
+    ] : [currentUser.toLowerCase()];
     
     tasks.forEach(task => {
       if (task.status === 'pending') return;
       if (!task.comments?.length) return;
+      
+      // FIX 6: Only show notifications for tasks where user is assigned or mentioned
+      const isAssigned = task.assignees?.includes(currentUser);
+      const isCreator = task.createdBy === currentUser;
+      const isMentionedInAnyComment = task.comments.some(c => {
+        const mentions = parseMentions(c.text);
+        return mentions.some(m => userIdentifiers.includes(m));
+      });
+      if (!isAssigned && !isCreator && !isMentionedInAnyComment) return;
       
       const unreadComments = getUnreadComments(task, currentUser, readTimestamps);
       const unreadIds = unreadComments.map(c => c.id);
       const mentions = getMentionsForUser(task, currentUser, readTimestamps, teamMembers);
       const mentionIds = mentions.map(m => m.id);
       
-      // Get ALL comments from others (not just unread)
       const allOtherComments = task.comments.filter(c => c.author !== currentUser);
       
       allOtherComments.forEach(comment => {
@@ -208,7 +217,6 @@ function NotificationBell({ tasks, currentUser, readTimestamps, teamMembers, onS
       });
     });
     
-    // Sort by date, newest first
     return notifs.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
   }, [tasks, currentUser, readTimestamps, teamMembers]);
   
@@ -216,7 +224,6 @@ function NotificationBell({ tasks, currentUser, readTimestamps, teamMembers, onS
   const totalCount = unreadNotifications.length;
   const mentionCount = unreadNotifications.filter(n => n.type === 'mention').length;
   
-  // Play sound when new notifications appear
   useEffect(() => {
     if (totalCount > prevCountRef.current && soundEnabled) {
       playNotificationSound();
@@ -262,10 +269,9 @@ function NotificationBell({ tasks, currentUser, readTimestamps, teamMembers, onS
       
       {open && (
         <div 
-          className="absolute right-0 top-full mt-2 w-96 bg-white rounded-xl overflow-hidden z-50"
+          className="absolute right-0 top-full mt-2 w-96 max-w-[calc(100vw-2rem)] bg-white rounded-xl overflow-hidden z-50"
           style={{ boxShadow: '0 4px 20px rgba(0,0,0,.15)', border: '1px solid #e8eaed', maxHeight: '80vh' }}
         >
-          {/* Header */}
           <div className="px-4 py-3 border-b flex items-center justify-between" style={{ borderColor: '#e8eaed', background: '#f8f9fa' }}>
             <div className="flex items-center gap-2">
               <Bell size={18} style={{ color: '#1a73e8' }} />
@@ -297,7 +303,6 @@ function NotificationBell({ tasks, currentUser, readTimestamps, teamMembers, onS
             </div>
           </div>
           
-          {/* Notifications list */}
           <div className="overflow-y-auto" style={{ maxHeight: '400px' }}>
             {notifications.length === 0 ? (
               <div className="py-12 text-center">
@@ -306,7 +311,7 @@ function NotificationBell({ tasks, currentUser, readTimestamps, teamMembers, onS
               </div>
             ) : (
               <div>
-                {notifications.slice(0, 30).map(notif => {
+                {notifications.slice(0, 50).map(notif => {
                   const isMention = notif.type === 'mention';
                   const market = MARKETS.find(m => m.id === notif.task.market);
                   const isRead = notif.isRead;
@@ -319,15 +324,14 @@ function NotificationBell({ tasks, currentUser, readTimestamps, teamMembers, onS
                       style={{ 
                         borderColor: '#f1f3f4',
                         background: isRead ? '#fafafa' : 'white',
-                        opacity: isRead ? 0.6 : 1,
                       }}
                     >
-                      {/* Avatar */}
                       <div className="relative flex-shrink-0">
                         <div 
                           className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-medium"
                           style={{ 
-                            background: isRead ? '#9aa0a6' : (notif.author?.color || '#5f6368'),
+                            background: notif.author?.color || '#5f6368',
+                            opacity: isRead ? 0.5 : 1,
                           }}
                         >
                           {notif.author ? getInitials(notif.author.name) : '?'}
@@ -342,7 +346,6 @@ function NotificationBell({ tasks, currentUser, readTimestamps, teamMembers, onS
                         )}
                       </div>
                       
-                      {/* Content */}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-0.5">
                           <span 
@@ -356,11 +359,11 @@ function NotificationBell({ tasks, currentUser, readTimestamps, teamMembers, onS
                           </span>
                           {isRead && (
                             <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: '#e8eaed', color: '#9aa0a6' }}>
-                              ✓
+                              ✓ przeczytane
                             </span>
                           )}
                         </div>
-                        <p className="text-sm mb-1" style={{ color: isRead ? '#9aa0a6' : (isMention ? '#ea4335' : '#5f6368') }}>
+                        <p className="text-sm mb-1" style={{ color: isRead ? '#bdc1c6' : (isMention ? '#ea4335' : '#5f6368') }}>
                           {isMention ? t.mentionedYou : t.newComment}
                         </p>
                         <div className="flex items-center gap-1.5">
@@ -372,9 +375,8 @@ function NotificationBell({ tasks, currentUser, readTimestamps, teamMembers, onS
                             {notif.task.title}
                           </span>
                         </div>
-                        {/* Comment preview */}
-                        <p className="text-xs mt-1 truncate" style={{ color: '#9aa0a6' }}>
-                          "{notif.comment.text.substring(0, 60)}{notif.comment.text.length > 60 ? '...' : ''}"
+                        <p className="text-xs mt-1 truncate" style={{ color: isRead ? '#dadce0' : '#9aa0a6' }}>
+                          &ldquo;{notif.comment.text.substring(0, 60)}{notif.comment.text.length > 60 ? '...' : ''}&rdquo;
                         </p>
                       </div>
                     </button>
@@ -390,7 +392,7 @@ function NotificationBell({ tasks, currentUser, readTimestamps, teamMembers, onS
 }
 
 // =============================================
-// MENTION INPUT COMPONENT
+// MENTION INPUT - FIX 2 (use member.id for disambiguation)
 // =============================================
 
 function MentionInput({ value, onChange, onSubmit, placeholder, teamMembers }) {
@@ -407,13 +409,11 @@ function MentionInput({ value, onChange, onSubmit, placeholder, teamMembers }) {
     onChange(newValue);
     setCursorPosition(cursor);
     
-    // Check for @ mention
     const textBeforeCursor = newValue.substring(0, cursor);
     const lastAtIndex = textBeforeCursor.lastIndexOf('@');
     
     if (lastAtIndex !== -1) {
       const textAfterAt = textBeforeCursor.substring(lastAtIndex + 1);
-      // Check if there's a space before @ (or it's at the start)
       const charBeforeAt = lastAtIndex > 0 ? newValue[lastAtIndex - 1] : ' ';
       
       if ((charBeforeAt === ' ' || charBeforeAt === '\n' || lastAtIndex === 0) && !textAfterAt.includes(' ')) {
@@ -441,14 +441,14 @@ function MentionInput({ value, onChange, onSubmit, placeholder, teamMembers }) {
     
     const before = value.substring(0, mentionStart);
     const after = value.substring(cursorPosition);
-    const mentionText = `@${member.name.split(' ')[0]} `;
+    // FIX 2: Use member.id for unambiguous mentions (e.g. @damian_l vs @damian_w)
+    const mentionText = `@${member.id} `;
     const newValue = before + mentionText + after;
     
     onChange(newValue);
     setShowSuggestions(false);
     setMentionStart(-1);
     
-    // Focus and set cursor position
     setTimeout(() => {
       if (inputRef.current) {
         inputRef.current.focus();
@@ -474,17 +474,6 @@ function MentionInput({ value, onChange, onSubmit, placeholder, teamMembers }) {
     }
   };
   
-  // Render text with highlighted mentions
-  const renderMentions = (text) => {
-    const parts = text.split(/(@\w+)/g);
-    return parts.map((part, i) => {
-      if (part.startsWith('@')) {
-        return <span key={i} style={{ color: '#1a73e8', fontWeight: 500 }}>{part}</span>;
-      }
-      return part;
-    });
-  };
-  
   return (
     <div className="relative flex-1">
       <input
@@ -498,7 +487,6 @@ function MentionInput({ value, onChange, onSubmit, placeholder, teamMembers }) {
         style={{ background: '#f1f3f4', border: '1px solid #e8eaed' }}
       />
       
-      {/* Suggestions dropdown */}
       {showSuggestions && (
         <div 
           ref={suggestionsRef}
@@ -522,7 +510,7 @@ function MentionInput({ value, onChange, onSubmit, placeholder, teamMembers }) {
               </div>
               <div>
                 <p className="text-sm font-medium" style={{ color: '#202124' }}>{member.name}</p>
-                <p className="text-xs" style={{ color: '#9aa0a6' }}>@{member.name.split(' ')[0].toLowerCase()}</p>
+                <p className="text-xs" style={{ color: '#9aa0a6' }}>@{member.id}</p>
               </div>
             </button>
           ))}
@@ -532,18 +520,41 @@ function MentionInput({ value, onChange, onSubmit, placeholder, teamMembers }) {
   );
 }
 
-// Render comment text with clickable mentions
+// FIX 3: Comment text with clickable links AND @mentions
 function CommentText({ text, teamMembers }) {
-  const parts = text.split(/(@\w+)/g);
+  // Split on URLs and @mentions
+  const urlRegex = /(https?:\/\/[^\s]+)/g;
+  const mentionRegex = /(@\w+)/g;
+  const combinedRegex = /(https?:\/\/[^\s]+|@\w+)/g;
+  
+  const parts = text.split(combinedRegex);
   
   return (
     <span>
       {parts.map((part, i) => {
+        if (part.match(urlRegex)) {
+          let label = part;
+          try { label = new URL(part).hostname.replace('www.', ''); } catch {}
+          return (
+            <a 
+              key={i} 
+              href={part} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 px-1 py-0.5 rounded hover:bg-blue-50"
+              style={{ color: '#1a73e8', textDecoration: 'underline' }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <ExternalLink size={12} />
+              {label}
+            </a>
+          );
+        }
         if (part.startsWith('@')) {
           const name = part.substring(1).toLowerCase();
           const member = teamMembers.find(m => 
-            m.name.split(' ')[0].toLowerCase() === name ||
             m.id.toLowerCase() === name ||
+            m.name.split(' ')[0].toLowerCase() === name ||
             m.name.toLowerCase().replace(/\s+/g, '') === name
           );
           
@@ -554,7 +565,7 @@ function CommentText({ text, teamMembers }) {
               style={{ background: '#e8f0fe', color: '#1a73e8', fontWeight: 500 }}
             >
               <AtSign size={12} />
-              {member ? member.name.split(' ')[0] : part.substring(1)}
+              {member ? member.name : part.substring(1)}
             </span>
           );
         }
@@ -628,7 +639,7 @@ function UsersPanel({ teamMembers, onUpdate, onClose, t }) {
   const handleToggleActive = async (user) => { await updateTeamMember(user.id, { isActive: !user.isActive }); await loadAllUsers(); onUpdate(); };
 
   return (
-    <aside className="w-[500px] bg-white border-l flex flex-col overflow-hidden flex-shrink-0" style={{ borderColor: '#e8eaed' }}>
+    <aside className="w-full lg:w-[500px] bg-white border-l flex flex-col overflow-hidden flex-shrink-0 fixed lg:static inset-0 z-40 lg:z-auto" style={{ borderColor: '#e8eaed' }}>
       <div className="p-4 border-b flex items-center justify-between" style={{ borderColor: '#e8eaed' }}>
         <div className="flex items-center gap-2"><Users size={20} style={{ color: '#1a73e8' }} /><h2 className="font-medium" style={{ color: '#202124' }}>{t.usersPanel}</h2></div>
         <div className="flex items-center gap-2"><button onClick={() => { setShowAddForm(true); setEditingUser(null); }} className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-medium" style={{ background: '#1a73e8', color: 'white' }}><UserPlus size={16} /> {t.addUser}</button><button onClick={onClose} className="p-2 rounded-full hover:bg-gray-100" style={{ color: '#5f6368' }}><X size={18} /></button></div>
@@ -711,7 +722,6 @@ function SortDropdown({ value, onChange, t }) {
   ];
   
   const current = options.find(o => o.id === value) || options[0];
-  const CurrentIcon = current.icon;
   
   return (
     <div className="relative" ref={ref}>
@@ -762,7 +772,7 @@ function PendingView({ tasks, approveTask, deleteTask, currentUser, t, lang, tea
     <div className="max-w-3xl mx-auto space-y-4">
       {tasks.map(task => { const market = MARKETS.find(m => m.id === task.market); const assignees = selected[task.id] || task.assignees || []; return (
         <div key={task.id} className="bg-white rounded-xl p-5 border" style={{ borderColor: '#e8eaed' }}>
-          {task.isExternal && <div className="flex items-center gap-2 mb-3 pb-3 border-b" style={{ borderColor: '#e8eaed' }}><ExternalLink size={14} style={{ color: '#fbbc04' }} /><span className="text-xs font-medium" style={{ color: '#b06000' }}>{t.external}</span>{task.language === 'en' && <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: '#e8f0fe', color: '#1a73e8' }}>🇬🇧</span>}<span className="text-xs" style={{ color: '#9aa0a6' }}>{t.from} {task.submittedBy}</span></div>}
+          {task.isExternal && <div className="flex items-center gap-2 mb-3 pb-3 border-b flex-wrap" style={{ borderColor: '#e8eaed' }}><ExternalLink size={14} style={{ color: '#fbbc04' }} /><span className="text-xs font-medium" style={{ color: '#b06000' }}>{t.external}</span>{task.language === 'en' && <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: '#e8f0fe', color: '#1a73e8' }}>🇬🇧</span>}<span className="text-xs" style={{ color: '#9aa0a6' }}>{t.from} {task.submittedBy}</span></div>}
           <div className="flex items-start gap-3 mb-4"><span className="text-xl">{market?.icon}</span><div className="flex-1"><div className="flex items-center gap-2 flex-wrap"><h3 className="font-medium text-lg" style={{ color: '#202124' }}>{task.title}</h3><TranslateButton task={task} /><PriorityBadge priority={task.priority} lang={lang} /></div>{task.description && <div className="mt-2"><RichTextDisplay html={task.description} /></div>}{task.links && <div className="mt-3 p-3 rounded-lg" style={{ background: '#f8f9fa' }}><ClickableLinks text={task.links} /></div>}<AttachmentList attachments={task.attachments} showRemove={false} /></div></div>
           <div className="mb-4"><p className="text-xs font-medium mb-2" style={{ color: '#5f6368' }}>{t.assignTo}</p><div className="flex flex-wrap gap-2">{teamMembers.filter(m => m.isActive !== false).map(m => <button key={m.id} onClick={() => toggle(task.id, m.id)} className="flex items-center gap-2 px-3 py-2 rounded-full border text-sm" style={{ borderColor: assignees.includes(m.id) ? '#1a73e8' : '#dadce0', background: assignees.includes(m.id) ? '#e8f0fe' : 'white', color: assignees.includes(m.id) ? '#1a73e8' : '#202124' }}><div className="w-5 h-5 rounded-full flex items-center justify-center text-white text-xs font-medium" style={{ background: m.color }}>{getInitials(m.name)}</div><span>{m.name.split(' ')[0]}</span>{assignees.includes(m.id) && <Check size={14} />}</button>)}</div></div>
           <div className="flex gap-2 pt-4 border-t" style={{ borderColor: '#e8eaed' }}><button onClick={() => approveTask(task, assignees)} disabled={!assignees.length} className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg font-medium disabled:opacity-50" style={{ background: assignees.length ? '#1a73e8' : '#f1f3f4', color: assignees.length ? 'white' : '#9aa0a6' }}><Check size={18} /> {t.approve}</button><button onClick={() => deleteTask(task.id)} className="px-4 py-2.5 rounded-lg hover:bg-red-50" style={{ color: '#ea4335', border: '1px solid #f5c6cb' }}><X size={18} /></button></div>
@@ -787,25 +797,25 @@ function TaskItem({ task, isSelected, onClick, onStatusChange, onDragStart, onDr
   return (
     <div onClick={onClick} draggable onDragStart={(e) => onDragStart(e, task)} onDragOver={(e) => onDragOver(e, task)} onDrop={(e) => onDrop(e, task)} onDragEnd={onDragEnd} className="bg-white rounded-lg px-3 py-2.5 cursor-pointer hover:shadow-sm border" style={{ borderColor: isSelected ? '#1a73e8' : isDropTarget ? '#4285f4' : isNewTask ? '#c6dafc' : '#e8eaed', opacity: isDragging ? 0.4 : 1, borderTopWidth: isDropTarget ? '3px' : '1px', background: isNewTask ? '#f8fbff' : 'white' }}>
       <div className="flex items-center gap-2">
-        <GripVertical size={14} style={{ color: '#dadce0' }} className="cursor-grab flex-shrink-0" />
+        <GripVertical size={14} style={{ color: '#dadce0' }} className="cursor-grab flex-shrink-0 hidden sm:block" />
         <button onClick={cycle} className="hover:scale-110 flex-shrink-0"><Icon size={18} style={{ color: status?.color }} className={task.status === 'closed' ? 'fill-current' : ''} /></button>
         <span className="flex-shrink-0">{market?.icon}</span>
         <h4 className="font-medium text-sm flex-1 min-w-0 truncate" style={{ color: task.status === 'closed' ? '#9aa0a6' : '#202124', textDecoration: task.status === 'closed' ? 'line-through' : 'none' }}>{task.title}</h4>
-        <div className="flex items-center gap-2 flex-shrink-0">
+        <div className="flex items-center gap-1.5 flex-shrink-0 flex-wrap justify-end">
           <PriorityBadge priority={task.priority} size="small" lang={lang} />
           {isNewTask && <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs font-medium" style={{ background: '#1a73e8', color: 'white' }}><Sparkles size={10} />{t.new}</span>}
           {mentionCount > 0 && <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs font-medium" style={{ background: '#ea4335', color: 'white' }}><AtSign size={10} />{mentionCount}</span>}
           {unreadCount > 0 && mentionCount === 0 && <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs font-medium" style={{ background: '#fbbc04', color: 'white' }}><MessageSquare size={10} />{unreadCount}</span>}
           {hasEmailPending && <span className="px-1.5 py-0.5 rounded-full text-xs font-medium" style={{ background: '#ea4335', color: 'white' }}><MailX size={10} /></span>}
-          {hasAttachments && <span className="flex items-center gap-1 text-xs" style={{ color: '#5f6368' }}><Paperclip size={12} />{task.attachments.length}</span>}
+          {hasAttachments && <span className="flex items-center gap-1 text-xs hidden sm:flex" style={{ color: '#5f6368' }}><Paperclip size={12} />{task.attachments.length}</span>}
           {task.isExternal && <ExternalLink size={12} style={{ color: '#fbbc04' }} />}
           {task.language === 'en' && <TranslateButton task={task} size="small" />}
-          {task.status === 'longterm' && <span className="text-xs px-1.5 py-0.5 rounded-full" style={{ background: '#f3e8fd', color: '#a142f4' }}>{t.lt}</span>}
-          {task.status === 'paused' && <span className="text-xs px-1.5 py-0.5 rounded-full" style={{ background: '#fff3e0', color: '#ff7043' }}>⏸️</span>}
-          {task.status === 'monitoring' && <span className="text-xs px-1.5 py-0.5 rounded-full" style={{ background: '#e0f7fa', color: '#00acc1' }}>👁️</span>}
-          {task.market === 'pl' && task.subcategory && (() => { const subcat = PL_SUBCATEGORIES.find(s => s.id === task.subcategory); return subcat && <span className="text-xs px-1.5 py-0.5 rounded-full font-medium" style={{ background: subcat.bg, color: subcat.color }}>{subcat.name}</span>; })()}
+          {task.status === 'longterm' && <span className="text-xs px-1.5 py-0.5 rounded-full hidden sm:inline" style={{ background: '#f3e8fd', color: '#a142f4' }}>{t.lt}</span>}
+          {task.status === 'paused' && <span className="text-xs px-1.5 py-0.5 rounded-full hidden sm:inline" style={{ background: '#fff3e0', color: '#ff7043' }}>⏸️</span>}
+          {task.status === 'monitoring' && <span className="text-xs px-1.5 py-0.5 rounded-full hidden sm:inline" style={{ background: '#e0f7fa', color: '#00acc1' }}>👁️</span>}
+          {task.market === 'pl' && task.subcategory && (() => { const subcat = PL_SUBCATEGORIES.find(s => s.id === task.subcategory); return subcat && <span className="text-xs px-1.5 py-0.5 rounded-full font-medium hidden sm:inline" style={{ background: subcat.bg, color: subcat.color }}>{subcat.name}</span>; })()}
           <div className="flex -space-x-1">{task.assignees?.slice(0, 3).map(aId => { const m = teamMembers.find(x => x.id === aId); return m && <div key={aId} className="w-5 h-5 rounded-full flex items-center justify-center text-white text-xs font-medium border border-white" style={{ background: m.color }} title={m.name}>{getInitials(m.name)}</div>; })}{task.assignees?.length > 3 && <div className="w-5 h-5 rounded-full flex items-center justify-center text-xs font-medium border border-white" style={{ background: '#e8eaed', color: '#5f6368' }}>+{task.assignees.length - 3}</div>}</div>
-          {task.comments?.length > 0 && !unreadCount && <div className="flex items-center gap-0.5" style={{ color: '#9aa0a6' }}><MessageSquare size={12} /><span className="text-xs">{task.comments.length}</span></div>}
+          {task.comments?.length > 0 && !unreadCount && <div className="flex items-center gap-0.5 hidden sm:flex" style={{ color: '#9aa0a6' }}><MessageSquare size={12} /><span className="text-xs">{task.comments.length}</span></div>}
           <SubtaskProgress subtasks={task.subtasks} />
           <ChevronRight size={16} style={{ color: '#dadce0' }} />
         </div>
@@ -813,6 +823,10 @@ function TaskItem({ task, isSelected, onClick, onStatusChange, onDragStart, onDr
     </div>
   );
 }
+
+// =============================================
+// TASK DETAIL - FIX 4 (canContribute for assigned users)
+// =============================================
 
 function TaskDetail({ task, updateTask, deleteTask, onClose, currentUser, isManager, onMarkUnread, readTimestamps, t, lang, teamMembers }) {
   const [comment, setComment] = useState('');
@@ -832,6 +846,8 @@ function TaskDetail({ task, updateTask, deleteTask, onClose, currentUser, isMana
   const me = teamMembers.find(m => m.id === currentUser);
   const subtasks = task.subtasks || [];
   const canEdit = isManager || task.createdBy === currentUser;
+  // FIX 4: Anyone assigned to the task can add people, attachments, subtasks
+  const canContribute = canEdit || task.assignees?.includes(currentUser);
   const publicLink = task.publicToken ? `${typeof window !== 'undefined' ? window.location.origin : ''}/task/${task.publicToken}` : null;
 
   const copyPublicLink = () => { if (publicLink) { navigator.clipboard.writeText(publicLink); setLinkCopied(true); setTimeout(() => setLinkCopied(false), 2000); } };
@@ -864,7 +880,7 @@ function TaskDetail({ task, updateTask, deleteTask, onClose, currentUser, isMana
   const formatDate = lang === 'en' ? formatDateTimeEn : formatDateTime;
 
   return (
-    <aside className="w-[640px] bg-white border-l flex flex-col overflow-hidden flex-shrink-0" style={{ borderColor: '#e8eaed' }}>
+    <aside className="w-full lg:w-[640px] bg-white border-l flex flex-col overflow-hidden flex-shrink-0 fixed lg:static inset-0 z-40 lg:z-auto" style={{ borderColor: '#e8eaed' }}>
       <div className="p-4 border-b flex items-center justify-between" style={{ borderColor: '#e8eaed' }}>
         <div className="flex items-center gap-2"><span className="text-xl">{market?.icon}</span><span className="text-sm font-medium" style={{ color: '#202124' }}>{lang === 'en' ? market?.nameEn : market?.name}</span>{task.isExternal && <ExternalLink size={14} style={{ color: '#fbbc04' }} />}{task.language === 'en' && <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: '#e8f0fe', color: '#1a73e8' }}>🇬🇧</span>}</div>
         <div className="flex items-center gap-1">
@@ -894,17 +910,18 @@ function TaskDetail({ task, updateTask, deleteTask, onClose, currentUser, isMana
         
         {task.links && <div><label className="block mb-2 text-xs font-medium" style={{ color: '#5f6368' }}>{t.links}</label><div className="rounded-lg border p-1" style={{ background: '#f8f9fa', borderColor: '#e8eaed' }}><ClickableLinks text={task.links} /></div></div>}
         
-        <div><div className="flex items-center justify-between mb-2"><div className="flex items-center gap-2"><Paperclip size={16} style={{ color: '#5f6368' }} /><label className="text-sm font-medium" style={{ color: '#202124' }}>{t.attachments} ({task.attachments?.length || 0})</label></div>{canEdit && <AttachmentUploader onUpload={handleTaskAttachmentUpload} uploading={uploading} />}</div><AttachmentList attachments={task.attachments} onRemove={canEdit ? handleRemoveTaskAttachment : undefined} showRemove={canEdit} />{(!task.attachments || task.attachments.length === 0) && <p className="text-xs" style={{ color: '#9aa0a6' }}>{t.noAttachments}</p>}</div>
+        {/* FIX 4: canContribute instead of canEdit for attachments */}
+        <div><div className="flex items-center justify-between mb-2"><div className="flex items-center gap-2"><Paperclip size={16} style={{ color: '#5f6368' }} /><label className="text-sm font-medium" style={{ color: '#202124' }}>{t.attachments} ({task.attachments?.length || 0})</label></div>{canContribute && <AttachmentUploader onUpload={handleTaskAttachmentUpload} uploading={uploading} />}</div><AttachmentList attachments={task.attachments} onRemove={canContribute ? handleRemoveTaskAttachment : undefined} showRemove={canContribute} />{(!task.attachments || task.attachments.length === 0) && <p className="text-xs" style={{ color: '#9aa0a6' }}>{t.noAttachments}</p>}</div>
         
-        <div><div className="flex items-center justify-between mb-3"><div className="flex items-center gap-2"><ListTodo size={18} style={{ color: '#5f6368' }} /><label className="text-sm font-medium" style={{ color: '#202124' }}>{t.subtasks} ({subtasks.filter(s => s.status === 'closed').length}/{subtasks.length})</label></div>{!showSubtaskForm && <button onClick={() => setShowSubtaskForm(true)} className="text-sm flex items-center gap-1 px-3 py-1 rounded-full hover:bg-gray-100" style={{ color: '#1a73e8' }}><Plus size={16} /> {t.add}</button>}</div><div className="space-y-1">{subtasks.map(sub => { const assignee = teamMembers.find(m => m.id === sub.assignee); const isDone = sub.status === 'closed'; return <div key={sub.id} className="flex items-center gap-2 px-3 py-2 rounded-lg group hover:bg-gray-50"><button onClick={() => toggleSubtask(sub.id)} className="flex-shrink-0">{isDone ? <CheckSquare size={20} style={{ color: '#34a853' }} /> : <Square size={20} style={{ color: '#dadce0' }} />}</button><span className="flex-1 text-sm" style={{ color: isDone ? '#9aa0a6' : '#202124', textDecoration: isDone ? 'line-through' : 'none' }}>{sub.title}</span>{assignee ? <div className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-medium" style={{ background: assignee.color }} title={assignee.name}>{getInitials(assignee.name)}</div> : <select onChange={(e) => updateSubtaskAssignee(sub.id, e.target.value)} className="text-xs px-2 py-1 rounded border opacity-0 group-hover:opacity-100" style={{ borderColor: '#dadce0', color: '#5f6368' }} value=""><option value="">+ {lang === 'en' ? 'Assign' : 'Przypisz'}</option>{teamMembers.filter(m => m.isActive !== false).map(m => <option key={m.id} value={m.id}>{m.name}</option>)}</select>}<button onClick={() => deleteSubtask(sub.id)} className="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-50 rounded-full" style={{ color: '#ea4335' }}><X size={16} /></button></div>; })}</div>{showSubtaskForm && <div className="mt-3 p-3 rounded-lg border" style={{ borderColor: '#1a73e8', background: '#f8fbff' }}><input type="text" value={newSubtask} onChange={(e) => setNewSubtask(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addSubtask()} placeholder={t.subtaskName} className="w-full px-3 py-2 border rounded-lg text-sm mb-2" style={{ borderColor: '#dadce0' }} autoFocus /><div className="flex items-center gap-2"><select value={subtaskAssignee} onChange={(e) => setSubtaskAssignee(e.target.value)} className="flex-1 px-2 py-1.5 border rounded-lg text-sm" style={{ borderColor: '#dadce0' }}><option value="">{t.noAssignment}</option>{teamMembers.filter(m => m.isActive !== false).map(m => <option key={m.id} value={m.id}>{m.name}</option>)}</select><button onClick={addSubtask} className="px-4 py-1.5 rounded-lg text-sm font-medium" style={{ background: '#1a73e8', color: 'white' }}>{t.add}</button><button onClick={() => { setShowSubtaskForm(false); setNewSubtask(''); }} className="px-3 py-1.5 rounded-lg text-sm" style={{ color: '#5f6368' }}>{t.cancel}</button></div></div>}</div>
+        <div><div className="flex items-center justify-between mb-3"><div className="flex items-center gap-2"><ListTodo size={18} style={{ color: '#5f6368' }} /><label className="text-sm font-medium" style={{ color: '#202124' }}>{t.subtasks} ({subtasks.filter(s => s.status === 'closed').length}/{subtasks.length})</label></div>{!showSubtaskForm && canContribute && <button onClick={() => setShowSubtaskForm(true)} className="text-sm flex items-center gap-1 px-3 py-1 rounded-full hover:bg-gray-100" style={{ color: '#1a73e8' }}><Plus size={16} /> {t.add}</button>}</div><div className="space-y-1">{subtasks.map(sub => { const assignee = teamMembers.find(m => m.id === sub.assignee); const isDone = sub.status === 'closed'; return <div key={sub.id} className="flex items-center gap-2 px-3 py-2 rounded-lg group hover:bg-gray-50"><button onClick={() => toggleSubtask(sub.id)} className="flex-shrink-0">{isDone ? <CheckSquare size={20} style={{ color: '#34a853' }} /> : <Square size={20} style={{ color: '#dadce0' }} />}</button><span className="flex-1 text-sm" style={{ color: isDone ? '#9aa0a6' : '#202124', textDecoration: isDone ? 'line-through' : 'none' }}>{sub.title}</span>{assignee ? <div className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-medium" style={{ background: assignee.color }} title={assignee.name}>{getInitials(assignee.name)}</div> : canContribute && <select onChange={(e) => updateSubtaskAssignee(sub.id, e.target.value)} className="text-xs px-2 py-1 rounded border opacity-0 group-hover:opacity-100" style={{ borderColor: '#dadce0', color: '#5f6368' }} value=""><option value="">+ {lang === 'en' ? 'Assign' : 'Przypisz'}</option>{teamMembers.filter(m => m.isActive !== false).map(m => <option key={m.id} value={m.id}>{m.name}</option>)}</select>}{canContribute && <button onClick={() => deleteSubtask(sub.id)} className="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-50 rounded-full" style={{ color: '#ea4335' }}><X size={16} /></button>}</div>; })}</div>{showSubtaskForm && <div className="mt-3 p-3 rounded-lg border" style={{ borderColor: '#1a73e8', background: '#f8fbff' }}><input type="text" value={newSubtask} onChange={(e) => setNewSubtask(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addSubtask()} placeholder={t.subtaskName} className="w-full px-3 py-2 border rounded-lg text-sm mb-2" style={{ borderColor: '#dadce0' }} autoFocus /><div className="flex items-center gap-2"><select value={subtaskAssignee} onChange={(e) => setSubtaskAssignee(e.target.value)} className="flex-1 px-2 py-1.5 border rounded-lg text-sm" style={{ borderColor: '#dadce0' }}><option value="">{t.noAssignment}</option>{teamMembers.filter(m => m.isActive !== false).map(m => <option key={m.id} value={m.id}>{m.name}</option>)}</select><button onClick={addSubtask} className="px-4 py-1.5 rounded-lg text-sm font-medium" style={{ background: '#1a73e8', color: 'white' }}>{t.add}</button><button onClick={() => { setShowSubtaskForm(false); setNewSubtask(''); }} className="px-3 py-1.5 rounded-lg text-sm" style={{ color: '#5f6368' }}>{t.cancel}</button></div></div>}</div>
         
         <div><label className="block mb-2 text-sm font-medium" style={{ color: '#202124' }}>{t.status}</label><div className="flex flex-wrap gap-2">{STATUSES.filter(s => s.id !== 'pending').map(s => <button key={s.id} onClick={() => updateTask(task.id, { status: s.id })} className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium" style={{ background: task.status === s.id ? s.bg : '#f1f3f4', color: task.status === s.id ? s.color : '#5f6368', border: task.status === s.id ? `2px solid ${s.color}` : '2px solid transparent' }}><s.icon size={16} /> {lang === 'en' ? s.nameEn : s.name}</button>)}</div></div>
         
         {task.market === 'pl' && <div><label className="block mb-2 text-sm font-medium" style={{ color: '#202124' }}>{t.subcategory}</label><div className="flex flex-wrap gap-2"><button onClick={() => updateTask(task.id, { subcategory: null })} className="px-4 py-2 rounded-full text-sm font-medium" style={{ background: !task.subcategory ? '#f1f3f4' : 'white', color: '#5f6368', border: !task.subcategory ? '2px solid #5f6368' : '2px solid #dadce0' }}>{t.none}</button>{PL_SUBCATEGORIES.map(s => <button key={s.id} onClick={() => updateTask(task.id, { subcategory: s.id })} className="px-4 py-2 rounded-full text-sm font-medium" style={{ background: task.subcategory === s.id ? s.bg : 'white', color: task.subcategory === s.id ? s.color : '#5f6368', border: task.subcategory === s.id ? `2px solid ${s.color}` : '2px solid #dadce0' }}>{s.name}</button>)}</div></div>}
         
-        <div><label className="block mb-2 text-sm font-medium" style={{ color: '#202124' }}>{t.assigned}</label><div className="flex flex-wrap gap-2">{task.assignees?.map(aId => { const m = teamMembers.find(x => x.id === aId); return m && <div key={aId} className="flex items-center gap-2 rounded-full px-3 py-1.5" style={{ background: '#f1f3f4' }}><div className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-medium" style={{ background: m.color }}>{getInitials(m.name)}</div><span className="text-sm" style={{ color: '#202124' }}>{m.name}</span>{canEdit && <button onClick={() => updateTask(task.id, { assignees: task.assignees.filter(a => a !== aId) })} className="hover:text-red-500" style={{ color: '#9aa0a6' }}><X size={14} /></button>}</div>; })}{canEdit && <select onChange={(e) => { if (e.target.value && !task.assignees?.includes(e.target.value)) { updateTask(task.id, { assignees: [...(task.assignees || []), e.target.value] }); const m = teamMembers.find(x => x.id === e.target.value); if (m) sendEmailNotification(m.email, m.name, task.title, me?.name); } e.target.value = ''; }} className="rounded-full px-3 py-1.5 text-sm cursor-pointer" style={{ background: '#f1f3f4', border: '1px dashed #dadce0', color: '#5f6368' }} defaultValue=""><option value="">{t.addPerson}</option>{teamMembers.filter(m => m.isActive !== false && !task.assignees?.includes(m.id)).map(m => <option key={m.id} value={m.id}>{m.name}</option>)}</select>}</div></div>
+        {/* FIX 4: canContribute instead of canEdit for adding assignees */}
+        <div><label className="block mb-2 text-sm font-medium" style={{ color: '#202124' }}>{t.assigned}</label><div className="flex flex-wrap gap-2">{task.assignees?.map(aId => { const m = teamMembers.find(x => x.id === aId); return m && <div key={aId} className="flex items-center gap-2 rounded-full px-3 py-1.5" style={{ background: '#f1f3f4' }}><div className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-medium" style={{ background: m.color }}>{getInitials(m.name)}</div><span className="text-sm" style={{ color: '#202124' }}>{m.name}</span>{canEdit && <button onClick={() => updateTask(task.id, { assignees: task.assignees.filter(a => a !== aId) })} className="hover:text-red-500" style={{ color: '#9aa0a6' }}><X size={14} /></button>}</div>; })}{canContribute && <select onChange={(e) => { if (e.target.value && !task.assignees?.includes(e.target.value)) { updateTask(task.id, { assignees: [...(task.assignees || []), e.target.value] }); const m = teamMembers.find(x => x.id === e.target.value); if (m) sendEmailNotification(m.email, m.name, task.title, me?.name); } e.target.value = ''; }} className="rounded-full px-3 py-1.5 text-sm cursor-pointer" style={{ background: '#f1f3f4', border: '1px dashed #dadce0', color: '#5f6368' }} defaultValue=""><option value="">{t.addPerson}</option>{teamMembers.filter(m => m.isActive !== false && !task.assignees?.includes(m.id)).map(m => <option key={m.id} value={m.id}>{m.name}</option>)}</select>}</div></div>
         
-        {/* Comments with @mentions */}
         <div>
           <div className="flex items-center justify-between mb-3">
             <label className="text-sm font-medium" style={{ color: '#202124' }}>{t.comments} ({task.comments?.length || 0})</label>
@@ -929,7 +946,7 @@ function TaskDetail({ task, updateTask, deleteTask, onClose, currentUser, isMana
                   <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-medium flex-shrink-0" style={{ background: isExternal ? '#5f6368' : (author?.color || '#999') }}>
                     {isExternal ? '👤' : getInitials(author?.name || '?')}
                   </div>
-                  <div className="flex-1">
+                  <div className="flex-1 min-w-0">
                     <div 
                       className="rounded-xl p-3" 
                       style={{ 
@@ -937,7 +954,7 @@ function TaskDetail({ task, updateTask, deleteTask, onClose, currentUser, isMana
                         border: hasMentionOfMe ? '1px solid #f5c6cb' : 'none'
                       }}
                     >
-                      <div className="flex items-center gap-2 mb-1">
+                      <div className="flex items-center gap-2 mb-1 flex-wrap">
                         <span className="text-sm font-medium" style={{ color: '#202124' }}>
                           {isExternal ? (c.authorName || task.submittedBy || 'Zewnętrzny') : (author?.name || t.unknown)}
                         </span>
@@ -948,6 +965,7 @@ function TaskDetail({ task, updateTask, deleteTask, onClose, currentUser, isMana
                           </span>
                         )}
                       </div>
+                      {/* FIX 3: CommentText now renders clickable links */}
                       <p className="text-sm" style={{ color: '#3c4043' }}>
                         <CommentText text={c.text} teamMembers={teamMembers} />
                       </p>
@@ -959,7 +977,6 @@ function TaskDetail({ task, updateTask, deleteTask, onClose, currentUser, isMana
             })}
           </div>
           
-          {/* Comment input with @mention support */}
           <div className="flex gap-2 items-start">
             <MentionInput 
               value={comment}
@@ -1010,6 +1027,10 @@ function NewTaskModal({ onClose, onSave, currentUser, restrictedMarket, t, lang,
   );
 }
 
+// =============================================
+// MAIN APP - FIX 5 (responsive layout with sidebar toggle)
+// =============================================
+
 export default function TaskApp() {
   const [currentUser, setCurrentUser] = useState(null);
   const [teamMembers, setTeamMembers] = useState(FALLBACK_TEAM);
@@ -1030,6 +1051,7 @@ export default function TaskApp() {
   const [dragOverId, setDragOverId] = useState(null);
   const [readTimestamps, setReadTimestamps] = useState({});
   const [seenTaskIds, setSeenTaskIds] = useState([]);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => { async function loadTeam() { setLoadingTeam(true); const members = await getTeamMembers(); if (members.length > 0) setTeamMembers(members); setLoadingTeam(false); } loadTeam(); }, []);
 
@@ -1047,17 +1069,14 @@ export default function TaskApp() {
   const loadTasks = async () => { const data = await getTasks(); setTasks(data); setLoading(false); };
   useEffect(() => { if (currentUser) loadTasks(); }, [currentUser]);
   
-  // Auto-refresh tasks every 30 seconds to catch new comments
   useEffect(() => {
     if (!currentUser) return;
-    const interval = setInterval(() => {
-      loadTasks();
-    }, 30000);
+    const interval = setInterval(() => { loadTasks(); }, 30000);
     return () => clearInterval(interval);
   }, [currentUser]);
   
   const handleLogout = () => { localStorage.removeItem('av_tasks_user'); setCurrentUser(null); setTasks([]); setSelectedTask(null); setShowUsersPanel(false); };
-  const handleSelectTask = useCallback((task) => { setSelectedTask(task); setShowUsersPanel(false); if (currentUser && task) { setTaskRead(task.id, currentUser); setReadTimestamps(prev => ({ ...prev, [task.id]: new Date().toISOString() })); markTaskAsSeen(task.id, currentUser); setSeenTaskIds(prev => prev.includes(task.id) ? prev : [...prev, task.id]); } }, [currentUser]);
+  const handleSelectTask = useCallback((task) => { setSelectedTask(task); setShowUsersPanel(false); setSidebarOpen(false); if (currentUser && task) { setTaskRead(task.id, currentUser); setReadTimestamps(prev => ({ ...prev, [task.id]: new Date().toISOString() })); markTaskAsSeen(task.id, currentUser); setSeenTaskIds(prev => prev.includes(task.id) ? prev : [...prev, task.id]); } }, [currentUser]);
   const handleMarkUnread = useCallback((taskId) => { if (currentUser) { setTaskUnread(taskId, currentUser); setReadTimestamps(prev => { const ns = { ...prev }; delete ns[taskId]; return ns; }); } }, [currentUser]);
   const reloadTeamMembers = async () => { const members = await getTeamMembers(); if (members.length > 0) setTeamMembers(members); };
 
@@ -1115,34 +1134,50 @@ export default function TaskApp() {
 
   return (
     <div className="min-h-screen flex" style={{ background: '#f8f9fa' }}>
-      <aside className="w-56 flex flex-col min-h-screen flex-shrink-0 border-r bg-white" style={{ borderColor: '#e8eaed' }}>
-        <div className="p-4 border-b" style={{ borderColor: '#e8eaed' }}><img src="https://angloville.com/wp-content/themes/angloville/assets/images/logo.svg" alt="Angloville" className="h-7" /><p className="mt-1 text-xs" style={{ color: '#5f6368' }}>{t.marketingTasks}</p></div>
+      {/* Mobile sidebar overlay */}
+      {sidebarOpen && <div className="fixed inset-0 bg-black/50 z-30 lg:hidden" onClick={() => setSidebarOpen(false)} />}
+      
+      {/* FIX 5: Responsive sidebar - hidden on mobile, shown on desktop */}
+      <aside className={`w-56 flex flex-col min-h-screen flex-shrink-0 border-r bg-white fixed lg:static z-30 transition-transform lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`} style={{ borderColor: '#e8eaed' }}>
+        <div className="p-4 border-b flex items-center justify-between" style={{ borderColor: '#e8eaed' }}>
+          <div>
+            <img src="https://angloville.com/wp-content/themes/angloville/assets/images/logo.svg" alt="Angloville" className="h-7" />
+            <p className="mt-1 text-xs" style={{ color: '#5f6368' }}>{t.marketingTasks}</p>
+          </div>
+          <button onClick={() => setSidebarOpen(false)} className="p-1 rounded hover:bg-gray-100 lg:hidden" style={{ color: '#5f6368' }}><X size={18} /></button>
+        </div>
         <div className="p-3 border-b space-y-2" style={{ borderColor: '#e8eaed' }}>
           {!restrictedMarket && <select value={filterMarket} onChange={(e) => setFilterMarket(e.target.value)} className="w-full rounded-lg px-3 py-2 text-sm border" style={{ borderColor: '#dadce0', color: '#202124' }}><option value="all">{t.allMarkets}</option>{MARKETS.map(m => <option key={m.id} value={m.id}>{m.icon} {lang === 'en' ? m.nameEn : m.name}</option>)}</select>}
           {!seeOnlyAssigned && <select value={filterPerson} onChange={(e) => setFilterPerson(e.target.value)} className="w-full rounded-lg px-3 py-2 text-sm border" style={{ borderColor: '#dadce0', color: '#202124' }}><option value="all">{t.everyone}</option>{teamMembers.filter(m => m.isActive !== false).map(m => <option key={m.id} value={m.id}>{m.name}</option>)}</select>}
         </div>
-        <div className="p-2 flex-1">
+        <div className="p-2 flex-1 overflow-y-auto">
           <div className="space-y-0.5">
-            {isManager && pendingTasks.length > 0 && <button onClick={() => { setActiveTab('pending'); setShowUsersPanel(false); }} className="w-full flex items-center justify-between px-3 py-2 rounded-full text-sm" style={{ background: activeTab === 'pending' ? '#fef7e0' : 'transparent', color: activeTab === 'pending' ? '#b06000' : '#202124' }}><div className="flex items-center gap-3"><AlertCircle size={18} style={{ color: '#fbbc04' }} /><span>{t.pending}</span></div><span className="font-medium" style={{ color: '#fbbc04' }}>{pendingTasks.length}</span></button>}
-            <button onClick={() => { setActiveTab('tasks'); setFilterStatus('active'); setShowUsersPanel(false); }} className="w-full flex items-center justify-between px-3 py-2 rounded-full text-sm" style={{ background: activeTab === 'tasks' && filterStatus === 'active' && !showUsersPanel ? '#e8f0fe' : 'transparent', color: activeTab === 'tasks' && filterStatus === 'active' ? '#1a73e8' : '#202124' }}><div className="flex items-center gap-3"><Filter size={18} style={{ color: '#1a73e8' }} /><span>{t.active}</span></div><span className="font-medium">{openTasks.length + longtermTasks.length}</span></button>
-            <button onClick={() => { setActiveTab('tasks'); setFilterStatus('open'); setShowUsersPanel(false); }} className="w-full flex items-center justify-between px-3 py-2 rounded-full text-sm" style={{ background: activeTab === 'tasks' && filterStatus === 'open' ? '#e8f0fe' : 'transparent', color: '#202124' }}><div className="flex items-center gap-3 pl-2"><Circle size={16} style={{ color: '#4285f4' }} /><span>{t.open}</span></div><span style={{ color: '#5f6368' }}>{openTasks.length}</span></button>
-            <button onClick={() => { setActiveTab('tasks'); setFilterStatus('longterm'); setShowUsersPanel(false); }} className="w-full flex items-center justify-between px-3 py-2 rounded-full text-sm" style={{ background: activeTab === 'tasks' && filterStatus === 'longterm' ? '#f3e8fd' : 'transparent', color: '#202124' }}><div className="flex items-center gap-3 pl-2"><Clock size={16} style={{ color: '#a142f4' }} /><span>{t.longterm}</span></div><span style={{ color: '#5f6368' }}>{longtermTasks.length}</span></button>
-            <button onClick={() => { setActiveTab('tasks'); setFilterStatus('paused'); setShowUsersPanel(false); }} className="w-full flex items-center justify-between px-3 py-2 rounded-full text-sm" style={{ background: activeTab === 'tasks' && filterStatus === 'paused' ? '#fff3e0' : 'transparent', color: '#202124' }}><div className="flex items-center gap-3 pl-2"><Pause size={16} style={{ color: '#ff7043' }} /><span>{t.paused}</span></div><span style={{ color: '#5f6368' }}>{pausedTasks.length}</span></button>
-            <button onClick={() => { setActiveTab('tasks'); setFilterStatus('monitoring'); setShowUsersPanel(false); }} className="w-full flex items-center justify-between px-3 py-2 rounded-full text-sm" style={{ background: activeTab === 'tasks' && filterStatus === 'monitoring' ? '#e0f7fa' : 'transparent', color: '#202124' }}><div className="flex items-center gap-3 pl-2"><Eye size={16} style={{ color: '#00acc1' }} /><span>{t.monitoring}</span></div><span style={{ color: '#5f6368' }}>{monitoringTasks.length}</span></button>
-            <button onClick={() => { setActiveTab('tasks'); setFilterStatus('closed'); setShowUsersPanel(false); }} className="w-full flex items-center justify-between px-3 py-2 rounded-full text-sm" style={{ background: activeTab === 'tasks' && filterStatus === 'closed' ? '#e6f4ea' : 'transparent', color: '#202124' }}><div className="flex items-center gap-3 pl-2"><CheckCircle size={16} style={{ color: '#34a853' }} /><span>{t.closed}</span></div><span style={{ color: '#5f6368' }}>{closedTasks.length}</span></button>
+            {isManager && pendingTasks.length > 0 && <button onClick={() => { setActiveTab('pending'); setShowUsersPanel(false); setSidebarOpen(false); }} className="w-full flex items-center justify-between px-3 py-2 rounded-full text-sm" style={{ background: activeTab === 'pending' ? '#fef7e0' : 'transparent', color: activeTab === 'pending' ? '#b06000' : '#202124' }}><div className="flex items-center gap-3"><AlertCircle size={18} style={{ color: '#fbbc04' }} /><span>{t.pending}</span></div><span className="font-medium" style={{ color: '#fbbc04' }}>{pendingTasks.length}</span></button>}
+            <button onClick={() => { setActiveTab('tasks'); setFilterStatus('active'); setShowUsersPanel(false); setSidebarOpen(false); }} className="w-full flex items-center justify-between px-3 py-2 rounded-full text-sm" style={{ background: activeTab === 'tasks' && filterStatus === 'active' && !showUsersPanel ? '#e8f0fe' : 'transparent', color: activeTab === 'tasks' && filterStatus === 'active' ? '#1a73e8' : '#202124' }}><div className="flex items-center gap-3"><Filter size={18} style={{ color: '#1a73e8' }} /><span>{t.active}</span></div><span className="font-medium">{openTasks.length + longtermTasks.length}</span></button>
+            <button onClick={() => { setActiveTab('tasks'); setFilterStatus('open'); setShowUsersPanel(false); setSidebarOpen(false); }} className="w-full flex items-center justify-between px-3 py-2 rounded-full text-sm" style={{ background: activeTab === 'tasks' && filterStatus === 'open' ? '#e8f0fe' : 'transparent', color: '#202124' }}><div className="flex items-center gap-3 pl-2"><Circle size={16} style={{ color: '#4285f4' }} /><span>{t.open}</span></div><span style={{ color: '#5f6368' }}>{openTasks.length}</span></button>
+            <button onClick={() => { setActiveTab('tasks'); setFilterStatus('longterm'); setShowUsersPanel(false); setSidebarOpen(false); }} className="w-full flex items-center justify-between px-3 py-2 rounded-full text-sm" style={{ background: activeTab === 'tasks' && filterStatus === 'longterm' ? '#f3e8fd' : 'transparent', color: '#202124' }}><div className="flex items-center gap-3 pl-2"><Clock size={16} style={{ color: '#a142f4' }} /><span>{t.longterm}</span></div><span style={{ color: '#5f6368' }}>{longtermTasks.length}</span></button>
+            <button onClick={() => { setActiveTab('tasks'); setFilterStatus('paused'); setShowUsersPanel(false); setSidebarOpen(false); }} className="w-full flex items-center justify-between px-3 py-2 rounded-full text-sm" style={{ background: activeTab === 'tasks' && filterStatus === 'paused' ? '#fff3e0' : 'transparent', color: '#202124' }}><div className="flex items-center gap-3 pl-2"><Pause size={16} style={{ color: '#ff7043' }} /><span>{t.paused}</span></div><span style={{ color: '#5f6368' }}>{pausedTasks.length}</span></button>
+            <button onClick={() => { setActiveTab('tasks'); setFilterStatus('monitoring'); setShowUsersPanel(false); setSidebarOpen(false); }} className="w-full flex items-center justify-between px-3 py-2 rounded-full text-sm" style={{ background: activeTab === 'tasks' && filterStatus === 'monitoring' ? '#e0f7fa' : 'transparent', color: '#202124' }}><div className="flex items-center gap-3 pl-2"><Eye size={16} style={{ color: '#00acc1' }} /><span>{t.monitoring}</span></div><span style={{ color: '#5f6368' }}>{monitoringTasks.length}</span></button>
+            <button onClick={() => { setActiveTab('tasks'); setFilterStatus('closed'); setShowUsersPanel(false); setSidebarOpen(false); }} className="w-full flex items-center justify-between px-3 py-2 rounded-full text-sm" style={{ background: activeTab === 'tasks' && filterStatus === 'closed' ? '#e6f4ea' : 'transparent', color: '#202124' }}><div className="flex items-center gap-3 pl-2"><CheckCircle size={16} style={{ color: '#34a853' }} /><span>{t.closed}</span></div><span style={{ color: '#5f6368' }}>{closedTasks.length}</span></button>
           </div>
-          {isManager && <button onClick={() => { setShowUsersPanel(true); setSelectedTask(null); }} className="w-full flex items-center gap-3 px-3 py-2 rounded-full text-sm mt-4" style={{ background: showUsersPanel ? '#e8f0fe' : 'transparent', color: showUsersPanel ? '#1a73e8' : '#202124' }}><Users size={18} style={{ color: '#1a73e8' }} /><span>{t.users}</span></button>}
-          <div className="mt-4 mx-2 p-3 rounded-lg text-xs" style={{ background: '#f1f3f4' }}><p className="mb-1.5" style={{ color: '#5f6368' }}>{t.formEn}</p><button onClick={copyLink} className="w-full flex items-center gap-2 px-2 py-1.5 rounded hover:bg-gray-200"><code className="flex-1 text-xs truncate" style={{ color: '#1a73e8' }}>/request</code>{copied ? <Check size={14} style={{ color: '#34a853' }} /> : <Copy size={14} style={{ color: '#5f6368' }} />}</button></div>
+          {isManager && <button onClick={() => { setShowUsersPanel(true); setSelectedTask(null); setSidebarOpen(false); }} className="w-full flex items-center gap-3 px-3 py-2 rounded-full text-sm mt-4" style={{ background: showUsersPanel ? '#e8f0fe' : 'transparent', color: showUsersPanel ? '#1a73e8' : '#202124' }}><Users size={18} style={{ color: '#1a73e8' }} /><span>{t.users}</span></button>}
+          <div className="mt-4 mx-2 p-3 rounded-lg text-xs hidden lg:block" style={{ background: '#f1f3f4' }}><p className="mb-1.5" style={{ color: '#5f6368' }}>{t.formEn}</p><button onClick={copyLink} className="w-full flex items-center gap-2 px-2 py-1.5 rounded hover:bg-gray-200"><code className="flex-1 text-xs truncate" style={{ color: '#1a73e8' }}>/request</code>{copied ? <Check size={14} style={{ color: '#34a853' }} /> : <Copy size={14} style={{ color: '#5f6368' }} />}</button></div>
           <QuickLinksSection currentUser={currentUser} t={t} />
         </div>
         <div className="p-3 border-t" style={{ borderColor: '#e8eaed' }}><div className="flex items-center gap-2"><div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-medium" style={{ background: currentMember?.color }}>{getInitials(currentMember?.name || '')}</div><div className="flex-1 min-w-0"><div className="text-sm font-medium truncate" style={{ color: '#202124' }}>{currentMember?.name?.split(' ')[0]}</div>{isManager && <div className="text-xs" style={{ color: '#5f6368' }}>{t.manager}</div>}</div><button onClick={handleLogout} className="p-1.5 rounded-full hover:bg-gray-100" style={{ color: '#5f6368' }}><LogOut size={18} /></button></div></div>
       </aside>
 
-      <main className="flex-1 flex flex-col overflow-hidden">
-        <header className="bg-white border-b px-6 py-3 flex items-center justify-between" style={{ borderColor: '#e8eaed' }}>
-          <div><h2 className="text-lg font-medium" style={{ color: '#202124' }}>{showUsersPanel ? t.usersPanel : activeTab === 'pending' ? t.pendingApproval : filterStatus === 'active' ? t.activeTasks : filterStatus === 'open' ? t.openTasks : filterStatus === 'longterm' ? t.longtermTasks : filterStatus === 'paused' ? t.pausedTasks : filterStatus === 'monitoring' ? t.monitoringTasks : t.closedTasks}</h2>{filterPerson !== 'all' && !showUsersPanel && <p className="text-xs" style={{ color: '#5f6368' }}>{t.filter}: {teamMembers.find(m => m.id === filterPerson)?.name}</p>}</div>
-          <div className="flex items-center gap-3">
-            {/* Notification Bell */}
+      <main className="flex-1 flex flex-col overflow-hidden min-w-0">
+        <header className="bg-white border-b px-4 lg:px-6 py-3 flex items-center justify-between gap-2" style={{ borderColor: '#e8eaed' }}>
+          <div className="flex items-center gap-2 min-w-0">
+            {/* FIX 5: Hamburger menu for mobile */}
+            <button onClick={() => setSidebarOpen(true)} className="p-2 rounded-full hover:bg-gray-100 lg:hidden flex-shrink-0" style={{ color: '#5f6368' }}><Menu size={22} /></button>
+            <div className="min-w-0">
+              <h2 className="text-base lg:text-lg font-medium truncate" style={{ color: '#202124' }}>{showUsersPanel ? t.usersPanel : activeTab === 'pending' ? t.pendingApproval : filterStatus === 'active' ? t.activeTasks : filterStatus === 'open' ? t.openTasks : filterStatus === 'longterm' ? t.longtermTasks : filterStatus === 'paused' ? t.pausedTasks : filterStatus === 'monitoring' ? t.monitoringTasks : t.closedTasks}</h2>
+              {filterPerson !== 'all' && !showUsersPanel && <p className="text-xs" style={{ color: '#5f6368' }}>{t.filter}: {teamMembers.find(m => m.id === filterPerson)?.name}</p>}
+            </div>
+          </div>
+          <div className="flex items-center gap-2 flex-shrink-0">
             <NotificationBell 
               tasks={tasks}
               currentUser={currentUser}
@@ -1156,10 +1191,10 @@ export default function TaskApp() {
             {!showUsersPanel && activeTab === 'tasks' && (
               <SortDropdown value={sortBy} onChange={setSortBy} t={t} />
             )}
-            {!showUsersPanel && <><button onClick={loadTasks} className="p-2 rounded-full hover:bg-gray-100" style={{ color: '#5f6368' }}><Loader2 size={18} className={loading ? 'animate-spin' : ''} /></button>{activeTab === 'tasks' && <button onClick={() => setShowNewTask(true)} className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm" style={{ background: '#1a73e8', color: 'white' }}><Plus size={18} /> {t.newTask}</button>}</>}
+            {!showUsersPanel && <><button onClick={loadTasks} className="p-2 rounded-full hover:bg-gray-100" style={{ color: '#5f6368' }}><Loader2 size={18} className={loading ? 'animate-spin' : ''} /></button>{activeTab === 'tasks' && <button onClick={() => setShowNewTask(true)} className="flex items-center gap-2 px-3 lg:px-4 py-2 rounded-lg font-medium text-sm" style={{ background: '#1a73e8', color: 'white' }}><Plus size={18} /> <span className="hidden sm:inline">{t.newTask}</span></button>}</>}
           </div>
         </header>
-        <div className="flex-1 overflow-y-auto p-4">
+        <div className="flex-1 overflow-y-auto p-3 lg:p-4">
           {showUsersPanel ? null : activeTab === 'pending' && isManager ? <PendingView tasks={pendingTasks} approveTask={approveTask} deleteTask={deleteTask} currentUser={currentUser} t={t} lang={lang} teamMembers={teamMembers} /> : (
             <div className="max-w-4xl mx-auto">{filteredTasks.length === 0 ? <div className="text-center py-16"><CheckCircle size={48} className="mx-auto mb-4" style={{ color: '#34a853', opacity: 0.4 }} /><p style={{ color: '#5f6368' }}>{t.noTasksToShow}</p></div> : <div className="space-y-1">{filteredTasks.map(task => <TaskItem key={task.id} task={task} isSelected={selectedTask?.id === task.id} onClick={() => handleSelectTask(task)} onStatusChange={(s) => updateTask(task.id, { status: s })} onDragStart={handleDragStart} onDragOver={handleDragOver} onDrop={handleDrop} onDragEnd={handleDragEnd} isDragging={draggedTask?.id === task.id} dragOverId={dragOverId} currentUser={currentUser} readTimestamps={readTimestamps} seenTaskIds={seenTaskIds} lang={lang} t={t} teamMembers={teamMembers} />)}</div>}</div>
           )}
