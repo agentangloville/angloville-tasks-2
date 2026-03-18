@@ -90,7 +90,7 @@ function sortTasks(tasks, sortBy) {
     case 'oldest': return sorted.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
     case 'priority': return sorted.sort((a, b) => { const orderA = PRIORITY_ORDER[a.priority] ?? 4; const orderB = PRIORITY_ORDER[b.priority] ?? 4; if (orderA !== orderB) return orderA - orderB; return new Date(b.createdAt) - new Date(a.createdAt); });
     case 'activity': return sorted.sort((a, b) => { const lastActivityA = a.comments?.length > 0 ? Math.max(...a.comments.map(c => new Date(c.createdAt).getTime())) : new Date(a.createdAt).getTime(); const lastActivityB = b.comments?.length > 0 ? Math.max(...b.comments.map(c => new Date(c.createdAt).getTime())) : new Date(b.createdAt).getTime(); return lastActivityB - lastActivityA; });
-    case 'manual': return sorted.sort((a, b) => (a.order ?? 9999) - (b.order ?? 9999));
+    case 'manual': return sorted.sort((a, b) => { const oA = a.order ?? 99999; const oB = b.order ?? 99999; if (oA !== oB) return oA - oB; return new Date(b.createdAt) - new Date(a.createdAt); });
     default: return sorted;
   }
 }
@@ -325,9 +325,25 @@ export default function TaskApp() {
     if (idx === -1) return;
     const tgt = direction === 'up' ? idx - 1 : idx + 1;
     if (tgt < 0 || tgt >= filteredTasks.length) return;
-    const a = filteredTasks[idx]; const b = filteredTasks[tgt];
-    const oA = a.order ?? idx; const oB = b.order ?? tgt;
-    setTasks(prev => prev.map(t => { if (t.id === a.id) return {...t, order: oB}; if (t.id === b.id) return {...t, order: oA}; return t; }));
+    
+    // Assign sequential orders to all visible tasks if any lack an order
+    const needsInit = filteredTasks.some(t => t.order == null);
+    if (needsInit) {
+      const updates = [];
+      const newTasks = [...tasks];
+      filteredTasks.forEach((ft, i) => {
+        const ti = newTasks.findIndex(t => t.id === ft.id);
+        if (ti !== -1) { newTasks[ti] = { ...newTasks[ti], order: i }; updates.push({ id: ft.id, order: i }); }
+      });
+      setTasks(newTasks);
+      await Promise.all(updates.map(u => updateTaskDb(u.id, { order: u.order })));
+    }
+    
+    // Now swap the two
+    const curTasks = needsInit ? filteredTasks.map((ft, i) => ({ ...ft, order: i })) : filteredTasks;
+    const a = curTasks[idx]; const b = curTasks[tgt];
+    const oA = a.order; const oB = b.order;
+    setTasks(prev => prev.map(t => { if (t.id === a.id) return { ...t, order: oB }; if (t.id === b.id) return { ...t, order: oA }; return t; }));
     await Promise.all([updateTaskDb(a.id, { order: oB }), updateTaskDb(b.id, { order: oA })]);
   };
 
