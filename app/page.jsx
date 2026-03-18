@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { Plus, Check, X, Edit3, Trash2, CheckCircle, Circle, Send, MessageSquare, ChevronDown, ChevronRight, Clock, AlertCircle, ExternalLink, Copy, Languages, Loader2, ListTodo, Square, CheckSquare, Bold, Italic, List, ListOrdered, LogOut, Lock, GripVertical, Filter, Underline, Link2, Undo, Redo, Inbox, Sparkles, Mail, MailCheck, MailX, RefreshCw, Paperclip, File, FileText, Image, FileSpreadsheet, Download, Flag, Users, UserPlus, Globe, EyeOff, ArrowUpDown, ArrowDown, ArrowUp, Activity, Bell, AtSign, Volume2, Pause, Eye, Menu } from 'lucide-react';
+import { Plus, Check, X, Edit3, Trash2, CheckCircle, Circle, Send, MessageSquare, ChevronDown, ChevronRight, Clock, AlertCircle, ExternalLink, Copy, Languages, Loader2, ListTodo, Square, CheckSquare, Bold, Italic, List, ListOrdered, LogOut, Lock, GripVertical, Filter, Underline, Link2, Undo, Redo, Inbox, Sparkles, Mail, MailCheck, MailX, RefreshCw, Paperclip, File, FileText, Image, FileSpreadsheet, Download, Flag, Users, UserPlus, Globe, EyeOff, ArrowUpDown, ArrowDown, ArrowUp, Activity, Bell, AtSign, Volume2, Pause, Eye, Menu, ThumbsUp, BarChart3, TrendingUp, TrendingDown, Calendar, ChevronUp } from 'lucide-react';
 import { getTasks, createTask, updateTask as updateTaskDb, deleteTask as deleteTaskDb, getQuickLinks, createQuickLink, deleteQuickLink, uploadFile, getTeamMembers, getAllTeamMembers, createTeamMember, updateTeamMember } from '../lib/supabase';
 
 const FALLBACK_TEAM = [
@@ -55,11 +55,13 @@ const TRANSLATIONS = {
     marketingTasks: 'Marketing Tasks', loginTitle: 'Zaloguj się do panelu', person: 'Osoba', select: 'Wybierz...', pin: 'PIN', login: 'Zaloguj się', incorrectPin: 'Nieprawidłowy PIN', selectPerson: 'Wybierz osobę', allMarkets: 'Wszystkie rynki', everyone: 'Wszyscy', pending: 'Oczekujące', active: 'Aktywne', open: 'Otwarte', longterm: 'Long-term', paused: 'Wstrzymane', monitoring: 'Do obserwacji', closed: 'Zamknięte', formEn: 'Formularz EN:', myLinks: '📌 Moje linki', addLink: 'Dodaj link', noLinks: 'Brak linków', manager: 'Manager', pendingApproval: 'Oczekujące na akceptację', activeTasks: 'Aktywne zadania', openTasks: 'Otwarte zadania', longtermTasks: 'Zadania long-term', pausedTasks: 'Wstrzymane', monitoringTasks: 'Do obserwacji', closedTasks: 'Zamknięte zadania', allTasks: 'Wszystkie zadania', filter: 'Filtr', newTask: 'Nowe zadanie', noTasksToShow: 'Brak zadań do wyświetlenia', noPending: 'Brak oczekujących', external: 'Zewnętrzne', assignTo: 'Przypisz:', approve: 'Zatwierdź', title: 'Tytuł', description: 'Opis', attachments: 'Załączniki', noAttachments: 'Brak załączników', subtasks: 'Subtaski', add: 'Dodaj', subtaskName: 'Nazwa subtaska...', noAssignment: 'Bez przypisania', cancel: 'Anuluj', status: 'Status', subcategory: 'Podkategoria', none: 'Brak', assigned: 'Przypisani', addPerson: '+ Dodaj', comments: 'Komentarze', markUnread: 'Oznacz nieprzeczytane', edit: 'Edytuj', delete: 'Usuń', writeComment: 'Napisz komentarz... (użyj @ aby oznaczyć)', emailNotifications: 'Powiadomienia email', submittedBy: 'Zgłaszający', unknown: 'Nieznany', noEmail: 'Brak adresu email', history: 'Historia:', by: 'przez', system: 'System', resend: 'Wyślij ponownie', sendEmail: 'Wyślij email', created: 'Utworzono', byPerson: 'Przez', save: 'Zapisz', taskDetails: 'Szczegóły zadania...', whatToDo: 'Co trzeba zrobić?', market: 'Rynek', type: 'Typ', assignToPerson: 'Przypisz do', createTask: 'Utwórz zadanie', links: 'Linki', copyLink: 'Kopiuj link', copied: 'Skopiowano', from: 'Od', priority: 'Priorytet', clickToAddAttachments: 'Kliknij 📎 aby dodać załączniki', loading: 'Ładowanie...', deleteTask: 'Usunąć zadanie?', lt: 'LT', new: 'Nowy', users: 'Użytkownicy', usersPanel: 'Zarządzanie użytkownikami', addUser: 'Dodaj użytkownika', editUser: 'Edytuj użytkownika', name: 'Imię i nazwisko', email: 'Email', role: 'Rola', language: 'Język', polish: 'Polski', english: 'Angielski', restrictedMarket: 'Ograniczenie do rynku', allMarketsAccess: 'Wszystkie rynki', seeOnlyAssigned: 'Widzi tylko przypisane', seeAll: 'Widzi wszystkie zadania', isManager: 'Administrator', deactivate: 'Dezaktywuj', activate: 'Aktywuj', color: 'Kolor', unread: 'Nieodczytane', newTasks: 'Nowe zadania',
     sortBy: 'Sortuj', sortNewest: 'Od najnowszych', sortOldest: 'Od najstarszych', sortPriority: 'Po priorytecie', sortActivity: 'Po aktywności',
     notifications: 'Powiadomienia', noNotifications: 'Brak powiadomień', newComment: 'Nowy komentarz', mentionedYou: 'oznaczył(a) Cię', inTask: 'w zadaniu', markAllRead: 'Oznacz wszystkie jako przeczytane', soundOn: 'Dźwięk włączony', soundOff: 'Dźwięk wyłączony',
+    dashboard: 'Dashboard', dashboardTitle: 'Dashboard zespołu', tasksCreated: 'Utworzone', tasksClosed: 'Zamknięte', tasksOpen: 'Otwarte', period: 'Okres', last7days: 'Ostatnie 7 dni', last14days: 'Ostatnie 14 dni', last30days: 'Ostatnie 30 dni', total: 'Łącznie', perDay: '/dzień', team: 'Zespół', noData: 'Brak danych', editComment: 'Edytuj', saveComment: 'Zapisz', cancelEdit: 'Anuluj', edited: 'edytowano', moveUp: 'Przesuń wyżej', moveDown: 'Przesuń niżej',
   },
   en: {
     marketingTasks: 'Marketing Tasks', loginTitle: 'Login to panel', person: 'Person', select: 'Select...', pin: 'PIN', login: 'Login', incorrectPin: 'Incorrect PIN', selectPerson: 'Select person', allMarkets: 'All markets', everyone: 'Everyone', pending: 'Pending', active: 'Active', open: 'Open', longterm: 'Long-term', paused: 'Paused', monitoring: 'Monitoring', closed: 'Closed', formEn: 'EN Form:', myLinks: '📌 My links', addLink: 'Add link', noLinks: 'No links', manager: 'Manager', pendingApproval: 'Pending approval', activeTasks: 'Active tasks', openTasks: 'Open tasks', longtermTasks: 'Long-term tasks', pausedTasks: 'Paused', monitoringTasks: 'Monitoring', closedTasks: 'Closed tasks', allTasks: 'All tasks', filter: 'Filter', newTask: 'New task', noTasksToShow: 'No tasks to display', noPending: 'No pending tasks', external: 'External', assignTo: 'Assign to:', approve: 'Approve', title: 'Title', description: 'Description', attachments: 'Attachments', noAttachments: 'No attachments', subtasks: 'Subtasks', add: 'Add', subtaskName: 'Subtask name...', noAssignment: 'Unassigned', cancel: 'Cancel', status: 'Status', subcategory: 'Subcategory', none: 'None', assigned: 'Assigned', addPerson: '+ Add', comments: 'Comments', markUnread: 'Mark as unread', edit: 'Edit', delete: 'Delete', writeComment: 'Write a comment... (use @ to mention)', emailNotifications: 'Email notifications', submittedBy: 'Submitted by', unknown: 'Unknown', noEmail: 'No email address', history: 'History:', by: 'by', system: 'System', resend: 'Resend', sendEmail: 'Send email', created: 'Created', byPerson: 'By', save: 'Save', taskDetails: 'Task details...', whatToDo: 'What needs to be done?', market: 'Market', type: 'Type', assignToPerson: 'Assign to', createTask: 'Create task', links: 'Links', copyLink: 'Copy link', copied: 'Copied', from: 'From', priority: 'Priority', clickToAddAttachments: 'Click 📎 to add attachments', loading: 'Loading...', deleteTask: 'Delete task?', lt: 'LT', new: 'New', users: 'Users', usersPanel: 'User management', addUser: 'Add user', editUser: 'Edit user', name: 'Full name', email: 'Email', role: 'Role', language: 'Language', polish: 'Polish', english: 'English', restrictedMarket: 'Restricted to market', allMarketsAccess: 'All markets', seeOnlyAssigned: 'See only assigned', seeAll: 'See all tasks', isManager: 'Administrator', deactivate: 'Deactivate', activate: 'Activate', color: 'Color', unread: 'Unread', newTasks: 'New tasks',
     sortBy: 'Sort', sortNewest: 'Newest first', sortOldest: 'Oldest first', sortPriority: 'By priority', sortActivity: 'By activity',
     notifications: 'Notifications', noNotifications: 'No notifications', newComment: 'New comment', mentionedYou: 'mentioned you', inTask: 'in task', markAllRead: 'Mark all as read', soundOn: 'Sound on', soundOff: 'Sound off',
+    dashboard: 'Dashboard', dashboardTitle: 'Team Dashboard', tasksCreated: 'Created', tasksClosed: 'Closed', tasksOpen: 'Open', period: 'Period', last7days: 'Last 7 days', last14days: 'Last 14 days', last30days: 'Last 30 days', total: 'Total', perDay: '/day', team: 'Team', noData: 'No data', editComment: 'Edit', saveComment: 'Save', cancelEdit: 'Cancel', edited: 'edited', moveUp: 'Move up', moveDown: 'Move down',
   }
 };
 
@@ -144,12 +146,13 @@ function sortTasks(tasks, sortBy) {
     case 'oldest': return sorted.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
     case 'priority': return sorted.sort((a, b) => { const orderA = PRIORITY_ORDER[a.priority] ?? 4; const orderB = PRIORITY_ORDER[b.priority] ?? 4; if (orderA !== orderB) return orderA - orderB; return new Date(b.createdAt) - new Date(a.createdAt); });
     case 'activity': return sorted.sort((a, b) => { const lastActivityA = a.comments?.length > 0 ? Math.max(...a.comments.map(c => new Date(c.createdAt).getTime())) : new Date(a.createdAt).getTime(); const lastActivityB = b.comments?.length > 0 ? Math.max(...b.comments.map(c => new Date(c.createdAt).getTime())) : new Date(b.createdAt).getTime(); return lastActivityB - lastActivityA; });
+    case 'manual': return sorted.sort((a, b) => (a.order ?? 9999) - (b.order ?? 9999));
     default: return sorted;
   }
 }
 
 // =============================================
-// NOTIFICATION BELL - FIX: fixed dropdown positioning
+// NOTIFICATION BELL
 // =============================================
 
 function NotificationBell({ tasks, currentUser, readTimestamps, teamMembers, onSelectTask, t, lang }) {
@@ -249,7 +252,6 @@ function NotificationBell({ tasks, currentUser, readTimestamps, teamMembers, onS
   
   const formatTime = lang === 'en' ? formatTimeAgoEn : formatTimeAgo;
 
-  // Calculate dropdown position from button
   const getDropdownPosition = () => {
     if (!buttonRef.current) return {};
     const rect = buttonRef.current.getBoundingClientRect();
@@ -294,20 +296,11 @@ function NotificationBell({ tasks, currentUser, readTimestamps, teamMembers, onS
               )}
             </div>
             <div className="flex items-center gap-1">
-              <button
-                onClick={toggleSound}
-                className="p-1.5 rounded-full hover:bg-gray-200 transition-colors"
-                style={{ color: soundEnabled ? '#1a73e8' : '#9aa0a6' }}
-                title={soundEnabled ? t.soundOn : t.soundOff}
-              >
+              <button onClick={toggleSound} className="p-1.5 rounded-full hover:bg-gray-200 transition-colors" style={{ color: soundEnabled ? '#1a73e8' : '#9aa0a6' }} title={soundEnabled ? t.soundOn : t.soundOff}>
                 <Volume2 size={16} />
               </button>
               {totalCount > 0 && (
-                <button
-                  onClick={handleMarkAllRead}
-                  className="text-xs px-2 py-1 rounded hover:bg-gray-200 transition-colors"
-                  style={{ color: '#1a73e8' }}
-                >
+                <button onClick={handleMarkAllRead} className="text-xs px-2 py-1 rounded hover:bg-gray-200 transition-colors" style={{ color: '#1a73e8' }}>
                   {t.markAllRead}
                 </button>
               )}
@@ -332,63 +325,30 @@ function NotificationBell({ tasks, currentUser, readTimestamps, teamMembers, onS
                       key={notif.id}
                       onClick={() => handleNotificationClick(notif)}
                       className="w-full px-4 py-3 flex gap-3 hover:bg-gray-50 transition-colors text-left border-b"
-                      style={{ 
-                        borderColor: '#f1f3f4',
-                        background: isRead ? '#fafafa' : 'white',
-                      }}
+                      style={{ borderColor: '#f1f3f4', background: isRead ? '#fafafa' : 'white' }}
                     >
                       <div className="relative flex-shrink-0">
-                        <div 
-                          className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-medium"
-                          style={{ 
-                            background: notif.author?.color || '#5f6368',
-                            opacity: isRead ? 0.5 : 1,
-                          }}
-                        >
+                        <div className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-medium" style={{ background: notif.author?.color || '#5f6368', opacity: isRead ? 0.5 : 1 }}>
                           {notif.author ? getInitials(notif.author.name) : '?'}
                         </div>
                         {isMention && !isRead && (
-                          <div 
-                            className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center"
-                            style={{ background: '#ea4335' }}
-                          >
+                          <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center" style={{ background: '#ea4335' }}>
                             <AtSign size={12} className="text-white" />
                           </div>
                         )}
                       </div>
-                      
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-0.5">
-                          <span 
-                            className="font-medium text-sm" 
-                            style={{ color: isRead ? '#9aa0a6' : '#202124' }}
-                          >
-                            {notif.author?.name || 'Unknown'}
-                          </span>
-                          <span className="text-xs" style={{ color: '#9aa0a6' }}>
-                            {formatTime(notif.createdAt)}
-                          </span>
-                          {isRead && (
-                            <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: '#e8eaed', color: '#9aa0a6' }}>
-                              ✓ przeczytane
-                            </span>
-                          )}
+                          <span className="font-medium text-sm" style={{ color: isRead ? '#9aa0a6' : '#202124' }}>{notif.author?.name || 'Unknown'}</span>
+                          <span className="text-xs" style={{ color: '#9aa0a6' }}>{formatTime(notif.createdAt)}</span>
                         </div>
                         <p className="text-sm mb-1" style={{ color: isRead ? '#bdc1c6' : (isMention ? '#ea4335' : '#5f6368') }}>
                           {isMention ? t.mentionedYou : t.newComment}
                         </p>
                         <div className="flex items-center gap-1.5">
                           <span style={{ opacity: isRead ? 0.5 : 1 }}>{market?.icon}</span>
-                          <span 
-                            className="text-sm truncate" 
-                            style={{ color: isRead ? '#9aa0a6' : '#202124' }}
-                          >
-                            {notif.task.title}
-                          </span>
+                          <span className="text-sm truncate" style={{ color: isRead ? '#9aa0a6' : '#202124' }}>{notif.task.title}</span>
                         </div>
-                        <p className="text-xs mt-1 truncate" style={{ color: isRead ? '#dadce0' : '#9aa0a6' }}>
-                          &ldquo;{notif.comment.text.substring(0, 60)}{notif.comment.text.length > 60 ? '...' : ''}&rdquo;
-                        </p>
                       </div>
                     </button>
                   );
@@ -412,7 +372,6 @@ function MentionInput({ value, onChange, onSubmit, placeholder, teamMembers }) {
   const [cursorPosition, setCursorPosition] = useState(0);
   const [mentionStart, setMentionStart] = useState(-1);
   const inputRef = useRef(null);
-  const suggestionsRef = useRef(null);
   
   const handleChange = (e) => {
     const newValue = e.target.value;
@@ -449,16 +408,13 @@ function MentionInput({ value, onChange, onSubmit, placeholder, teamMembers }) {
   
   const insertMention = (member) => {
     if (mentionStart === -1) return;
-    
     const before = value.substring(0, mentionStart);
     const after = value.substring(cursorPosition);
     const mentionText = `@${member.id} `;
     const newValue = before + mentionText + after;
-    
     onChange(newValue);
     setShowSuggestions(false);
     setMentionStart(-1);
-    
     setTimeout(() => {
       if (inputRef.current) {
         inputRef.current.focus();
@@ -469,59 +425,23 @@ function MentionInput({ value, onChange, onSubmit, placeholder, teamMembers }) {
   };
   
   const handleKeyDown = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey && !showSuggestions) {
-      e.preventDefault();
-      onSubmit();
-    }
-    if (e.key === 'Escape') {
-      setShowSuggestions(false);
-    }
-    if (showSuggestions && suggestions.length > 0) {
-      if (e.key === 'Tab' || (e.key === 'Enter' && showSuggestions)) {
-        e.preventDefault();
-        insertMention(suggestions[0]);
-      }
-    }
+    if (e.key === 'Enter' && !e.shiftKey && !showSuggestions) { e.preventDefault(); onSubmit(); }
+    if (e.key === 'Escape') setShowSuggestions(false);
+    if (showSuggestions && suggestions.length > 0 && (e.key === 'Tab' || (e.key === 'Enter' && showSuggestions))) { e.preventDefault(); insertMention(suggestions[0]); }
   };
   
   return (
     <div className="relative flex-1">
-      <input
-        ref={inputRef}
-        type="text"
-        value={value}
-        onChange={handleChange}
-        onKeyDown={handleKeyDown}
-        placeholder={placeholder}
-        className="w-full px-4 py-2.5 rounded-xl text-sm"
-        style={{ background: '#f1f3f4', border: '1px solid #e8eaed' }}
-      />
-      
+      <input ref={inputRef} type="text" value={value} onChange={handleChange} onKeyDown={handleKeyDown} placeholder={placeholder} className="w-full px-4 py-2.5 rounded-xl text-sm" style={{ background: '#f1f3f4', border: '1px solid #e8eaed' }} />
       {showSuggestions && (
-        <div 
-          ref={suggestionsRef}
-          className="absolute left-0 bottom-full mb-1 w-64 bg-white rounded-lg overflow-hidden z-50"
-          style={{ boxShadow: '0 4px 12px rgba(0,0,0,.15)', border: '1px solid #e8eaed' }}
-        >
+        <div className="absolute left-0 bottom-full mb-1 w-64 bg-white rounded-lg overflow-hidden z-50" style={{ boxShadow: '0 4px 12px rgba(0,0,0,.15)', border: '1px solid #e8eaed' }}>
           <div className="px-3 py-2 border-b" style={{ borderColor: '#e8eaed', background: '#f8f9fa' }}>
             <span className="text-xs font-medium" style={{ color: '#5f6368' }}>Oznacz osobę</span>
           </div>
           {suggestions.map(member => (
-            <button
-              key={member.id}
-              onClick={() => insertMention(member)}
-              className="w-full px-3 py-2 flex items-center gap-2 hover:bg-gray-50 transition-colors text-left"
-            >
-              <div 
-                className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-medium"
-                style={{ background: member.color }}
-              >
-                {getInitials(member.name)}
-              </div>
-              <div>
-                <p className="text-sm font-medium" style={{ color: '#202124' }}>{member.name}</p>
-                <p className="text-xs" style={{ color: '#9aa0a6' }}>@{member.id}</p>
-              </div>
+            <button key={member.id} onClick={() => insertMention(member)} className="w-full px-3 py-2 flex items-center gap-2 hover:bg-gray-50 transition-colors text-left">
+              <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-medium" style={{ background: member.color }}>{getInitials(member.name)}</div>
+              <div><p className="text-sm font-medium" style={{ color: '#202124' }}>{member.name}</p><p className="text-xs" style={{ color: '#9aa0a6' }}>@{member.id}</p></div>
             </button>
           ))}
         </div>
@@ -531,9 +451,8 @@ function MentionInput({ value, onChange, onSubmit, placeholder, teamMembers }) {
 }
 
 function CommentText({ text, teamMembers }) {
-  const urlRegex = /(https?:\/\/[^\s]+)/g;
   const combinedRegex = /(https?:\/\/[^\s]+|@\w+)/g;
-  
+  const urlRegex = /(https?:\/\/[^\s]+)/g;
   const parts = text.split(combinedRegex);
   
   return (
@@ -542,39 +461,12 @@ function CommentText({ text, teamMembers }) {
         if (part.match(urlRegex)) {
           let label = part;
           try { label = new URL(part).hostname.replace('www.', ''); } catch {}
-          return (
-            <a 
-              key={i} 
-              href={part} 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 px-1 py-0.5 rounded hover:bg-blue-50"
-              style={{ color: '#1a73e8', textDecoration: 'underline' }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <ExternalLink size={12} />
-              {label}
-            </a>
-          );
+          return <a key={i} href={part} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 px-1 py-0.5 rounded hover:bg-blue-50" style={{ color: '#1a73e8', textDecoration: 'underline' }} onClick={(e) => e.stopPropagation()}><ExternalLink size={12} />{label}</a>;
         }
         if (part.startsWith('@')) {
           const name = part.substring(1).toLowerCase();
-          const member = teamMembers.find(m => 
-            m.id.toLowerCase() === name ||
-            m.name.split(' ')[0].toLowerCase() === name ||
-            m.name.toLowerCase().replace(/\s+/g, '') === name
-          );
-          
-          return (
-            <span 
-              key={i} 
-              className="inline-flex items-center gap-0.5 px-1 py-0.5 rounded"
-              style={{ background: '#e8f0fe', color: '#1a73e8', fontWeight: 500 }}
-            >
-              <AtSign size={12} />
-              {member ? member.name : part.substring(1)}
-            </span>
-          );
+          const member = teamMembers.find(m => m.id.toLowerCase() === name || m.name.split(' ')[0].toLowerCase() === name || m.name.toLowerCase().replace(/\s+/g, '') === name);
+          return <span key={i} className="inline-flex items-center gap-0.5 px-1 py-0.5 rounded" style={{ background: '#e8f0fe', color: '#1a73e8', fontWeight: 500 }}><AtSign size={12} />{member ? member.name : part.substring(1)}</span>;
         }
         return part;
       })}
@@ -586,43 +478,9 @@ function AttachmentUploader({ onUpload, uploading }) { const ref = useRef(null);
 function AttachmentList({ attachments, onRemove, showRemove = true }) { if (!attachments?.length) return null; return <div className="mt-3 space-y-2">{attachments.map(att => { const FileIcon = getFileIcon(att.type); const isImage = att.type?.startsWith('image/'); return <div key={att.id} className="flex items-center gap-3 px-3 py-2 rounded-lg group" style={{ background: '#f1f3f4' }}>{isImage ? <img src={att.url} alt={att.name} className="w-10 h-10 rounded object-cover cursor-pointer" onClick={() => window.open(att.url, '_blank')} /> : <div className="w-10 h-10 rounded flex items-center justify-center" style={{ background: '#e8eaed' }}><FileIcon size={20} style={{ color: '#5f6368' }} /></div>}<div className="flex-1 min-w-0"><p className="text-sm font-medium truncate" style={{ color: '#202124' }}>{att.name}</p><p className="text-xs" style={{ color: '#9aa0a6' }}>{formatFileSize(att.size)}</p></div><a href={att.url} target="_blank" rel="noopener noreferrer" className="p-1.5 rounded hover:bg-gray-200" style={{ color: '#5f6368' }}><Download size={16} /></a>{showRemove && onRemove && <button onClick={() => onRemove(att.id)} className="p-1.5 rounded hover:bg-red-50 opacity-0 group-hover:opacity-100" style={{ color: '#ea4335' }}><X size={16} /></button>}</div>; })}</div>; }
 
 function LoginScreen({ onLogin, teamMembers }) { 
-  const [selectedUser, setSelectedUser] = useState(''); 
-  const [pin, setPin] = useState(''); 
-  const [error, setError] = useState(''); 
-  const [loading, setLoading] = useState(false);
+  const [selectedUser, setSelectedUser] = useState(''); const [pin, setPin] = useState(''); const [error, setError] = useState(''); const [loading, setLoading] = useState(false);
   const activeMembers = teamMembers.filter(m => m.isActive !== false); 
-  
-  const handleLogin = async (e) => { 
-    e.preventDefault(); 
-    if (!selectedUser) { setError('Wybierz osobę'); return; }
-    if (!pin || pin.length < 4) { setError('Wpisz 4-cyfrowy PIN'); return; }
-    
-    setLoading(true);
-    setError('');
-    
-    try {
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: selectedUser, pin })
-      });
-      
-      const data = await response.json();
-      
-      if (data.success) {
-        localStorage.setItem('av_tasks_user', selectedUser);
-        onLogin(selectedUser);
-      } else {
-        setError('Nieprawidłowy PIN');
-        setPin('');
-      }
-    } catch (err) {
-      setError('Błąd połączenia');
-    }
-    
-    setLoading(false);
-  }; 
-  
+  const handleLogin = async (e) => { e.preventDefault(); if (!selectedUser) { setError('Wybierz osobę'); return; } if (!pin || pin.length < 4) { setError('Wpisz 4-cyfrowy PIN'); return; } setLoading(true); setError(''); try { const response = await fetch('/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: selectedUser, pin }) }); const data = await response.json(); if (data.success) { localStorage.setItem('av_tasks_user', selectedUser); onLogin(selectedUser); } else { setError('Nieprawidłowy PIN'); setPin(''); } } catch (err) { setError('Błąd połączenia'); } setLoading(false); }; 
   return <div className="min-h-screen flex items-center justify-center p-4" style={{ background: '#f8f9fa' }}><div className="bg-white rounded-2xl p-8 w-full max-w-sm" style={{ boxShadow: '0 1px 3px 0 rgba(60,64,67,.3), 0 4px 8px 3px rgba(60,64,67,.15)' }}><div className="text-center mb-8"><img src="https://angloville.com/wp-content/themes/angloville/assets/images/logo.svg" alt="Angloville" className="h-10 mx-auto mb-4" /><h1 className="text-xl font-semibold" style={{ color: '#202124' }}>Marketing Tasks</h1></div><form onSubmit={handleLogin} className="space-y-4">{error && <div className="p-3 rounded-lg text-sm text-center" style={{ background: '#fce8e6', color: '#c5221f' }}>{error}</div>}<div><label className="block text-sm font-medium mb-1.5" style={{ color: '#202124' }}>Osoba</label><select value={selectedUser} onChange={(e) => { setSelectedUser(e.target.value); setError(''); }} className="w-full px-4 py-3 border rounded-lg text-sm" style={{ borderColor: '#dadce0' }}><option value="">Wybierz...</option>{activeMembers.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}</select></div><div><label className="block text-sm font-medium mb-1.5" style={{ color: '#202124' }}>PIN</label><input type="password" value={pin} onChange={(e) => { setPin(e.target.value.replace(/\D/g, '').slice(0, 4)); setError(''); }} className="w-full px-4 py-3 border rounded-lg text-sm text-center tracking-widest" style={{ borderColor: '#dadce0' }} placeholder="••••" maxLength={4} inputMode="numeric" /></div><button type="submit" disabled={loading} className="w-full py-3 rounded-lg font-medium flex items-center justify-center gap-2 disabled:opacity-70" style={{ background: '#1a73e8', color: 'white' }}>{loading ? <Loader2 size={18} className="animate-spin" /> : <Lock size={18} />}{loading ? 'Logowanie...' : 'Zaloguj się'}</button></form></div></div>; 
 }
 
@@ -633,6 +491,244 @@ function ClickableLinks({ text }) { if (!text) return null; const urlRegex = /(h
 function TranslateButton({ task, size = 'normal' }) { const [showPopup, setShowPopup] = useState(false); if (task.language !== 'en') return null; return <><button onClick={(e) => { e.stopPropagation(); setShowPopup(true); }} className="p-1 rounded hover:bg-blue-50" style={{ color: '#1a73e8' }}><Languages size={size === 'small' ? 14 : 16} /></button>{showPopup && <TranslationPopup title={task.title} description={task.description} onClose={() => setShowPopup(false)} />}</>; }
 function TranslationPopup({ title, description, onClose }) { const [translatedTitle, setTranslatedTitle] = useState(''); const [translatedDesc, setTranslatedDesc] = useState(''); const [loading, setLoading] = useState(true); useEffect(() => { async function translate() { setLoading(true); const plainTitle = title?.replace(/<[^>]*>/g, ' ').trim() || ''; const plainDesc = description?.replace(/<[^>]*>/g, ' ').trim() || ''; try { const [tTitle, tDesc] = await Promise.all([ fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(plainTitle)}&langpair=en|pl`).then(r => r.json()), plainDesc ? fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(plainDesc.substring(0, 500))}&langpair=en|pl`).then(r => r.json()) : Promise.resolve(null) ]); setTranslatedTitle(tTitle?.responseData?.translatedText || plainTitle); setTranslatedDesc(tDesc?.responseData?.translatedText || plainDesc); } catch { setTranslatedTitle(plainTitle); setTranslatedDesc(plainDesc); } setLoading(false); } translate(); }, [title, description]); return <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}><div className="bg-white rounded-xl w-full max-w-md" style={{ boxShadow: '0 24px 38px 3px rgba(0,0,0,.14)' }} onClick={e => e.stopPropagation()}><div className="p-4 border-b flex items-center justify-between" style={{ borderColor: '#e8eaed' }}><div className="flex items-center gap-2"><Languages size={20} style={{ color: '#1a73e8' }} /><h3 className="font-medium" style={{ color: '#202124' }}>🇬🇧 → 🇵🇱</h3></div><button onClick={onClose} className="p-1 rounded hover:bg-gray-100" style={{ color: '#5f6368' }}><X size={18} /></button></div><div className="p-5 space-y-4">{loading ? <div className="flex items-center justify-center py-8"><Loader2 size={24} className="animate-spin" style={{ color: '#1a73e8' }} /></div> : <><div><label className="block text-xs font-medium mb-1" style={{ color: '#5f6368' }}>Tytuł</label><div className="p-3 rounded-lg" style={{ background: '#e8f0fe' }}><p className="text-sm font-medium" style={{ color: '#202124' }}>{translatedTitle}</p></div></div>{translatedDesc && <div><label className="block text-xs font-medium mb-1" style={{ color: '#5f6368' }}>Opis</label><div className="p-3 rounded-lg" style={{ background: '#e8f0fe' }}><p className="text-sm" style={{ color: '#3c4043' }}>{translatedDesc}</p></div></div>}</>}</div></div></div>; }
 function SubtaskProgress({ subtasks }) { if (!subtasks?.length) return null; const done = subtasks.filter(s => s.status === 'closed').length; return <div className="flex items-center gap-1.5"><ListTodo size={12} style={{ color: '#5f6368' }} /><span className="text-xs" style={{ color: '#5f6368' }}>{done}/{subtasks.length}</span></div>; }
+
+// =============================================
+// DASHBOARD PANEL (NEW - punkt 4)
+// =============================================
+
+function DashboardPanel({ tasks, teamMembers, onClose, t, lang }) {
+  const [period, setPeriod] = useState(7);
+  
+  const now = new Date();
+  const startDate = new Date(now.getTime() - period * 24 * 60 * 60 * 1000);
+  
+  const activeMembers = teamMembers.filter(m => m.isActive !== false && !m.isManager);
+  
+  const stats = useMemo(() => {
+    const createdInPeriod = tasks.filter(task => new Date(task.createdAt) >= startDate);
+    const closedInPeriod = tasks.filter(task => task.status === 'closed' && task.updatedAt && new Date(task.updatedAt) >= startDate);
+    
+    const perPerson = {};
+    activeMembers.forEach(m => {
+      perPerson[m.id] = {
+        name: m.name,
+        color: m.color,
+        created: 0,
+        closed: 0,
+        open: 0,
+        subtasksDone: 0,
+        comments: 0,
+      };
+    });
+    
+    // Count tasks per person
+    createdInPeriod.forEach(task => {
+      if (task.createdBy && perPerson[task.createdBy]) {
+        perPerson[task.createdBy].created++;
+      }
+    });
+    
+    closedInPeriod.forEach(task => {
+      (task.assignees || []).forEach(aId => {
+        if (perPerson[aId]) perPerson[aId].closed++;
+      });
+    });
+    
+    // Current open tasks per person
+    tasks.filter(t => t.status === 'open' || t.status === 'longterm').forEach(task => {
+      (task.assignees || []).forEach(aId => {
+        if (perPerson[aId]) perPerson[aId].open++;
+      });
+    });
+    
+    // Comments in period
+    tasks.forEach(task => {
+      (task.comments || []).forEach(c => {
+        if (new Date(c.createdAt) >= startDate && perPerson[c.author]) {
+          perPerson[c.author].comments++;
+        }
+      });
+    });
+    
+    // Subtasks done in period
+    tasks.forEach(task => {
+      (task.subtasks || []).forEach(sub => {
+        if (sub.status === 'closed' && sub.assignee && perPerson[sub.assignee]) {
+          perPerson[sub.assignee].subtasksDone++;
+        }
+      });
+    });
+    
+    // Daily breakdown for chart
+    const dailyData = [];
+    for (let i = period - 1; i >= 0; i--) {
+      const day = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
+      const dayStr = day.toISOString().split('T')[0];
+      const dayLabel = day.toLocaleDateString(lang === 'en' ? 'en-US' : 'pl-PL', { day: 'numeric', month: 'short' });
+      
+      const created = tasks.filter(t => t.createdAt?.startsWith(dayStr)).length;
+      const closed = tasks.filter(t => t.status === 'closed' && t.updatedAt?.startsWith(dayStr)).length;
+      
+      dailyData.push({ date: dayLabel, created, closed });
+    }
+    
+    return {
+      totalCreated: createdInPeriod.length,
+      totalClosed: closedInPeriod.length,
+      currentOpen: tasks.filter(t => t.status === 'open' || t.status === 'longterm').length,
+      currentPending: tasks.filter(t => t.status === 'pending').length,
+      perPerson,
+      dailyData,
+      createdPerDay: (createdInPeriod.length / period).toFixed(1),
+      closedPerDay: (closedInPeriod.length / period).toFixed(1),
+    };
+  }, [tasks, teamMembers, period, startDate]);
+  
+  const maxBarValue = Math.max(
+    ...Object.values(stats.perPerson).map(p => Math.max(p.created + p.closed, p.open)),
+    1
+  );
+  
+  return (
+    <aside className="w-full lg:w-[640px] bg-white border-l flex flex-col overflow-hidden flex-shrink-0 fixed lg:static inset-0 z-40 lg:z-auto" style={{ borderColor: '#e8eaed' }}>
+      <div className="p-4 border-b flex items-center justify-between" style={{ borderColor: '#e8eaed' }}>
+        <div className="flex items-center gap-2">
+          <BarChart3 size={20} style={{ color: '#1a73e8' }} />
+          <h2 className="font-medium" style={{ color: '#202124' }}>{t.dashboardTitle}</h2>
+        </div>
+        <div className="flex items-center gap-2">
+          <select value={period} onChange={e => setPeriod(Number(e.target.value))} className="text-sm px-3 py-1.5 border rounded-lg" style={{ borderColor: '#dadce0' }}>
+            <option value={7}>{t.last7days}</option>
+            <option value={14}>{t.last14days}</option>
+            <option value={30}>{t.last30days}</option>
+          </select>
+          <button onClick={onClose} className="p-2 rounded-full hover:bg-gray-100" style={{ color: '#5f6368' }}><X size={18} /></button>
+        </div>
+      </div>
+      
+      <div className="flex-1 overflow-y-auto p-5 space-y-6">
+        {/* Summary cards */}
+        <div className="grid grid-cols-2 gap-3">
+          <div className="p-4 rounded-xl" style={{ background: '#e8f0fe' }}>
+            <div className="flex items-center gap-2 mb-1">
+              <TrendingUp size={16} style={{ color: '#1a73e8' }} />
+              <span className="text-xs font-medium" style={{ color: '#1a73e8' }}>{t.tasksCreated}</span>
+            </div>
+            <div className="text-3xl font-bold" style={{ color: '#1a73e8' }}>{stats.totalCreated}</div>
+            <div className="text-xs mt-1" style={{ color: '#5f6368' }}>{stats.createdPerDay}{t.perDay}</div>
+          </div>
+          <div className="p-4 rounded-xl" style={{ background: '#e6f4ea' }}>
+            <div className="flex items-center gap-2 mb-1">
+              <CheckCircle size={16} style={{ color: '#34a853' }} />
+              <span className="text-xs font-medium" style={{ color: '#34a853' }}>{t.tasksClosed}</span>
+            </div>
+            <div className="text-3xl font-bold" style={{ color: '#34a853' }}>{stats.totalClosed}</div>
+            <div className="text-xs mt-1" style={{ color: '#5f6368' }}>{stats.closedPerDay}{t.perDay}</div>
+          </div>
+          <div className="p-4 rounded-xl" style={{ background: '#fff3e0' }}>
+            <div className="flex items-center gap-2 mb-1">
+              <Circle size={16} style={{ color: '#ff7043' }} />
+              <span className="text-xs font-medium" style={{ color: '#ff7043' }}>{t.tasksOpen}</span>
+            </div>
+            <div className="text-3xl font-bold" style={{ color: '#ff7043' }}>{stats.currentOpen}</div>
+            <div className="text-xs mt-1" style={{ color: '#5f6368' }}>aktywne teraz</div>
+          </div>
+          <div className="p-4 rounded-xl" style={{ background: '#fef7e0' }}>
+            <div className="flex items-center gap-2 mb-1">
+              <AlertCircle size={16} style={{ color: '#fbbc04' }} />
+              <span className="text-xs font-medium" style={{ color: '#fbbc04' }}>{t.pending}</span>
+            </div>
+            <div className="text-3xl font-bold" style={{ color: '#fbbc04' }}>{stats.currentPending}</div>
+            <div className="text-xs mt-1" style={{ color: '#5f6368' }}>do akceptacji</div>
+          </div>
+        </div>
+        
+        {/* Daily chart */}
+        <div>
+          <h3 className="text-sm font-medium mb-3" style={{ color: '#202124' }}>Dzienne zadania (utworzone vs zamknięte)</h3>
+          <div className="rounded-xl border p-4" style={{ borderColor: '#e8eaed' }}>
+            <div className="flex items-end gap-1" style={{ height: '120px' }}>
+              {stats.dailyData.map((day, i) => {
+                const maxVal = Math.max(...stats.dailyData.map(d => Math.max(d.created, d.closed)), 1);
+                const createdH = (day.created / maxVal) * 100;
+                const closedH = (day.closed / maxVal) * 100;
+                return (
+                  <div key={i} className="flex-1 flex flex-col items-center gap-0.5" title={`${day.date}: ${day.created} utworzone, ${day.closed} zamknięte`}>
+                    <div className="w-full flex gap-0.5 items-end" style={{ height: '100px' }}>
+                      <div className="flex-1 rounded-t" style={{ height: `${Math.max(createdH, 2)}%`, background: '#4285f4', minHeight: day.created > 0 ? '4px' : '0' }} />
+                      <div className="flex-1 rounded-t" style={{ height: `${Math.max(closedH, 2)}%`, background: '#34a853', minHeight: day.closed > 0 ? '4px' : '0' }} />
+                    </div>
+                    {(i % Math.ceil(stats.dailyData.length / 7) === 0 || i === stats.dailyData.length - 1) && (
+                      <span className="text-xs" style={{ color: '#9aa0a6', fontSize: '9px' }}>{day.date}</span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+            <div className="flex items-center gap-4 mt-3 pt-3 border-t" style={{ borderColor: '#e8eaed' }}>
+              <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded" style={{ background: '#4285f4' }} /><span className="text-xs" style={{ color: '#5f6368' }}>{t.tasksCreated}</span></div>
+              <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded" style={{ background: '#34a853' }} /><span className="text-xs" style={{ color: '#5f6368' }}>{t.tasksClosed}</span></div>
+            </div>
+          </div>
+        </div>
+        
+        {/* Per person breakdown */}
+        <div>
+          <h3 className="text-sm font-medium mb-3" style={{ color: '#202124' }}>Obciążenie na osobę</h3>
+          <div className="space-y-3">
+            {Object.entries(stats.perPerson).map(([id, person]) => (
+              <div key={id} className="rounded-xl border p-4" style={{ borderColor: '#e8eaed' }}>
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-medium" style={{ background: person.color }}>{getInitials(person.name)}</div>
+                  <div className="flex-1">
+                    <span className="text-sm font-medium" style={{ color: '#202124' }}>{person.name}</span>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-lg font-bold" style={{ color: '#202124' }}>{person.open}</span>
+                    <span className="text-xs ml-1" style={{ color: '#5f6368' }}>otwarte</span>
+                  </div>
+                </div>
+                <div className="grid grid-cols-4 gap-2 text-center">
+                  <div className="p-2 rounded-lg" style={{ background: '#f1f3f4' }}>
+                    <div className="text-sm font-bold" style={{ color: '#4285f4' }}>{person.created}</div>
+                    <div className="text-xs" style={{ color: '#5f6368' }}>utworz.</div>
+                  </div>
+                  <div className="p-2 rounded-lg" style={{ background: '#f1f3f4' }}>
+                    <div className="text-sm font-bold" style={{ color: '#34a853' }}>{person.closed}</div>
+                    <div className="text-xs" style={{ color: '#5f6368' }}>zamkn.</div>
+                  </div>
+                  <div className="p-2 rounded-lg" style={{ background: '#f1f3f4' }}>
+                    <div className="text-sm font-bold" style={{ color: '#a142f4' }}>{person.subtasksDone}</div>
+                    <div className="text-xs" style={{ color: '#5f6368' }}>subtaski</div>
+                  </div>
+                  <div className="p-2 rounded-lg" style={{ background: '#f1f3f4' }}>
+                    <div className="text-sm font-bold" style={{ color: '#ff7043' }}>{person.comments}</div>
+                    <div className="text-xs" style={{ color: '#5f6368' }}>koment.</div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+        
+        {/* Total team summary */}
+        <div className="rounded-xl p-4" style={{ background: '#f8f9fa', border: '1px solid #e8eaed' }}>
+          <h4 className="text-sm font-medium mb-2" style={{ color: '#202124' }}>Podsumowanie zespołu ({period} dni)</h4>
+          <div className="text-sm space-y-1" style={{ color: '#5f6368' }}>
+            <p>📥 Nowych zadań: <strong style={{ color: '#202124' }}>{stats.totalCreated}</strong> ({stats.createdPerDay}/dzień)</p>
+            <p>✅ Zamkniętych: <strong style={{ color: '#202124' }}>{stats.totalClosed}</strong> ({stats.closedPerDay}/dzień)</p>
+            <p>📊 Aktywnych teraz: <strong style={{ color: '#202124' }}>{stats.currentOpen}</strong></p>
+            <p>⏳ Oczekujących: <strong style={{ color: '#202124' }}>{stats.currentPending}</strong></p>
+          </div>
+        </div>
+      </div>
+    </aside>
+  );
+}
+
+// =============================================
+// USERS PANEL (unchanged)
+// =============================================
 
 function UsersPanel({ teamMembers, onUpdate, onClose, t }) {
   const [allUsers, setAllUsers] = useState([]);
@@ -722,6 +818,7 @@ function SortDropdown({ value, onChange, t }) {
   }, []);
   
   const options = [
+    { id: 'manual', label: 'Ręcznie ↕', icon: GripVertical },
     { id: 'newest', label: t.sortNewest, icon: ArrowDown },
     { id: 'oldest', label: t.sortOldest, icon: ArrowUp },
     { id: 'priority', label: t.sortPriority, icon: Flag },
@@ -732,36 +829,18 @@ function SortDropdown({ value, onChange, t }) {
   
   return (
     <div className="relative" ref={ref}>
-      <button
-        onClick={() => setOpen(!open)}
-        className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm hover:bg-gray-100"
-        style={{ color: '#5f6368', border: '1px solid #dadce0' }}
-      >
+      <button onClick={() => setOpen(!open)} className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm hover:bg-gray-100" style={{ color: '#5f6368', border: '1px solid #dadce0' }}>
         <ArrowUpDown size={16} />
         <span className="hidden sm:inline">{current.label}</span>
         <ChevronDown size={14} className={`transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
-      
       {open && (
-        <div 
-          className="absolute right-0 top-full mt-1 bg-white rounded-lg py-1 z-20 min-w-[180px]"
-          style={{ boxShadow: '0 4px 12px rgba(0,0,0,.15)', border: '1px solid #e8eaed' }}
-        >
+        <div className="absolute right-0 top-full mt-1 bg-white rounded-lg py-1 z-20 min-w-[180px]" style={{ boxShadow: '0 4px 12px rgba(0,0,0,.15)', border: '1px solid #e8eaed' }}>
           {options.map(opt => {
             const Icon = opt.icon;
             return (
-              <button
-                key={opt.id}
-                onClick={() => { onChange(opt.id); setOpen(false); }}
-                className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-gray-50 text-left"
-                style={{ 
-                  color: value === opt.id ? '#1a73e8' : '#202124',
-                  background: value === opt.id ? '#e8f0fe' : 'transparent'
-                }}
-              >
-                <Icon size={16} />
-                <span>{opt.label}</span>
-                {value === opt.id && <Check size={16} className="ml-auto" />}
+              <button key={opt.id} onClick={() => { onChange(opt.id); setOpen(false); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-gray-50 text-left" style={{ color: value === opt.id ? '#1a73e8' : '#202124', background: value === opt.id ? '#e8f0fe' : 'transparent' }}>
+                <Icon size={16} /><span>{opt.label}</span>{value === opt.id && <Check size={16} className="ml-auto" />}
               </button>
             );
           })}
@@ -789,12 +868,15 @@ function PendingView({ tasks, approveTask, deleteTask, currentUser, t, lang, tea
   );
 }
 
-function TaskItem({ task, isSelected, onClick, onStatusChange, onDragStart, onDragOver, onDrop, onDragEnd, isDragging, dragOverId, currentUser, readTimestamps, seenTaskIds, lang, t, teamMembers }) {
+// =============================================
+// TASK ITEM - punkt 3: replaced drag with up/down arrows in manual sort mode
+// =============================================
+
+function TaskItem({ task, isSelected, onClick, onStatusChange, onMoveUp, onMoveDown, showMoveButtons, currentUser, readTimestamps, seenTaskIds, lang, t, teamMembers }) {
   const market = MARKETS.find(m => m.id === task.market);
   const status = STATUSES.find(s => s.id === task.status);
   const Icon = status?.icon || Circle;
   const cycle = (e) => { e.stopPropagation(); onStatusChange(task.status === 'open' ? 'closed' : 'open'); };
-  const isDropTarget = dragOverId === task.id;
   const unreadCount = getUnreadCount(task, currentUser, readTimestamps);
   const mentionCount = getMentionsForUser(task, currentUser, readTimestamps, teamMembers).length;
   const isNewTask = task.assignees?.includes(currentUser) && task.createdBy !== currentUser && !seenTaskIds.includes(task.id);
@@ -802,9 +884,14 @@ function TaskItem({ task, isSelected, onClick, onStatusChange, onDragStart, onDr
   const hasAttachments = task.attachments?.length > 0;
   
   return (
-    <div onClick={onClick} draggable onDragStart={(e) => onDragStart(e, task)} onDragOver={(e) => onDragOver(e, task)} onDrop={(e) => onDrop(e, task)} onDragEnd={onDragEnd} className="bg-white rounded-lg px-3 py-2.5 cursor-pointer hover:shadow-sm border" style={{ borderColor: isSelected ? '#1a73e8' : isDropTarget ? '#4285f4' : isNewTask ? '#c6dafc' : '#e8eaed', opacity: isDragging ? 0.4 : 1, borderTopWidth: isDropTarget ? '3px' : '1px', background: isNewTask ? '#f8fbff' : 'white' }}>
+    <div onClick={onClick} className="bg-white rounded-lg px-3 py-2.5 cursor-pointer hover:shadow-sm border" style={{ borderColor: isSelected ? '#1a73e8' : isNewTask ? '#c6dafc' : '#e8eaed', background: isNewTask ? '#f8fbff' : 'white' }}>
       <div className="flex items-center gap-2">
-        <GripVertical size={14} style={{ color: '#dadce0' }} className="cursor-grab flex-shrink-0 hidden sm:block" />
+        {showMoveButtons && (
+          <div className="flex flex-col gap-0.5 flex-shrink-0">
+            <button onClick={(e) => { e.stopPropagation(); onMoveUp?.(); }} className="p-0.5 rounded hover:bg-gray-100" style={{ color: '#9aa0a6' }} title={t.moveUp}><ChevronUp size={14} /></button>
+            <button onClick={(e) => { e.stopPropagation(); onMoveDown?.(); }} className="p-0.5 rounded hover:bg-gray-100" style={{ color: '#9aa0a6' }} title={t.moveDown}><ChevronDown size={14} /></button>
+          </div>
+        )}
         <button onClick={cycle} className="hover:scale-110 flex-shrink-0"><Icon size={18} style={{ color: status?.color }} className={task.status === 'closed' ? 'fill-current' : ''} /></button>
         <span className="flex-shrink-0">{market?.icon}</span>
         <h4 className="font-medium text-sm flex-1 min-w-0 truncate" style={{ color: task.status === 'closed' ? '#9aa0a6' : '#202124', textDecoration: task.status === 'closed' ? 'line-through' : 'none' }}>{task.title}</h4>
@@ -832,7 +919,7 @@ function TaskItem({ task, isSelected, onClick, onStatusChange, onDragStart, onDr
 }
 
 // =============================================
-// TASK DETAIL
+// TASK DETAIL - punkt 1: edycja komentarzy, punkt 2: reakcje kciukiem
 // =============================================
 
 function TaskDetail({ task, updateTask, deleteTask, onClose, currentUser, isManager, onMarkUnread, readTimestamps, t, lang, teamMembers }) {
@@ -846,8 +933,10 @@ function TaskDetail({ task, updateTask, deleteTask, onClose, currentUser, isMana
   const [uploading, setUploading] = useState(false);
   const [commentAttachments, setCommentAttachments] = useState([]);
   const [uploadingComment, setUploadingComment] = useState(false);
+  const [editingCommentId, setEditingCommentId] = useState(null);
+  const [editingCommentText, setEditingCommentText] = useState('');
 
-  useEffect(() => { setForm({ title: task.title, description: task.description || '' }); setEditing(false); setComment(''); setNewSubtask(''); setSubtaskAssignee(''); setShowSubtaskForm(false); setLinkCopied(false); setCommentAttachments([]); }, [task.id]);
+  useEffect(() => { setForm({ title: task.title, description: task.description || '' }); setEditing(false); setComment(''); setNewSubtask(''); setSubtaskAssignee(''); setShowSubtaskForm(false); setLinkCopied(false); setCommentAttachments([]); setEditingCommentId(null); }, [task.id]);
   
   const market = MARKETS.find(m => m.id === task.market);
   const me = teamMembers.find(m => m.id === currentUser);
@@ -865,18 +954,35 @@ function TaskDetail({ task, updateTask, deleteTask, onClose, currentUser, isMana
   
   const addComment = async () => { 
     if (!comment.trim() && commentAttachments.length === 0) return; 
-    const newCommentObj = { 
-      id: generateId(), 
-      text: comment.trim(), 
-      author: currentUser, 
-      createdAt: new Date().toISOString(), 
-      attachments: commentAttachments.length > 0 ? commentAttachments : undefined,
-      mentions: parseMentions(comment.trim())
-    }; 
+    const newCommentObj = { id: generateId(), text: comment.trim(), author: currentUser, createdAt: new Date().toISOString(), attachments: commentAttachments.length > 0 ? commentAttachments : undefined, mentions: parseMentions(comment.trim()), reactions: [] }; 
     updateTask(task.id, { comments: [...(task.comments || []), newCommentObj] }); 
-    setComment(''); 
-    setCommentAttachments([]); 
+    setComment(''); setCommentAttachments([]); 
   };
+  
+  // PUNKT 2: Reakcja kciukiem
+  const toggleReaction = (commentId) => {
+    const updatedComments = (task.comments || []).map(c => {
+      if (c.id !== commentId) return c;
+      const reactions = c.reactions || [];
+      const hasReacted = reactions.includes(currentUser);
+      return { ...c, reactions: hasReacted ? reactions.filter(r => r !== currentUser) : [...reactions, currentUser] };
+    });
+    updateTask(task.id, { comments: updatedComments });
+  };
+  
+  // PUNKT 1: Edycja komentarza
+  const startEditComment = (c) => { setEditingCommentId(c.id); setEditingCommentText(c.text); };
+  const saveEditComment = () => {
+    if (!editingCommentText.trim()) return;
+    const updatedComments = (task.comments || []).map(c => {
+      if (c.id !== editingCommentId) return c;
+      return { ...c, text: editingCommentText.trim(), editedAt: new Date().toISOString() };
+    });
+    updateTask(task.id, { comments: updatedComments });
+    setEditingCommentId(null);
+    setEditingCommentText('');
+  };
+  const cancelEditComment = () => { setEditingCommentId(null); setEditingCommentText(''); };
   
   const save = () => { updateTask(task.id, { title: form.title, description: form.description }); setEditing(false); };
   const addSubtask = () => { if (!newSubtask.trim()) return; updateTask(task.id, { subtasks: [...subtasks, { id: generateId(), title: newSubtask.trim(), assignee: subtaskAssignee || null, status: 'open', createdAt: new Date().toISOString() }] }); setNewSubtask(''); setSubtaskAssignee(''); setShowSubtaskForm(false); };
@@ -926,6 +1032,7 @@ function TaskDetail({ task, updateTask, deleteTask, onClose, currentUser, isMana
         
         <div><label className="block mb-2 text-sm font-medium" style={{ color: '#202124' }}>{t.assigned}</label><div className="flex flex-wrap gap-2">{task.assignees?.map(aId => { const m = teamMembers.find(x => x.id === aId); return m && <div key={aId} className="flex items-center gap-2 rounded-full px-3 py-1.5" style={{ background: '#f1f3f4' }}><div className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-medium" style={{ background: m.color }}>{getInitials(m.name)}</div><span className="text-sm" style={{ color: '#202124' }}>{m.name}</span>{canEdit && <button onClick={() => updateTask(task.id, { assignees: task.assignees.filter(a => a !== aId) })} className="hover:text-red-500" style={{ color: '#9aa0a6' }}><X size={14} /></button>}</div>; })}{canContribute && <select onChange={(e) => { if (e.target.value && !task.assignees?.includes(e.target.value)) { updateTask(task.id, { assignees: [...(task.assignees || []), e.target.value] }); const m = teamMembers.find(x => x.id === e.target.value); if (m) sendEmailNotification(m.email, m.name, task.title, me?.name); } e.target.value = ''; }} className="rounded-full px-3 py-1.5 text-sm cursor-pointer" style={{ background: '#f1f3f4', border: '1px dashed #dadce0', color: '#5f6368' }} defaultValue=""><option value="">{t.addPerson}</option>{teamMembers.filter(m => m.isActive !== false && !task.assignees?.includes(m.id)).map(m => <option key={m.id} value={m.id}>{m.name}</option>)}</select>}</div></div>
         
+        {/* COMMENTS with editing + reactions */}
         <div>
           <div className="flex items-center justify-between mb-3">
             <label className="text-sm font-medium" style={{ color: '#202124' }}>{t.comments} ({task.comments?.length || 0})</label>
@@ -935,15 +1042,16 @@ function TaskDetail({ task, updateTask, deleteTask, onClose, currentUser, isMana
             {task.comments?.map(c => { 
               const author = teamMembers.find(m => m.id === c.author); 
               const isExternal = c.author === 'external'; 
+              const isMyComment = c.author === currentUser;
+              const reactions = c.reactions || [];
+              const myReaction = reactions.includes(currentUser);
               const hasMentionOfMe = c.mentions?.some(m => {
                 const myMember = teamMembers.find(tm => tm.id === currentUser);
                 if (!myMember) return false;
-                const myIdentifiers = [
-                  currentUser.toLowerCase(),
-                  myMember.name.split(' ')[0].toLowerCase(),
-                ];
-                return myIdentifiers.includes(m.toLowerCase());
+                return [currentUser.toLowerCase(), myMember.name.split(' ')[0].toLowerCase()].includes(m.toLowerCase());
               });
+              
+              const isBeingEdited = editingCommentId === c.id;
               
               return (
                 <div key={c.id} className="flex gap-3">
@@ -951,28 +1059,43 @@ function TaskDetail({ task, updateTask, deleteTask, onClose, currentUser, isMana
                     {isExternal ? '👤' : getInitials(author?.name || '?')}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div 
-                      className="rounded-xl p-3" 
-                      style={{ 
-                        background: hasMentionOfMe ? '#fce8e6' : '#f1f3f4',
-                        border: hasMentionOfMe ? '1px solid #f5c6cb' : 'none'
-                      }}
-                    >
+                    <div className="rounded-xl p-3" style={{ background: hasMentionOfMe ? '#fce8e6' : '#f1f3f4', border: hasMentionOfMe ? '1px solid #f5c6cb' : 'none' }}>
                       <div className="flex items-center gap-2 mb-1 flex-wrap">
                         <span className="text-sm font-medium" style={{ color: '#202124' }}>
                           {isExternal ? (c.authorName || task.submittedBy || 'Zewnętrzny') : (author?.name || t.unknown)}
                         </span>
                         <span className="text-xs" style={{ color: '#9aa0a6' }}>{formatDate(c.createdAt)}</span>
-                        {hasMentionOfMe && (
-                          <span className="flex items-center gap-1 px-1.5 py-0.5 rounded text-xs" style={{ background: '#ea4335', color: 'white' }}>
-                            <AtSign size={10} />
-                          </span>
-                        )}
+                        {c.editedAt && <span className="text-xs italic" style={{ color: '#9aa0a6' }}>({t.edited})</span>}
+                        {hasMentionOfMe && <span className="flex items-center gap-1 px-1.5 py-0.5 rounded text-xs" style={{ background: '#ea4335', color: 'white' }}><AtSign size={10} /></span>}
                       </div>
-                      <p className="text-sm" style={{ color: '#3c4043' }}>
-                        <CommentText text={c.text} teamMembers={teamMembers} />
-                      </p>
+                      
+                      {isBeingEdited ? (
+                        <div className="space-y-2">
+                          <input type="text" value={editingCommentText} onChange={e => setEditingCommentText(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') saveEditComment(); if (e.key === 'Escape') cancelEditComment(); }} className="w-full px-3 py-2 border rounded-lg text-sm" style={{ borderColor: '#1a73e8' }} autoFocus />
+                          <div className="flex gap-2">
+                            <button onClick={saveEditComment} className="text-xs px-3 py-1 rounded-lg font-medium" style={{ background: '#1a73e8', color: 'white' }}>{t.saveComment}</button>
+                            <button onClick={cancelEditComment} className="text-xs px-3 py-1 rounded-lg" style={{ color: '#5f6368' }}>{t.cancelEdit}</button>
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="text-sm" style={{ color: '#3c4043' }}>
+                          <CommentText text={c.text} teamMembers={teamMembers} />
+                        </p>
+                      )}
                       <AttachmentList attachments={c.attachments} showRemove={false} />
+                    </div>
+                    
+                    {/* Reactions + edit buttons */}
+                    <div className="flex items-center gap-2 mt-1 ml-1">
+                      <button onClick={() => toggleReaction(c.id)} className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs transition-colors ${myReaction ? 'bg-blue-50' : 'hover:bg-gray-100'}`} style={{ color: myReaction ? '#1a73e8' : '#9aa0a6' }}>
+                        <ThumbsUp size={12} className={myReaction ? 'fill-current' : ''} />
+                        {reactions.length > 0 && <span>{reactions.length}</span>}
+                      </button>
+                      {isMyComment && !isBeingEdited && (
+                        <button onClick={() => startEditComment(c)} className="text-xs px-2 py-0.5 rounded-full hover:bg-gray-100" style={{ color: '#9aa0a6' }}>
+                          {t.editComment}
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -981,13 +1104,7 @@ function TaskDetail({ task, updateTask, deleteTask, onClose, currentUser, isMana
           </div>
           
           <div className="flex gap-2 items-start">
-            <MentionInput 
-              value={comment}
-              onChange={setComment}
-              onSubmit={addComment}
-              placeholder={t.writeComment}
-              teamMembers={teamMembers}
-            />
+            <MentionInput value={comment} onChange={setComment} onSubmit={addComment} placeholder={t.writeComment} teamMembers={teamMembers} />
             <AttachmentUploader onUpload={handleCommentAttachmentUpload} uploading={uploadingComment} />
             <button onClick={addComment} className="p-2.5 rounded-xl" style={{ background: '#1a73e8', color: 'white' }}><Send size={18} /></button>
           </div>
@@ -1031,7 +1148,7 @@ function NewTaskModal({ onClose, onSave, currentUser, restrictedMarket, t, lang,
 }
 
 // =============================================
-// MAIN APP - FIX: filter persistence + responsive
+// MAIN APP
 // =============================================
 
 export default function TaskApp() {
@@ -1043,6 +1160,7 @@ export default function TaskApp() {
   const [selectedTask, setSelectedTask] = useState(null);
   const [showNewTask, setShowNewTask] = useState(false);
   const [showUsersPanel, setShowUsersPanel] = useState(false);
+  const [showDashboard, setShowDashboard] = useState(false);
   const [filterMarket, setFilterMarket] = useState('all');
   const [filterPerson, setFilterPerson] = useState('all');
   const [filterStatus, setFilterStatus] = useState('active');
@@ -1050,8 +1168,6 @@ export default function TaskApp() {
   const [activeTab, setActiveTab] = useState('tasks');
   const [copied, setCopied] = useState(false);
   const [checkingAuth, setCheckingAuth] = useState(true);
-  const [draggedTask, setDraggedTask] = useState(null);
-  const [dragOverId, setDragOverId] = useState(null);
   const [readTimestamps, setReadTimestamps] = useState({});
   const [seenTaskIds, setSeenTaskIds] = useState([]);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -1070,7 +1186,6 @@ export default function TaskApp() {
   useEffect(() => { const savedUser = localStorage.getItem('av_tasks_user'); if (savedUser) { const checkUser = async () => { const members = await getTeamMembers(); if (members.find(m => m.id === savedUser)) { setCurrentUser(savedUser); setTeamMembers(members); } setCheckingAuth(false); }; checkUser(); } else { setCheckingAuth(false); } }, []);
   useEffect(() => { if (restrictedMarket) setFilterMarket(restrictedMarket); }, [restrictedMarket]);
   
-  // FIX: Restore filters from localStorage (runs once on login)
   useEffect(() => {
     if (!currentUser || filtersInitialized.current) return;
     filtersInitialized.current = true;
@@ -1081,7 +1196,6 @@ export default function TaskApp() {
     else if (!isManager) setFilterPerson(currentUser);
   }, [currentUser, isManager, restrictedMarket]);
   
-  // FIX: Save filter changes to localStorage
   useEffect(() => { if (currentUser && !restrictedMarket) localStorage.setItem(`av_filter_market_${currentUser}`, filterMarket); }, [filterMarket, currentUser, restrictedMarket]);
   useEffect(() => { if (currentUser) localStorage.setItem(`av_filter_person_${currentUser}`, filterPerson); }, [filterPerson, currentUser]);
   
@@ -1094,8 +1208,8 @@ export default function TaskApp() {
     return () => clearInterval(interval);
   }, [currentUser]);
   
-  const handleLogout = () => { localStorage.removeItem('av_tasks_user'); setCurrentUser(null); setTasks([]); setSelectedTask(null); setShowUsersPanel(false); filtersInitialized.current = false; };
-  const handleSelectTask = useCallback((task) => { setSelectedTask(task); setShowUsersPanel(false); setSidebarOpen(false); if (currentUser && task) { setTaskRead(task.id, currentUser); setReadTimestamps(prev => ({ ...prev, [task.id]: new Date().toISOString() })); markTaskAsSeen(task.id, currentUser); setSeenTaskIds(prev => prev.includes(task.id) ? prev : [...prev, task.id]); } }, [currentUser]);
+  const handleLogout = () => { localStorage.removeItem('av_tasks_user'); setCurrentUser(null); setTasks([]); setSelectedTask(null); setShowUsersPanel(false); setShowDashboard(false); filtersInitialized.current = false; };
+  const handleSelectTask = useCallback((task) => { setSelectedTask(task); setShowUsersPanel(false); setShowDashboard(false); setSidebarOpen(false); if (currentUser && task) { setTaskRead(task.id, currentUser); setReadTimestamps(prev => ({ ...prev, [task.id]: new Date().toISOString() })); markTaskAsSeen(task.id, currentUser); setSeenTaskIds(prev => prev.includes(task.id) ? prev : [...prev, task.id]); } }, [currentUser]);
   const handleMarkUnread = useCallback((taskId) => { if (currentUser) { setTaskUnread(taskId, currentUser); setReadTimestamps(prev => { const ns = { ...prev }; delete ns[taskId]; return ns; }); } }, [currentUser]);
   const reloadTeamMembers = async () => { const members = await getTeamMembers(); if (members.length > 0) setTeamMembers(members); };
 
@@ -1141,10 +1255,23 @@ export default function TaskApp() {
   const approveTask = async (task, assignees) => { await updateTask(task.id, { status: 'open', assignees, approvedAt: new Date().toISOString(), approvedBy: currentUser }); for (const aId of assignees) { const m = teamMembers.find(x => x.id === aId); if (m) await sendEmailNotification(m.email, m.name, task.title, currentMember?.name); } setActiveTab('tasks'); };
   const addTask = async (task) => { const newTask = { ...task, createdAt: new Date().toISOString(), createdBy: currentUser, isExternal: false, subtasks: [] }; const created = await createTask(newTask); if (created) await loadTasks(); setShowNewTask(false); for (const aId of task.assignees || []) { const m = teamMembers.find(x => x.id === aId); if (m && m.id !== currentUser) await sendEmailNotification(m.email, m.name, task.title, currentMember?.name); } };
 
-  const handleDragStart = (e, task) => { setDraggedTask(task); e.dataTransfer.effectAllowed = 'move'; };
-  const handleDragOver = (e, targetTask) => { e.preventDefault(); if (draggedTask && targetTask.id !== draggedTask.id && targetTask.status === draggedTask.status) setDragOverId(targetTask.id); };
-  const handleDrop = async (e, targetTask) => { e.preventDefault(); setDragOverId(null); if (!draggedTask || draggedTask.id === targetTask.id || draggedTask.status !== targetTask.status) { setDraggedTask(null); return; } const statusTasks = filteredTasks.filter(t => t.status === draggedTask.status); const di = statusTasks.findIndex(t => t.id === draggedTask.id); const ti = statusTasks.findIndex(t => t.id === targetTask.id); if (di === -1 || ti === -1) { setDraggedTask(null); return; } const nst = [...statusTasks]; nst.splice(di, 1); nst.splice(ti, 0, draggedTask); const updates = nst.map((t, idx) => ({ id: t.id, order: idx })); setTasks(prev => { const other = prev.filter(t => t.status !== draggedTask.status); return [...other, ...nst.map((t, idx) => ({ ...t, order: idx }))].sort((a, b) => (a.order ?? 0) - (b.order ?? 0)); }); for (const u of updates) await updateTaskDb(u.id, { order: u.order }); setDraggedTask(null); };
-  const handleDragEnd = () => { setDraggedTask(null); setDragOverId(null); };
+  // PUNKT 3: Move task up/down
+  const moveTask = async (taskId, direction) => {
+    const taskIndex = filteredTasks.findIndex(t => t.id === taskId);
+    if (taskIndex === -1) return;
+    const targetIndex = direction === 'up' ? taskIndex - 1 : taskIndex + 1;
+    if (targetIndex < 0 || targetIndex >= filteredTasks.length) return;
+    
+    const task = filteredTasks[taskIndex];
+    const target = filteredTasks[targetIndex];
+    
+    // Swap orders
+    const taskOrder = task.order ?? taskIndex;
+    const targetOrder = target.order ?? targetIndex;
+    
+    await updateTask(task.id, { order: targetOrder });
+    await updateTask(target.id, { order: taskOrder });
+  };
 
   const formUrl = typeof window !== 'undefined' ? `${window.location.origin}/request` : '/request';
   const copyLink = () => { navigator.clipboard.writeText(formUrl); setCopied(true); setTimeout(() => setCopied(false), 2000); };
@@ -1169,15 +1296,22 @@ export default function TaskApp() {
         </div>
         <div className="p-2 flex-1 overflow-y-auto">
           <div className="space-y-0.5">
-            {isManager && pendingTasks.length > 0 && <button onClick={() => { setActiveTab('pending'); setShowUsersPanel(false); setSidebarOpen(false); }} className="w-full flex items-center justify-between px-3 py-2 rounded-full text-sm" style={{ background: activeTab === 'pending' ? '#fef7e0' : 'transparent', color: activeTab === 'pending' ? '#b06000' : '#202124' }}><div className="flex items-center gap-3"><AlertCircle size={18} style={{ color: '#fbbc04' }} /><span>{t.pending}</span></div><span className="font-medium" style={{ color: '#fbbc04' }}>{pendingTasks.length}</span></button>}
-            <button onClick={() => { setActiveTab('tasks'); setFilterStatus('active'); setShowUsersPanel(false); setSidebarOpen(false); }} className="w-full flex items-center justify-between px-3 py-2 rounded-full text-sm" style={{ background: activeTab === 'tasks' && filterStatus === 'active' && !showUsersPanel ? '#e8f0fe' : 'transparent', color: activeTab === 'tasks' && filterStatus === 'active' ? '#1a73e8' : '#202124' }}><div className="flex items-center gap-3"><Filter size={18} style={{ color: '#1a73e8' }} /><span>{t.active}</span></div><span className="font-medium">{openTasks.length + longtermTasks.length}</span></button>
-            <button onClick={() => { setActiveTab('tasks'); setFilterStatus('open'); setShowUsersPanel(false); setSidebarOpen(false); }} className="w-full flex items-center justify-between px-3 py-2 rounded-full text-sm" style={{ background: activeTab === 'tasks' && filterStatus === 'open' ? '#e8f0fe' : 'transparent', color: '#202124' }}><div className="flex items-center gap-3 pl-2"><Circle size={16} style={{ color: '#4285f4' }} /><span>{t.open}</span></div><span style={{ color: '#5f6368' }}>{openTasks.length}</span></button>
-            <button onClick={() => { setActiveTab('tasks'); setFilterStatus('longterm'); setShowUsersPanel(false); setSidebarOpen(false); }} className="w-full flex items-center justify-between px-3 py-2 rounded-full text-sm" style={{ background: activeTab === 'tasks' && filterStatus === 'longterm' ? '#f3e8fd' : 'transparent', color: '#202124' }}><div className="flex items-center gap-3 pl-2"><Clock size={16} style={{ color: '#a142f4' }} /><span>{t.longterm}</span></div><span style={{ color: '#5f6368' }}>{longtermTasks.length}</span></button>
-            <button onClick={() => { setActiveTab('tasks'); setFilterStatus('paused'); setShowUsersPanel(false); setSidebarOpen(false); }} className="w-full flex items-center justify-between px-3 py-2 rounded-full text-sm" style={{ background: activeTab === 'tasks' && filterStatus === 'paused' ? '#fff3e0' : 'transparent', color: '#202124' }}><div className="flex items-center gap-3 pl-2"><Pause size={16} style={{ color: '#ff7043' }} /><span>{t.paused}</span></div><span style={{ color: '#5f6368' }}>{pausedTasks.length}</span></button>
-            <button onClick={() => { setActiveTab('tasks'); setFilterStatus('monitoring'); setShowUsersPanel(false); setSidebarOpen(false); }} className="w-full flex items-center justify-between px-3 py-2 rounded-full text-sm" style={{ background: activeTab === 'tasks' && filterStatus === 'monitoring' ? '#e0f7fa' : 'transparent', color: '#202124' }}><div className="flex items-center gap-3 pl-2"><Eye size={16} style={{ color: '#00acc1' }} /><span>{t.monitoring}</span></div><span style={{ color: '#5f6368' }}>{monitoringTasks.length}</span></button>
-            <button onClick={() => { setActiveTab('tasks'); setFilterStatus('closed'); setShowUsersPanel(false); setSidebarOpen(false); }} className="w-full flex items-center justify-between px-3 py-2 rounded-full text-sm" style={{ background: activeTab === 'tasks' && filterStatus === 'closed' ? '#e6f4ea' : 'transparent', color: '#202124' }}><div className="flex items-center gap-3 pl-2"><CheckCircle size={16} style={{ color: '#34a853' }} /><span>{t.closed}</span></div><span style={{ color: '#5f6368' }}>{closedTasks.length}</span></button>
+            {isManager && pendingTasks.length > 0 && <button onClick={() => { setActiveTab('pending'); setShowUsersPanel(false); setShowDashboard(false); setSidebarOpen(false); }} className="w-full flex items-center justify-between px-3 py-2 rounded-full text-sm" style={{ background: activeTab === 'pending' ? '#fef7e0' : 'transparent', color: activeTab === 'pending' ? '#b06000' : '#202124' }}><div className="flex items-center gap-3"><AlertCircle size={18} style={{ color: '#fbbc04' }} /><span>{t.pending}</span></div><span className="font-medium" style={{ color: '#fbbc04' }}>{pendingTasks.length}</span></button>}
+            <button onClick={() => { setActiveTab('tasks'); setFilterStatus('active'); setShowUsersPanel(false); setShowDashboard(false); setSidebarOpen(false); }} className="w-full flex items-center justify-between px-3 py-2 rounded-full text-sm" style={{ background: activeTab === 'tasks' && filterStatus === 'active' && !showUsersPanel && !showDashboard ? '#e8f0fe' : 'transparent', color: activeTab === 'tasks' && filterStatus === 'active' ? '#1a73e8' : '#202124' }}><div className="flex items-center gap-3"><Filter size={18} style={{ color: '#1a73e8' }} /><span>{t.active}</span></div><span className="font-medium">{openTasks.length + longtermTasks.length}</span></button>
+            <button onClick={() => { setActiveTab('tasks'); setFilterStatus('open'); setShowUsersPanel(false); setShowDashboard(false); setSidebarOpen(false); }} className="w-full flex items-center justify-between px-3 py-2 rounded-full text-sm" style={{ background: activeTab === 'tasks' && filterStatus === 'open' ? '#e8f0fe' : 'transparent', color: '#202124' }}><div className="flex items-center gap-3 pl-2"><Circle size={16} style={{ color: '#4285f4' }} /><span>{t.open}</span></div><span style={{ color: '#5f6368' }}>{openTasks.length}</span></button>
+            <button onClick={() => { setActiveTab('tasks'); setFilterStatus('longterm'); setShowUsersPanel(false); setShowDashboard(false); setSidebarOpen(false); }} className="w-full flex items-center justify-between px-3 py-2 rounded-full text-sm" style={{ background: activeTab === 'tasks' && filterStatus === 'longterm' ? '#f3e8fd' : 'transparent', color: '#202124' }}><div className="flex items-center gap-3 pl-2"><Clock size={16} style={{ color: '#a142f4' }} /><span>{t.longterm}</span></div><span style={{ color: '#5f6368' }}>{longtermTasks.length}</span></button>
+            <button onClick={() => { setActiveTab('tasks'); setFilterStatus('paused'); setShowUsersPanel(false); setShowDashboard(false); setSidebarOpen(false); }} className="w-full flex items-center justify-between px-3 py-2 rounded-full text-sm" style={{ background: activeTab === 'tasks' && filterStatus === 'paused' ? '#fff3e0' : 'transparent', color: '#202124' }}><div className="flex items-center gap-3 pl-2"><Pause size={16} style={{ color: '#ff7043' }} /><span>{t.paused}</span></div><span style={{ color: '#5f6368' }}>{pausedTasks.length}</span></button>
+            <button onClick={() => { setActiveTab('tasks'); setFilterStatus('monitoring'); setShowUsersPanel(false); setShowDashboard(false); setSidebarOpen(false); }} className="w-full flex items-center justify-between px-3 py-2 rounded-full text-sm" style={{ background: activeTab === 'tasks' && filterStatus === 'monitoring' ? '#e0f7fa' : 'transparent', color: '#202124' }}><div className="flex items-center gap-3 pl-2"><Eye size={16} style={{ color: '#00acc1' }} /><span>{t.monitoring}</span></div><span style={{ color: '#5f6368' }}>{monitoringTasks.length}</span></button>
+            <button onClick={() => { setActiveTab('tasks'); setFilterStatus('closed'); setShowUsersPanel(false); setShowDashboard(false); setSidebarOpen(false); }} className="w-full flex items-center justify-between px-3 py-2 rounded-full text-sm" style={{ background: activeTab === 'tasks' && filterStatus === 'closed' ? '#e6f4ea' : 'transparent', color: '#202124' }}><div className="flex items-center gap-3 pl-2"><CheckCircle size={16} style={{ color: '#34a853' }} /><span>{t.closed}</span></div><span style={{ color: '#5f6368' }}>{closedTasks.length}</span></button>
           </div>
-          {isManager && <button onClick={() => { setShowUsersPanel(true); setSelectedTask(null); setSidebarOpen(false); }} className="w-full flex items-center gap-3 px-3 py-2 rounded-full text-sm mt-4" style={{ background: showUsersPanel ? '#e8f0fe' : 'transparent', color: showUsersPanel ? '#1a73e8' : '#202124' }}><Users size={18} style={{ color: '#1a73e8' }} /><span>{t.users}</span></button>}
+          
+          {isManager && (
+            <div className="mt-4 space-y-0.5">
+              <button onClick={() => { setShowDashboard(true); setShowUsersPanel(false); setSelectedTask(null); setSidebarOpen(false); }} className="w-full flex items-center gap-3 px-3 py-2 rounded-full text-sm" style={{ background: showDashboard ? '#e8f0fe' : 'transparent', color: showDashboard ? '#1a73e8' : '#202124' }}><BarChart3 size={18} style={{ color: '#1a73e8' }} /><span>{t.dashboard}</span></button>
+              <button onClick={() => { setShowUsersPanel(true); setShowDashboard(false); setSelectedTask(null); setSidebarOpen(false); }} className="w-full flex items-center gap-3 px-3 py-2 rounded-full text-sm" style={{ background: showUsersPanel ? '#e8f0fe' : 'transparent', color: showUsersPanel ? '#1a73e8' : '#202124' }}><Users size={18} style={{ color: '#1a73e8' }} /><span>{t.users}</span></button>
+            </div>
+          )}
+          
           <div className="mt-4 mx-2 p-3 rounded-lg text-xs hidden lg:block" style={{ background: '#f1f3f4' }}><p className="mb-1.5" style={{ color: '#5f6368' }}>{t.formEn}</p><button onClick={copyLink} className="w-full flex items-center gap-2 px-2 py-1.5 rounded hover:bg-gray-200"><code className="flex-1 text-xs truncate" style={{ color: '#1a73e8' }}>/request</code>{copied ? <Check size={14} style={{ color: '#34a853' }} /> : <Copy size={14} style={{ color: '#5f6368' }} />}</button></div>
           <QuickLinksSection currentUser={currentUser} t={t} />
         </div>
@@ -1189,36 +1323,28 @@ export default function TaskApp() {
           <div className="flex items-center gap-2 min-w-0">
             <button onClick={() => setSidebarOpen(true)} className="p-2 rounded-full hover:bg-gray-100 lg:hidden flex-shrink-0" style={{ color: '#5f6368' }}><Menu size={22} /></button>
             <div className="min-w-0">
-              <h2 className="text-base lg:text-lg font-medium truncate" style={{ color: '#202124' }}>{showUsersPanel ? t.usersPanel : activeTab === 'pending' ? t.pendingApproval : filterStatus === 'active' ? t.activeTasks : filterStatus === 'open' ? t.openTasks : filterStatus === 'longterm' ? t.longtermTasks : filterStatus === 'paused' ? t.pausedTasks : filterStatus === 'monitoring' ? t.monitoringTasks : t.closedTasks}</h2>
-              {filterPerson !== 'all' && !showUsersPanel && <p className="text-xs" style={{ color: '#5f6368' }}>{t.filter}: {teamMembers.find(m => m.id === filterPerson)?.name}</p>}
+              <h2 className="text-base lg:text-lg font-medium truncate" style={{ color: '#202124' }}>{showDashboard ? t.dashboardTitle : showUsersPanel ? t.usersPanel : activeTab === 'pending' ? t.pendingApproval : filterStatus === 'active' ? t.activeTasks : filterStatus === 'open' ? t.openTasks : filterStatus === 'longterm' ? t.longtermTasks : filterStatus === 'paused' ? t.pausedTasks : filterStatus === 'monitoring' ? t.monitoringTasks : t.closedTasks}</h2>
+              {filterPerson !== 'all' && !showUsersPanel && !showDashboard && <p className="text-xs" style={{ color: '#5f6368' }}>{t.filter}: {teamMembers.find(m => m.id === filterPerson)?.name}</p>}
             </div>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
-            <NotificationBell 
-              tasks={tasks}
-              currentUser={currentUser}
-              readTimestamps={readTimestamps}
-              teamMembers={teamMembers}
-              onSelectTask={handleSelectTask}
-              t={t}
-              lang={lang}
-            />
-            
-            {!showUsersPanel && activeTab === 'tasks' && (
+            <NotificationBell tasks={tasks} currentUser={currentUser} readTimestamps={readTimestamps} teamMembers={teamMembers} onSelectTask={handleSelectTask} t={t} lang={lang} />
+            {!showUsersPanel && !showDashboard && activeTab === 'tasks' && (
               <SortDropdown value={sortBy} onChange={setSortBy} t={t} />
             )}
-            {!showUsersPanel && <><button onClick={loadTasks} className="p-2 rounded-full hover:bg-gray-100" style={{ color: '#5f6368' }}><Loader2 size={18} className={loading ? 'animate-spin' : ''} /></button>{activeTab === 'tasks' && <button onClick={() => setShowNewTask(true)} className="flex items-center gap-2 px-3 lg:px-4 py-2 rounded-lg font-medium text-sm" style={{ background: '#1a73e8', color: 'white' }}><Plus size={18} /> <span className="hidden sm:inline">{t.newTask}</span></button>}</>}
+            {!showUsersPanel && !showDashboard && <><button onClick={loadTasks} className="p-2 rounded-full hover:bg-gray-100" style={{ color: '#5f6368' }}><Loader2 size={18} className={loading ? 'animate-spin' : ''} /></button>{activeTab === 'tasks' && <button onClick={() => setShowNewTask(true)} className="flex items-center gap-2 px-3 lg:px-4 py-2 rounded-lg font-medium text-sm" style={{ background: '#1a73e8', color: 'white' }}><Plus size={18} /> <span className="hidden sm:inline">{t.newTask}</span></button>}</>}
           </div>
         </header>
         <div className="flex-1 overflow-y-auto p-3 lg:p-4">
-          {showUsersPanel ? null : activeTab === 'pending' && isManager ? <PendingView tasks={pendingTasks} approveTask={approveTask} deleteTask={deleteTask} currentUser={currentUser} t={t} lang={lang} teamMembers={teamMembers} /> : (
-            <div className="max-w-4xl mx-auto">{filteredTasks.length === 0 ? <div className="text-center py-16"><CheckCircle size={48} className="mx-auto mb-4" style={{ color: '#34a853', opacity: 0.4 }} /><p style={{ color: '#5f6368' }}>{t.noTasksToShow}</p></div> : <div className="space-y-1">{filteredTasks.map(task => <TaskItem key={task.id} task={task} isSelected={selectedTask?.id === task.id} onClick={() => handleSelectTask(task)} onStatusChange={(s) => updateTask(task.id, { status: s })} onDragStart={handleDragStart} onDragOver={handleDragOver} onDrop={handleDrop} onDragEnd={handleDragEnd} isDragging={draggedTask?.id === task.id} dragOverId={dragOverId} currentUser={currentUser} readTimestamps={readTimestamps} seenTaskIds={seenTaskIds} lang={lang} t={t} teamMembers={teamMembers} />)}</div>}</div>
+          {showDashboard || showUsersPanel ? null : activeTab === 'pending' && isManager ? <PendingView tasks={pendingTasks} approveTask={approveTask} deleteTask={deleteTask} currentUser={currentUser} t={t} lang={lang} teamMembers={teamMembers} /> : (
+            <div className="max-w-4xl mx-auto">{filteredTasks.length === 0 ? <div className="text-center py-16"><CheckCircle size={48} className="mx-auto mb-4" style={{ color: '#34a853', opacity: 0.4 }} /><p style={{ color: '#5f6368' }}>{t.noTasksToShow}</p></div> : <div className="space-y-1">{filteredTasks.map((task, index) => <TaskItem key={task.id} task={task} isSelected={selectedTask?.id === task.id} onClick={() => handleSelectTask(task)} onStatusChange={(s) => updateTask(task.id, { status: s })} onMoveUp={() => moveTask(task.id, 'up')} onMoveDown={() => moveTask(task.id, 'down')} showMoveButtons={sortBy === 'manual'} currentUser={currentUser} readTimestamps={readTimestamps} seenTaskIds={seenTaskIds} lang={lang} t={t} teamMembers={teamMembers} />)}</div>}</div>
           )}
         </div>
       </main>
       
-      {showUsersPanel && <UsersPanel teamMembers={teamMembers} onUpdate={reloadTeamMembers} onClose={() => setShowUsersPanel(false)} t={t} />}
-      {selectedTask && !showUsersPanel && <TaskDetail task={selectedTask} updateTask={updateTask} deleteTask={deleteTask} onClose={() => setSelectedTask(null)} currentUser={currentUser} isManager={isManager} onMarkUnread={handleMarkUnread} readTimestamps={readTimestamps} t={t} lang={lang} teamMembers={teamMembers} />}
+      {showDashboard && <DashboardPanel tasks={tasks} teamMembers={teamMembers} onClose={() => setShowDashboard(false)} t={t} lang={lang} />}
+      {showUsersPanel && !showDashboard && <UsersPanel teamMembers={teamMembers} onUpdate={reloadTeamMembers} onClose={() => setShowUsersPanel(false)} t={t} />}
+      {selectedTask && !showUsersPanel && !showDashboard && <TaskDetail task={selectedTask} updateTask={updateTask} deleteTask={deleteTask} onClose={() => setSelectedTask(null)} currentUser={currentUser} isManager={isManager} onMarkUnread={handleMarkUnread} readTimestamps={readTimestamps} t={t} lang={lang} teamMembers={teamMembers} />}
       {showNewTask && <NewTaskModal onClose={() => setShowNewTask(false)} onSave={addTask} currentUser={currentUser} restrictedMarket={restrictedMarket} t={t} lang={lang} teamMembers={teamMembers} />}
     </div>
   );
