@@ -21,25 +21,25 @@ const PL_SUBCATEGORIES = [
 ];
 
 const PRIORITIES = [
-  { id: null, name: 'Brak', nameEn: 'None', color: '#9aa0a6', bg: '#f1f3f4' },
-  { id: 'low', name: 'Niski', nameEn: 'Low', color: '#34a853', bg: '#e6f4ea' },
-  { id: 'medium', name: 'Średni', nameEn: 'Medium', color: '#fbbc04', bg: '#fef7e0' },
-  { id: 'high', name: 'Wysoki', nameEn: 'High', color: '#ea4335', bg: '#fce8e6' },
-  { id: 'urgent', name: 'Pilny', nameEn: 'Urgent', color: '#d93025', bg: '#fce8e6' },
+  { id: null, name: 'Brak', nameEn: 'None', color: '#9ca3af', bg: '#f3f4f6' },
+  { id: 'low', name: 'Niski', nameEn: 'Low', color: '#16a34a', bg: '#f0fdf4' },
+  { id: 'medium', name: 'Średni', nameEn: 'Medium', color: '#ca8a04', bg: '#fefce8' },
+  { id: 'high', name: 'Wysoki', nameEn: 'High', color: '#ef4444', bg: '#fef2f2' },
+  { id: 'urgent', name: 'Pilny', nameEn: 'Urgent', color: '#dc2626', bg: '#fef2f2' },
 ];
 
 const PRIORITY_ORDER = { urgent: 0, high: 1, medium: 2, low: 3, null: 4 };
 const TAG_COLORS = ['#4285f4', '#a142f4', '#34a853', '#fbbc04', '#ea4335', '#e91e63', '#00acc1', '#ff7043', '#8d6e63', '#607d8b'];
 
 const STATUSES = [
-  { id: 'pending', name: 'Oczekujące', nameEn: 'Pending', icon: AlertCircle, color: '#fbbc04', bg: '#fef7e0' },
-  { id: 'open', name: 'Otwarte', nameEn: 'Open', icon: Circle, color: '#4285f4', bg: '#e8f0fe' },
-  { id: 'longterm', name: 'Long-term', nameEn: 'Long-term', icon: Clock, color: '#a142f4', bg: '#f3e8fd' },
-  { id: 'paused', name: 'Wstrzymane', nameEn: 'Paused', icon: Pause, color: '#ff7043', bg: '#fff3e0' },
-  { id: 'monitoring', name: 'Do obserwacji', nameEn: 'Monitoring', icon: Eye, color: '#00acc1', bg: '#e0f7fa' },
-  { id: 'approval', name: 'Do akceptacji', nameEn: 'For approval', icon: ClipboardCheck, color: '#0d9488', bg: '#ccfbf1' },
-  { id: 'ideas', name: 'Pomysły', nameEn: 'Ideas', icon: Lightbulb, color: '#f9ab00', bg: '#fef9e7' },
-  { id: 'closed', name: 'Zamknięte', nameEn: 'Closed', icon: CheckCircle, color: '#34a853', bg: '#e6f4ea' },
+  { id: 'pending', name: 'Oczekujące', nameEn: 'Pending', icon: AlertCircle, color: '#d97706', bg: '#fefce8' },
+  { id: 'open', name: 'Otwarte', nameEn: 'Open', icon: Circle, color: '#2563eb', bg: '#eff6ff' },
+  { id: 'longterm', name: 'Long-term', nameEn: 'Long-term', icon: Clock, color: '#7c3aed', bg: '#f5f3ff' },
+  { id: 'paused', name: 'Wstrzymane', nameEn: 'Paused', icon: Pause, color: '#ea580c', bg: '#fff7ed' },
+  { id: 'monitoring', name: 'Do obserwacji', nameEn: 'Monitoring', icon: Eye, color: '#0891b2', bg: '#ecfeff' },
+  { id: 'approval', name: 'Do akceptacji', nameEn: 'For approval', icon: ClipboardCheck, color: '#0d9488', bg: '#f0fdfa' },
+  { id: 'ideas', name: 'Pomysły', nameEn: 'Ideas', icon: Lightbulb, color: '#ca8a04', bg: '#fefce8' },
+  { id: 'closed', name: 'Zamknięte', nameEn: 'Closed', icon: CheckCircle, color: '#16a34a', bg: '#f0fdf4' },
 ];
 
 const COLORS = ['#4285f4', '#a142f4', '#34a853', '#fbbc04', '#ea4335', '#e91e63', '#00acc1', '#ff7043', '#8d6e63', '#607d8b'];
