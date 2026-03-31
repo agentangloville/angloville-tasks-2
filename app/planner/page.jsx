@@ -5,7 +5,7 @@ import {
   Plus, X, Check, Edit3, Trash2, ChevronLeft, ChevronRight,
   Calendar, List, Mail, MessageSquare, Phone, Clock,
   Filter, Loader2, LogOut, Lock, Menu, Repeat,
-  CheckCircle, Circle, XCircle, ExternalLink, Users, Download, Table2
+  CheckCircle, Circle, XCircle, ExternalLink, Users, Download
 } from 'lucide-react';
 import { getTeamMembers } from '../../lib/supabase';
 import {
@@ -74,7 +74,7 @@ const T = {
     taskLink: 'Link do taska', taskLinkPlaceholder: 'https://...vercel.app/ (opcjonalnie)',
     backToTasks: '← Taskery', selectTools: 'Wybierz...',
     exportBtn: 'Eksport', exportTitle: 'Eksportuj harmonogram', exportMarkets: 'Rynki', exportStatuses: 'Statusy', exportChannels: 'Kanały', exportRange: 'Zakres dat', exportDownload: 'Pobierz CSV', exportAll: 'Wszystkie',
-    table: 'Tabela', saved: 'Zapisano', clickToEdit: 'Kliknij aby edytować',    editThis: 'Tylko tę wysyłkę', editAll: 'Całą serię',
+    editThis: 'Tylko tę wysyłkę', editAll: 'Całą serię',
     deleteThis: 'Tylko tę', deleteAll: 'Całą serię',
     editRecurring: 'Edytuj cykliczną', deleteRecurring: 'Usuń cykliczną',
     noEndDefault: 'Brak = rok do przodu',
@@ -95,7 +95,7 @@ const T = {
     taskLink: 'Related task', taskLinkPlaceholder: 'https://...vercel.app/ (optional)',
     backToTasks: '← Tasks', selectTools: 'Select...',
     exportBtn: 'Export', exportTitle: 'Export schedule', exportMarkets: 'Markets', exportStatuses: 'Statuses', exportChannels: 'Channels', exportRange: 'Date range', exportDownload: 'Download CSV', exportAll: 'All',
-    table: 'Table', saved: 'Saved', clickToEdit: 'Click to edit',    editThis: 'This send only', editAll: 'All in series',
+    editThis: 'This send only', editAll: 'All in series',
     deleteThis: 'This only', deleteAll: 'Entire series',
     editRecurring: 'Edit recurring', deleteRecurring: 'Delete recurring',
     noEndDefault: 'None = 1 year ahead',
@@ -732,167 +732,6 @@ function LoginScreen({ onLogin, teamMembers }) {
   return <div className="min-h-screen flex items-center justify-center p-4" style={{ background: '#f8f9fa' }}><div className="bg-white rounded-2xl p-8 w-full max-w-sm" style={{ boxShadow: '0 1px 3px 0 rgba(60,64,67,.3), 0 4px 8px 3px rgba(60,64,67,.15)' }}><div className="text-center mb-8"><img src="https://angloville.com/wp-content/themes/angloville/assets/images/logo.svg" alt="Angloville" className="h-10 mx-auto mb-4" /><h1 className="text-xl font-semibold" style={{ color: '#111827' }}>Planner wysyłek</h1><p className="text-sm mt-1" style={{ color: '#6b7280' }}>Email · SMS · WhatsApp · Infomeetingi</p></div><form onSubmit={hl} className="space-y-4">{err&&<div className="p-3 rounded-lg text-sm text-center" style={{ background: '#fef2f2', color: '#dc2626' }}>{err}</div>}<div><label className="block text-sm font-medium mb-1.5" style={{ color: '#111827' }}>Osoba</label><select value={su} onChange={e=>{setSu(e.target.value);setErr('');}} className="w-full px-4 py-3 border rounded-lg text-sm" style={{ borderColor: '#d1d5db' }}><option value="">Wybierz...</option>{am.map(m=><option key={m.id} value={m.id}>{m.name}</option>)}</select></div><div><label className="block text-sm font-medium mb-1.5" style={{ color: '#111827' }}>PIN</label><input type="password" value={pin} onChange={e=>{setPin(e.target.value.replace(/\D/g,'').slice(0,4));setErr('');}} className="w-full px-4 py-3 border rounded-lg text-sm text-center tracking-widest" style={{ borderColor: '#d1d5db' }} placeholder="••••" maxLength={4} inputMode="numeric" /></div><button type="submit" disabled={ld} className="w-full py-3 rounded-lg font-medium flex items-center justify-center gap-2 disabled:opacity-70" style={{ background: '#2563eb', color: 'white' }}>{ld?<Loader2 size={18} className="animate-spin" />:<Lock size={18} />}{ld?'...':'Zaloguj się'}</button></form></div></div>;
 }
 
-// ── Table View (inline editable spreadsheet) ─────────
-
-function TableView({ sends, onUpdate, t, lang }) {
-  const [editCell, setEditCell] = useState(null);
-  const [editValue, setEditValue] = useState('');
-  const [savedId, setSavedId] = useState(null);
-  const [titleFilter, setTitleFilter] = useState('');
-  const [marketFilter, setMarketFilter] = useState('all');
-  const [statusFilter, setStatusFilter] = useState('all');
-
-  const filtered = useMemo(() => {
-    return sends.filter(s => {
-      if (titleFilter && !s.title.toLowerCase().includes(titleFilter.toLowerCase())) return false;
-      if (marketFilter !== 'all' && s.market !== marketFilter) return false;
-      if (statusFilter !== 'all' && s.status !== statusFilter) return false;
-      return true;
-    }).sort((a, b) => a.sendDate.localeCompare(b.sendDate) || (a.sendTime||'').localeCompare(b.sendTime||''));
-  }, [sends, titleFilter, marketFilter, statusFilter]);
-
-  const startEdit = (send, field) => { setEditCell({ id: send.id, field }); setEditValue(send[field] || ''); };
-  const saveEdit = useCallback(() => { if (!editCell) return; onUpdate(editCell.id, { [editCell.field]: editValue }); setSavedId(editCell.id); setTimeout(() => setSavedId(null), 1200); setEditCell(null); }, [editCell, editValue, onUpdate]);
-  const cancelEdit = () => { setEditCell(null); };
-  const handleKey = (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); saveEdit(); } if (e.key === 'Escape') { e.preventDefault(); cancelEdit(); } };
-  const handleBlur = (e) => {
-    // Only save if clicking outside the table editing area
-    const related = e.relatedTarget;
-    if (related && related.closest && related.closest('.av-table')) return;
-    saveEdit();
-  };
-  const isEd = (id, field) => editCell?.id === id && editCell?.field === field;
-
-  // Stable edit input — not re-rendered on parent state changes
-  const EditInput = ({ field, mono }) => {
-    const [localVal, setLocalVal] = useState(editValue);
-    const inputRef = React.useRef(null);
-    const isSms = sends.find(s => s.id === editCell?.id)?.channel === 'sms';
-    const showCounter = isSms && (field === 'notes' || field === 'subjectLine');
-    const charLimit = 160;
-    const over = showCounter && localVal.length > charLimit;
-
-    useEffect(() => { setLocalVal(editValue); }, [editValue]);
-
-    const onLocalChange = (e) => {
-      setLocalVal(e.target.value);
-      setEditValue(e.target.value);
-    };
-
-    const inputStyle = {
-      width: '100%', padding: '4px 8px', border: `1.5px solid ${over ? '#ef4444' : '#2563eb'}`,
-      borderRadius: 4, fontSize: 12, fontFamily: mono ? 'monospace' : 'inherit',
-      direction: 'ltr', textAlign: 'left', outline: 'none', background: 'white',
-      color: '#111827', boxSizing: 'border-box',
-    };
-
-    return (
-      <div style={{ direction: 'ltr', textAlign: 'left' }}>
-        {field === 'notes' ? (
-          <textarea ref={inputRef} value={localVal} onChange={onLocalChange} onKeyDown={handleKey} onBlur={handleBlur}
-            style={{ ...inputStyle, minHeight: 56, resize: 'vertical' }} autoFocus />
-        ) : (
-          <input ref={inputRef} type={field === 'sendDate' ? 'date' : field === 'sendTime' ? 'time' : 'text'}
-            value={localVal} onChange={onLocalChange} onKeyDown={handleKey} onBlur={handleBlur}
-            style={inputStyle} autoFocus />
-        )}
-        {showCounter && (
-          <div style={{ textAlign: 'right', marginTop: 2 }}>
-            <span style={{ fontSize: 11, fontWeight: 500, color: over ? '#ef4444' : localVal.length > 140 ? '#f59e0b' : '#9ca3af' }}>
-              {localVal.length}/{charLimit}
-            </span>
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  const Cell = ({ send, field, mono }) => {
-    const val = send[field] || '';
-    const isSms = send.channel === 'sms';
-    const showCounter = isSms && (field === 'notes' || field === 'subjectLine');
-    const charLimit = 160;
-
-    if (isEd(send.id, field)) {
-      return <EditInput field={field} mono={mono} />;
-    }
-
-    const over = showCounter && val.length > charLimit;
-    return (
-      <div onClick={() => startEdit(send, field)}
-        style={{ padding: '6px 8px', borderRadius: 4, cursor: 'pointer', fontSize: 12, minHeight: 28,
-          color: val ? (over ? '#ef4444' : '#111827') : '#d1d5db',
-          fontFamily: mono ? 'monospace' : 'inherit',
-          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-          direction: 'ltr', textAlign: 'left' }}
-        title={val || t.clickToEdit}
-        onMouseEnter={e => e.currentTarget.style.background = '#eff6ff'}
-        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-        {val || '—'}
-        {over && <span style={{ marginLeft: 4, fontSize: 11, fontWeight: 700, color: '#ef4444' }}>({val.length}/{charLimit})</span>}
-      </div>
-    );
-  };
-
-  const StatusCell = ({ send }) => {
-    if (isEd(send.id, 'status')) return <select value={editValue} onChange={e => { setEditValue(e.target.value); setTimeout(saveEdit, 0); }} onBlur={handleBlur} autoFocus style={{ width: '100%', padding: '4px 6px', border: '1.5px solid #2563eb', borderRadius: 4, fontSize: 12, outline: 'none' }}>{STATUSES.map(s => <option key={s.id} value={s.id}>{lang==='en'?s.nameEn:s.name}</option>)}</select>;
-    const st = STATUSES.find(s => s.id === send.status);
-    return <div onClick={() => startEdit(send, 'status')} style={{ cursor: 'pointer', padding: '4px 0' }}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 8px', borderRadius: 10, fontSize: 11, fontWeight: 500, background: st?.bg, color: st?.color }}>{lang==='en'?st?.nameEn:st?.name}</span></div>;
-  };
-
-  const MarketCell = ({ send }) => {
-    if (isEd(send.id, 'market')) return <select value={editValue} onChange={e => { setEditValue(e.target.value); setTimeout(saveEdit, 0); }} onBlur={handleBlur} autoFocus style={{ width: '100%', padding: '4px 6px', border: '1.5px solid #2563eb', borderRadius: 4, fontSize: 12, outline: 'none' }}>{MARKETS.map(m => <option key={m.id} value={m.id}>{m.icon} {m.name}</option>)}</select>;
-    const mk = MARKETS.find(m => m.id === send.market);
-    return <div onClick={() => startEdit(send, 'market')} style={{ cursor: 'pointer', fontSize: 12, padding: '6px 8px', borderRadius: 4 }} onMouseEnter={e => e.currentTarget.style.background='#eff6ff'} onMouseLeave={e => e.currentTarget.style.background='transparent'}>{mk?.icon} {mk?.name}</div>;
-  };
-
-  return (
-    <div>
-      <div className="flex items-center gap-2 mb-3 flex-wrap">
-        <input type="text" value={titleFilter} onChange={e => setTitleFilter(e.target.value)} className="px-3 py-1.5 border rounded-lg text-xs" style={{ borderColor: '#d1d5db', width: 200 }} placeholder={lang==='en'?'Filter by title...':'Filtruj po tytule...'} />
-        <select value={marketFilter} onChange={e => setMarketFilter(e.target.value)} className="px-2 py-1.5 border rounded-lg text-xs" style={{ borderColor: '#d1d5db' }}><option value="all">{t.allMarkets}</option>{MARKETS.map(m => <option key={m.id} value={m.id}>{m.icon} {m.name}</option>)}</select>
-        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="px-2 py-1.5 border rounded-lg text-xs" style={{ borderColor: '#d1d5db' }}><option value="all">{lang==='en'?'All statuses':'Wszystkie statusy'}</option>{STATUSES.map(s => <option key={s.id} value={s.id}>{lang==='en'?s.nameEn:s.name}</option>)}</select>
-        <span className="text-xs" style={{ color: '#9ca3af' }}>{filtered.length} {lang==='en'?'rows':'wierszy'}</span>
-      </div>
-      <div className="bg-white rounded-xl border overflow-x-auto" style={{ borderColor: '#e5e7eb' }}>
-        <style>{`
-          .av-table input, .av-table textarea, .av-table select {
-            transition: none !important;
-            direction: ltr !important;
-            text-align: left !important;
-          }
-        `}</style>
-        <table className="w-full av-table" style={{ minWidth: 950 }}>
-          <thead>
-            <tr style={{ background: '#f8f9fa', borderBottom: '1px solid #e5e7eb' }}>
-              <th className="text-left px-3 py-2.5 text-xs font-semibold sticky left-0 bg-gray-50" style={{ color: '#6b7280', width: 100 }}>{t.sendDate}</th>
-              <th className="text-left px-3 py-2.5 text-xs font-semibold" style={{ color: '#6b7280', width: 55 }}>{t.sendTime}</th>
-              <th className="text-left px-3 py-2.5 text-xs font-semibold" style={{ color: '#6b7280', width: 200 }}>{t.title}</th>
-              <th className="text-left px-3 py-2.5 text-xs font-semibold" style={{ color: '#6b7280', width: 110 }}>{t.market}</th>
-              <th className="text-left px-3 py-2.5 text-xs font-semibold" style={{ color: '#6b7280', width: 110 }}>{t.status}</th>
-              <th className="text-left px-3 py-2.5 text-xs font-semibold" style={{ color: '#6b7280', width: 200 }}>{t.subjectLine}</th>
-              <th className="text-left px-3 py-2.5 text-xs font-semibold" style={{ color: '#6b7280' }}>{t.notes}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.map(s => (
-              <tr key={s.id} className="border-b hover:bg-gray-50/50" style={{ borderColor: '#f3f4f6', background: savedId===s.id?'#f0fdf4':'transparent', transition: 'background 0.3s' }}>
-                <td className="px-1 py-0.5 sticky left-0 bg-white"><Cell send={s} field="sendDate" mono /></td>
-                <td className="px-1 py-0.5"><Cell send={s} field="sendTime" mono /></td>
-                <td className="px-1 py-0.5"><Cell send={s} field="title" /></td>
-                <td className="px-1 py-0.5"><MarketCell send={s} /></td>
-                <td className="px-1 py-0.5"><StatusCell send={s} /></td>
-                <td className="px-1 py-0.5"><Cell send={s} field="subjectLine" /></td>
-                <td className="px-1 py-0.5"><Cell send={s} field="notes" /></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        {filtered.length === 0 && <div className="text-center py-12"><p className="text-sm" style={{ color: '#9ca3af' }}>{t.noSends}</p></div>}
-      </div>
-    </div>
-  );
-}
 
 // ── Export Modal ─────────────────────────────────────
 
@@ -1245,13 +1084,11 @@ export default function PlannerPage() {
               </div>
             )}
             {view==='list' && <h2 className="text-sm lg:text-base font-semibold" style={{ color: '#111827' }}>{t.planner}</h2>}
-            {view==='table' && <h2 className="text-sm lg:text-base font-semibold" style={{ color: '#111827' }}>{t.planner} — {t.table}</h2>}
           </div>
           <div className="flex items-center gap-2">
             <div className="hidden lg:flex rounded-lg overflow-hidden border" style={{ borderColor: '#d1d5db' }}>
               <button onClick={() => setView('calendar')} className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium" style={{ background: view==='calendar'?'#2563eb':'white', color: view==='calendar'?'white':'#6b7280' }}><Calendar size={14} /><span className="hidden sm:inline">{t.calendar}</span></button>
               <button onClick={() => setView('list')} className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium" style={{ background: view==='list'?'#2563eb':'white', color: view==='list'?'white':'#6b7280', borderLeft: '1px solid #d1d5db' }}><List size={14} /><span className="hidden sm:inline">{t.list}</span></button>
-              <button onClick={() => setView('table')} className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium" style={{ background: view==='table'?'#2563eb':'white', color: view==='table'?'white':'#6b7280', borderLeft: '1px solid #d1d5db' }}><Table2 size={14} /><span className="hidden sm:inline">{t.table}</span></button>
             </div>
             <button onClick={loadSends} className="p-2 rounded-full hover:bg-gray-100" style={{ color: '#6b7280' }}><Loader2 size={18} /></button>
             <button onClick={() => setShowExport(true)} className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium border hover:bg-gray-50" style={{ borderColor: '#d1d5db', color: '#6b7280' }}><Download size={14} /><span className="hidden sm:inline">{t.exportBtn}</span></button>
@@ -1268,8 +1105,6 @@ export default function PlannerPage() {
           <div className="hidden lg:block">
             {view==='calendar'
               ? <CalendarView sends={calendarSends} year={calYear} month={calMonth} onSelectDay={d => {setSelectedDate(d);setSelectedSend(null);}} onAddSend={d => {setEditSend({ _prefillDate: d });setShowForm(true);}} onSelectSend={setSelectedSend} selectedDate={selectedDate} lang={lang} />
-              : view==='table'
-              ? <TableView sends={filteredSends} onUpdate={handleUpdateSend} t={t} lang={lang} />
               : <div className="max-w-4xl mx-auto"><ListView sends={filteredSends} onSelectSend={setSelectedSend} selectedId={selectedSend?.id} teamMembers={teamMembers} t={t} lang={lang} /></div>
             }
           </div>
