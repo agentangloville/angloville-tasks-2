@@ -369,8 +369,23 @@ function SendFormModal({ send, onSave, onClose, currentUser, teamMembers, t, lan
           <LinksEditor links={f.links} onChange={links => sF({...f, links})} t={t} />
 
           <div>
-            <label className="text-sm font-medium block mb-1.5" style={{ color: '#111827' }}>{t.notes}</label>
-            <textarea value={f.notes} onChange={e => sF({...f, notes: e.target.value})} className="w-full px-3 py-2 border rounded-lg text-sm resize-none" style={{ borderColor: '#d1d5db' }} rows={3} placeholder={t.notesPlaceholder} />
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="text-sm font-medium" style={{ color: '#111827' }}>{t.notes}</label>
+              {f.channel === 'sms' && (
+                <span className="text-xs font-medium" style={{ color: f.notes.length > 160 ? '#ef4444' : f.notes.length > 140 ? '#f59e0b' : '#9ca3af' }}>
+                  {f.notes.length}/160
+                </span>
+              )}
+            </div>
+            <textarea value={f.notes} onChange={e => sF({...f, notes: e.target.value})}
+              className="w-full px-3 py-2 border rounded-lg text-sm resize-none"
+              style={{ borderColor: f.channel === 'sms' && f.notes.length > 160 ? '#ef4444' : '#d1d5db' }}
+              rows={3} placeholder={f.channel === 'sms' ? (lang === 'en' ? 'SMS text (max 160 chars, no Polish chars)...' : 'Treść SMS (max 160 znaków, bez polskich znaków)...') : t.notesPlaceholder} />
+            {f.channel === 'sms' && f.notes.length > 160 && (
+              <p className="text-xs mt-1" style={{ color: '#ef4444' }}>
+                {lang === 'en' ? `⚠ ${f.notes.length - 160} characters over limit — will be sent as 2 SMS` : `⚠ ${f.notes.length - 160} znaków ponad limit — zostanie wysłany jako 2 SMS`}
+              </p>
+            )}
           </div>
         </div>
         <div className="p-5 border-t flex justify-end gap-3" style={{ borderColor: '#e5e7eb' }}>
@@ -469,7 +484,14 @@ function SendDetail({ send, onUpdate, onDelete, onEdit, onClose, onSelectSend, a
         {send.subjectLine && <div><label className="text-xs font-medium block mb-1" style={{ color: '#6b7280' }}>{t.subjectLine}</label><div className="px-3 py-2 rounded-lg text-sm" style={{ background: '#f3f4f6' }}>{send.subjectLine}</div></div>}
         <LinksDisplay links={send.links} />
         {send.taskLink && <div><label className="text-xs font-medium block mb-1" style={{ color: '#6b7280' }}>{t.taskLink}</label><a href={send.taskLink} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-blue-50 text-sm" style={{ color: '#2563eb' }}><ExternalLink size={13} /><span className="hover:underline">{lang==='en'?'Open task':'Otwórz task'}</span></a></div>}
-        {send.notes && <div><label className="text-xs font-medium block mb-1" style={{ color: '#6b7280' }}>{t.notes}</label><div className="px-3 py-2 rounded-lg text-sm whitespace-pre-wrap" style={{ background: '#f3f4f6', color: '#374151' }}>{send.notes}</div></div>}
+        {send.notes && <div>
+          <div className="flex items-center justify-between mb-1">
+            <label className="text-xs font-medium" style={{ color: '#6b7280' }}>{t.notes}</label>
+            {send.channel === 'sms' && <span className="text-xs font-medium" style={{ color: send.notes.length > 160 ? '#ef4444' : send.notes.length > 140 ? '#f59e0b' : '#9ca3af' }}>{send.notes.length}/160</span>}
+          </div>
+          <div className="px-3 py-2 rounded-lg text-sm whitespace-pre-wrap" style={{ background: send.channel === 'sms' && send.notes.length > 160 ? '#fef2f2' : '#f3f4f6', color: send.channel === 'sms' && send.notes.length > 160 ? '#ef4444' : '#374151' }}>{send.notes}</div>
+          {send.channel === 'sms' && send.notes.length > 160 && <p className="text-xs mt-1" style={{ color: '#ef4444' }}>⚠ {send.notes.length - 160} {lang==='en' ? 'chars over limit' : 'znaków ponad limit'}</p>}
+        </div>}
 
         {/* Series Timeline */}
         {seriesView.length > 0 && (
@@ -747,11 +769,11 @@ function TableView({ sends, onUpdate, t, lang }) {
         <div>
           {field === 'notes' ? (
             <textarea value={editValue} onChange={e => setEditValue(e.target.value)} onKeyDown={handleKey} onBlur={saveEdit}
-              className="w-full px-2 py-1 border rounded text-xs resize-none" style={{ borderColor: over ? '#ef4444' : '#2563eb', minHeight: 56 }} autoFocus />
+              className="w-full px-2 py-1 border rounded text-xs resize-none" style={{ borderColor: over ? '#ef4444' : '#2563eb', minHeight: 56, direction: 'ltr', textAlign: 'left', unicodeBidi: 'plaintext' }} autoFocus />
           ) : (
             <input type={field === 'sendDate' ? 'date' : field === 'sendTime' ? 'time' : 'text'} value={editValue}
               onChange={e => setEditValue(e.target.value)} onKeyDown={handleKey} onBlur={saveEdit}
-              className="w-full px-2 py-1 border rounded text-xs" style={{ borderColor: over ? '#ef4444' : '#2563eb' }} autoFocus />
+              className="w-full px-2 py-1 border rounded text-xs" style={{ borderColor: over ? '#ef4444' : '#2563eb', direction: 'ltr', textAlign: 'left' }} autoFocus />
           )}
           {showCounter && (
             <div className="flex justify-end mt-0.5">
@@ -795,7 +817,14 @@ function TableView({ sends, onUpdate, t, lang }) {
         <span className="text-xs" style={{ color: '#9ca3af' }}>{filtered.length} {lang==='en'?'rows':'wierszy'}</span>
       </div>
       <div className="bg-white rounded-xl border overflow-x-auto" style={{ borderColor: '#e5e7eb' }}>
-        <table className="w-full" style={{ minWidth: 950 }}>
+        <style>{`
+          .av-table input, .av-table textarea, .av-table select {
+            transition: none !important;
+            direction: ltr !important;
+            text-align: left !important;
+          }
+        `}</style>
+        <table className="w-full av-table" style={{ minWidth: 950 }}>
           <thead>
             <tr style={{ background: '#f8f9fa', borderBottom: '1px solid #e5e7eb' }}>
               <th className="text-left px-3 py-2.5 text-xs font-semibold sticky left-0 bg-gray-50" style={{ color: '#6b7280', width: 100 }}>{t.sendDate}</th>
