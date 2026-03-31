@@ -461,7 +461,7 @@ function Row({ label, children }) {
 
 // ── Calendar View ────────────────────────────────────
 
-function CalendarView({ sends, year, month, onSelectDay, onSelectSend, selectedDate, lang }) {
+function CalendarView({ sends, year, month, onSelectDay, onAddSend, onSelectSend, selectedDate, lang }) {
   const days = getMonthDays(year, month);
   const dayNames = lang==='en' ? DAYS_EN : DAYS_PL;
   const todayStr = fmt(new Date());
@@ -476,14 +476,21 @@ function CalendarView({ sends, year, month, onSelectDay, onSelectSend, selectedD
         {days.map((day, i) => {
           const ds = fmt(day.date); const ss = byDate[ds]||[]; const it = ds===todayStr; const iSel = ds===selectedDate;
           return (
-            <div key={i} onClick={() => onSelectDay(ds)} className="min-h-[90px] p-1 border-b border-r cursor-pointer transition-colors hover:bg-blue-50/30"
+            <div key={i} onClick={() => onSelectDay(ds)} className="group min-h-[90px] p-1 border-b border-r cursor-pointer transition-colors hover:bg-blue-50/30"
               style={{ borderColor: '#f3f4f6', background: iSel?'#eff6ff':it?'#fefce8':!day.cur?'#fafafa':'white' }}>
               <div className="flex items-center justify-between px-1 mb-0.5">
                 <span className={`text-xs font-medium ${it?'w-5 h-5 rounded-full flex items-center justify-center':''}`}
                   style={{ color: !day.cur?'#d1d5db':it?'white':'#111827', background: it?'#2563eb':'transparent', fontSize: '11px' }}>
                   {day.date.getDate()}
                 </span>
-                {ss.length > 0 && <span className="text-xs px-1 rounded" style={{ background: '#e5e7eb', color: '#6b7280', fontSize: '10px' }}>{ss.length}</span>}
+                <div className="flex items-center gap-1">
+                  {ss.length > 0 && <span className="text-xs px-1 rounded" style={{ background: '#e5e7eb', color: '#6b7280', fontSize: '10px' }}>{ss.length}</span>}
+                  <button onClick={e => { e.stopPropagation(); onAddSend(ds); }}
+                    className="w-5 h-5 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-blue-100"
+                    style={{ color: '#2563eb' }}>
+                    <Plus size={12} />
+                  </button>
+                </div>
               </div>
               <div className="space-y-0.5">
                 {ss.slice(0,3).map(s => {
@@ -775,7 +782,7 @@ export default function PlannerPage() {
 
         <div className="flex-1 overflow-y-auto p-3 lg:p-4">
           {view==='calendar'
-            ? <CalendarView sends={calendarSends} year={calYear} month={calMonth} onSelectDay={d => {setSelectedDate(d);setSelectedSend(null);setEditSend({ _prefillDate: d });setShowForm(true);}} onSelectSend={setSelectedSend} selectedDate={selectedDate} lang={lang} />
+            ? <CalendarView sends={calendarSends} year={calYear} month={calMonth} onSelectDay={d => {setSelectedDate(d);setSelectedSend(null);}} onAddSend={d => {setEditSend({ _prefillDate: d });setShowForm(true);}} onSelectSend={setSelectedSend} selectedDate={selectedDate} lang={lang} />
             : <div className="max-w-4xl mx-auto"><ListView sends={filteredSends} onSelectSend={setSelectedSend} selectedId={selectedSend?.id} teamMembers={teamMembers} t={t} lang={lang} /></div>
           }
         </div>
