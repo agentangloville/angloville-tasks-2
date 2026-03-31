@@ -76,7 +76,7 @@ const T = {
     editThis: 'Tylko tę wysyłkę', editAll: 'Całą serię',
     deleteThis: 'Tylko tę', deleteAll: 'Całą serię',
     editRecurring: 'Edytuj cykliczną', deleteRecurring: 'Usuń cykliczną',
-    noEndDefault: 'Brak = 3 miesiące do przodu',
+    noEndDefault: 'Brak = rok do przodu',
     optional: 'opcjonalnie',
   },
   en: {
@@ -96,7 +96,7 @@ const T = {
     editThis: 'This send only', editAll: 'All in series',
     deleteThis: 'This only', deleteAll: 'Entire series',
     editRecurring: 'Edit recurring', deleteRecurring: 'Delete recurring',
-    noEndDefault: 'None = 3 months ahead',
+    noEndDefault: 'None = 1 year ahead',
     optional: 'optional',
   },
 };
