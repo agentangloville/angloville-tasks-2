@@ -13,6 +13,7 @@ const MARKETS = [
   { id: 'ns', name: 'Native Speakers', nameEn: 'Native Speakers', icon: '🇬🇧' },
   { id: 'it', name: 'Włochy', nameEn: 'Italy', icon: '🇮🇹' },
   { id: 'exchange', name: 'Wymiana', nameEn: 'Exchange', icon: '🎓' },
+  { id: 'tefl', name: 'TEFL in Asia', nameEn: 'TEFL in Asia', icon: '🌏' },
 ];
 
 const PL_SUBCATEGORIES = [
