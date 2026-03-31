@@ -403,18 +403,25 @@ function SendFormModal({ send, onSave, onClose, currentUser, teamMembers, t, lan
 
           {/* Recurrence */}
           {!isEdit && (
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="text-sm font-medium block mb-1.5" style={{ color: '#111827' }}>{t.recurrence}</label>
-                <select value={f.recurrence || ''} onChange={e => sF({ ...f, recurrence: e.target.value || null })} className="w-full px-3 py-2 border rounded-lg text-sm" style={{ borderColor: '#d1d5db' }}>
-                  {RECURRENCE_OPTIONS.map(r => <option key={r.id || 'none'} value={r.id || ''}>{lang === 'en' ? r.nameEn : r.name}</option>)}
-                </select>
-              </div>
-              {f.recurrence && (
+            <div>
+              <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-sm font-medium block mb-1.5" style={{ color: '#111827' }}>{t.recurrenceEnd}</label>
-                  <input type="date" value={f.recurrenceEndDate || ''} onChange={e => sF({ ...f, recurrenceEndDate: e.target.value })} className="w-full px-3 py-2 border rounded-lg text-sm" style={{ borderColor: '#d1d5db' }} />
+                  <label className="text-sm font-medium block mb-1.5" style={{ color: '#111827' }}>{t.recurrence}</label>
+                  <select value={f.recurrence || ''} onChange={e => sF({ ...f, recurrence: e.target.value || null })} className="w-full px-3 py-2 border rounded-lg text-sm" style={{ borderColor: '#d1d5db' }}>
+                    {RECURRENCE_OPTIONS.map(r => <option key={r.id || 'none'} value={r.id || ''}>{lang === 'en' ? r.nameEn : r.name}</option>)}
+                  </select>
                 </div>
+                {f.recurrence && (
+                  <div>
+                    <label className="text-sm font-medium block mb-1.5" style={{ color: '#111827' }}>{t.recurrenceEnd} <span className="font-normal" style={{ color: '#9ca3af' }}>(opcjonalnie)</span></label>
+                    <input type="date" value={f.recurrenceEndDate || ''} onChange={e => sF({ ...f, recurrenceEndDate: e.target.value })} className="w-full px-3 py-2 border rounded-lg text-sm" style={{ borderColor: '#d1d5db' }} />
+                  </div>
+                )}
+              </div>
+              {f.recurrence && !f.recurrenceEndDate && (
+                <p className="text-xs mt-1.5" style={{ color: '#9ca3af' }}>
+                  {lang === 'en' ? 'No end date = generates for 3 months ahead' : 'Brak daty końca = generuje na 3 miesiące do przodu'}
+                </p>
               )}
             </div>
           )}
@@ -842,7 +849,7 @@ export default function PlannerPage() {
       const created = await createScheduledSend(data);
       if (created) {
         setSends(prev => [...prev, created]);
-        if (created.recurrence && created.recurrenceEndDate) {
+        if (created.recurrence) {
           const occurrences = await generateRecurrences(created);
           if (occurrences.length > 0) {
             setSends(prev => [...prev, ...occurrences]);
