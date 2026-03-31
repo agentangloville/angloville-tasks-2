@@ -382,13 +382,32 @@ function SendFormModal({ send, onSave, onClose, currentUser, teamMembers, t, lan
 
 // ── Send Detail Panel ────────────────────────────────
 
-function SendDetail({ send, onUpdate, onDelete, onEdit, onClose, teamMembers, t, lang }) {
+function SendDetail({ send, onUpdate, onDelete, onEdit, onClose, onSelectSend, allSends, teamMembers, t, lang }) {
   const ch = CHANNELS.find(c => c.id === send.channel);
   const tools = (send.tools||[]).map(id => TOOLS.find(t => t.id === id)).filter(Boolean);
   const mk = MARKETS.find(m => m.id === send.market);
   const st = STATUSES.find(s => s.id === send.status);
   const assigned = (send.assignees||[]).map(id => teamMembers.find(m => m.id === id)).filter(Boolean);
   const ChIcon = ch?.icon || Mail;
+
+  // Series siblings: find parent + all children
+  const seriesSiblings = useMemo(() => {
+    if (!isPartOfSeries(send)) return [];
+    const pid = getSeriesRoot(send);
+    return allSends
+      .filter(s => s.id === pid || s.parentId === pid)
+      .sort((a, b) => a.sendDate.localeCompare(b.sendDate));
+  }, [send, allSends]);
+
+  // Show 3 previous + current + 5 next
+  const seriesView = useMemo(() => {
+    if (!seriesSiblings.length) return [];
+    const idx = seriesSiblings.findIndex(s => s.id === send.id);
+    if (idx === -1) return seriesSiblings.slice(0, 9);
+    const start = Math.max(0, idx - 3);
+    const end = Math.min(seriesSiblings.length, idx + 6);
+    return seriesSiblings.slice(start, end);
+  }, [seriesSiblings, send.id]);
 
   return (
     <aside className="w-full lg:w-[420px] bg-white border-l flex flex-col overflow-hidden flex-shrink-0 fixed lg:static inset-0 z-40 lg:z-auto" style={{ borderColor: '#e5e7eb' }}>
@@ -450,6 +469,19 @@ function SendDetail({ send, onUpdate, onDelete, onEdit, onClose, teamMembers, t,
         <LinksDisplay links={send.links} />
         {send.taskLink && <div><label className="text-xs font-medium block mb-1" style={{ color: '#6b7280' }}>{t.taskLink}</label><a href={send.taskLink} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-blue-50 text-sm" style={{ color: '#2563eb' }}><ExternalLink size={13} /><span className="hover:underline">{lang==='en'?'Open task':'Otwórz task'}</span></a></div>}
         {send.notes && <div><label className="text-xs font-medium block mb-1" style={{ color: '#6b7280' }}>{t.notes}</label><div className="px-3 py-2 rounded-lg text-sm whitespace-pre-wrap" style={{ background: '#f3f4f6', color: '#374151' }}>{send.notes}</div></div>}
+
+        {/* Series Timeline */}
+        {seriesView.length > 0 && (
+          <SeriesTimeline
+            items={seriesView}
+            currentId={send.id}
+            totalCount={seriesSiblings.length}
+            onSelect={onSelectSend}
+            onUpdate={onUpdate}
+            t={t}
+            lang={lang}
+          />
+        )}
       </div>
     </aside>
   );
@@ -457,6 +489,105 @@ function SendDetail({ send, onUpdate, onDelete, onEdit, onClose, teamMembers, t,
 
 function Row({ label, children }) {
   return <div className="flex items-center justify-between"><span className="text-xs font-medium" style={{ color: '#6b7280' }}>{label}</span>{children}</div>;
+}
+
+function SeriesTimeline({ items, currentId, totalCount, onSelect, onUpdate, t, lang }) {
+  const [editingId, setEditingId] = useState(null);
+  const [editSubject, setEditSubject] = useState('');
+  const [editNotes, setEditNotes] = useState('');
+
+  const startEdit = (item) => {
+    setEditingId(item.id);
+    setEditSubject(item.subjectLine || '');
+    setEditNotes(item.notes || '');
+  };
+
+  const saveEdit = () => {
+    if (editingId) {
+      onUpdate(editingId, { subjectLine: editSubject, notes: editNotes });
+      setEditingId(null);
+    }
+  };
+
+  const cancelEdit = () => { setEditingId(null); };
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-1.5">
+          <Repeat size={14} style={{ color: '#7c3aed' }} />
+          <label className="text-xs font-semibold" style={{ color: '#7c3aed' }}>{lang==='en' ? 'Series' : 'Seria'} ({totalCount})</label>
+        </div>
+      </div>
+      <div className="space-y-1">
+        {items.map(item => {
+          const isCurrent = item.id === currentId;
+          const past = isPast(item.sendDate) && !isToday(item.sendDate);
+          const isSent = item.status === 'sent';
+          const isEditing = editingId === item.id;
+
+          return (
+            <div key={item.id}
+              className="rounded-lg border transition-all"
+              style={{
+                borderColor: isCurrent ? '#7c3aed' : '#e5e7eb',
+                background: isCurrent ? '#f5f3ff' : past ? '#fafafa' : 'white',
+                borderWidth: isCurrent ? '1.5px' : '0.5px',
+              }}>
+              {/* Header row — clickable */}
+              <div className="flex items-center gap-2 px-3 py-2 cursor-pointer" onClick={() => !isEditing && onSelect(item)}>
+                <div className="flex-shrink-0">
+                  {isSent ? <CheckCircle size={14} style={{ color: '#16a34a' }} /> :
+                   isCurrent ? <div className="w-3 h-3 rounded-full" style={{ background: '#7c3aed' }} /> :
+                   <div className="w-3 h-3 rounded-full border-2" style={{ borderColor: past ? '#d1d5db' : '#7c3aed' }} />}
+                </div>
+                <span className="text-xs font-medium flex-1" style={{ color: past && !isCurrent ? '#9ca3af' : '#111827' }}>
+                  {fmtDisp(item.sendDate, lang)}
+                </span>
+                {isCurrent && <span className="text-xs px-1.5 py-0.5 rounded-full font-medium" style={{ background: '#7c3aed', color: 'white' }}>
+                  {lang==='en' ? 'current' : 'teraz'}
+                </span>}
+                {!isEditing && (
+                  <button onClick={e => { e.stopPropagation(); startEdit(item); }}
+                    className="p-1 rounded hover:bg-gray-100 opacity-0 group-hover:opacity-100"
+                    style={{ color: '#6b7280', opacity: isCurrent ? 1 : undefined }}>
+                    <Edit3 size={12} />
+                  </button>
+                )}
+              </div>
+
+              {/* Content — subject + notes preview OR edit mode */}
+              {isEditing ? (
+                <div className="px-3 pb-3 space-y-2" onClick={e => e.stopPropagation()}>
+                  <div>
+                    <label className="text-xs font-medium block mb-1" style={{ color: '#6b7280' }}>{t.subjectLine}</label>
+                    <input type="text" value={editSubject} onChange={e => setEditSubject(e.target.value)}
+                      className="w-full px-2.5 py-1.5 border rounded-lg text-sm" style={{ borderColor: '#d1d5db' }}
+                      placeholder={t.subjectPlaceholder} autoFocus />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium block mb-1" style={{ color: '#6b7280' }}>{lang==='en' ? 'Idea / outline' : 'Zarys / pomysł'}</label>
+                    <textarea value={editNotes} onChange={e => setEditNotes(e.target.value)}
+                      className="w-full px-2.5 py-1.5 border rounded-lg text-sm resize-none" style={{ borderColor: '#d1d5db' }}
+                      rows={2} placeholder={lang==='en' ? 'Brief idea for this send...' : 'Krótki zarys tej wysyłki...'} />
+                  </div>
+                  <div className="flex gap-2">
+                    <button onClick={saveEdit} className="flex-1 py-1.5 rounded-lg text-xs font-medium" style={{ background: '#2563eb', color: 'white' }}>{t.save}</button>
+                    <button onClick={cancelEdit} className="px-3 py-1.5 rounded-lg text-xs" style={{ color: '#6b7280' }}>{t.cancel}</button>
+                  </div>
+                </div>
+              ) : (item.subjectLine || item.notes) ? (
+                <div className="px-3 pb-2 pl-8">
+                  {item.subjectLine && <p className="text-xs font-medium truncate" style={{ color: past && !isCurrent ? '#bdc1c6' : '#374151' }}>✉ {item.subjectLine}</p>}
+                  {item.notes && <p className="text-xs truncate mt-0.5" style={{ color: '#9ca3af' }}>{item.notes}</p>}
+                </div>
+              ) : null}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
 }
 
 // ── Calendar View ────────────────────────────────────
@@ -788,7 +919,7 @@ export default function PlannerPage() {
         </div>
       </main>
 
-      {selectedSend && <SendDetail send={selectedSend} onUpdate={handleUpdateSend} onDelete={handleDeleteSend} onEdit={handleEditSend} onClose={() => setSelectedSend(null)} teamMembers={teamMembers} t={t} lang={lang} />}
+      {selectedSend && <SendDetail send={selectedSend} onUpdate={handleUpdateSend} onDelete={handleDeleteSend} onEdit={handleEditSend} onClose={() => setSelectedSend(null)} onSelectSend={setSelectedSend} allSends={sends} teamMembers={teamMembers} t={t} lang={lang} />}
       {showForm && <SendFormModal send={editSend} onSave={handleSaveSend} onClose={() => {setShowForm(false);setEditSend(null);}} currentUser={currentUser} teamMembers={teamMembers} t={t} lang={lang} />}
       {seriesModal && <SeriesChoiceModal type={seriesModal.type} onChoice={handleSeriesChoice} onClose={() => setSeriesModal(null)} t={t} />}
     </div>
