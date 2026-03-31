@@ -207,10 +207,192 @@ function TranslationPopup({ title, description, onClose }) { const [tt, setTt] =
 function SubtaskProgress({ subtasks }) { if (!subtasks?.length) return null; const d = subtasks.filter(s => s.status === 'closed').length; return <div className="flex items-center gap-1.5"><ListTodo size={12} style={{ color: '#5f6368' }} /><span className="text-xs" style={{ color: '#5f6368' }}>{d}/{subtasks.length}</span></div>; }
 
 // === DASHBOARD ===
+// ============================================
+// NOWY DashboardPanel — podmień starą funkcję w app/page.jsx
+// Znajdź: "function DashboardPanel(" ... aż do "}"  (przed "function UsersPanel")
+// Wklej poniższe zamiast starej funkcji:
+// ============================================
+
 function DashboardPanel({ tasks, teamMembers, onClose, t, lang }) {
-  const [period, setPeriod] = useState(7); const now = new Date(); const sd = new Date(now.getTime() - period * 24 * 60 * 60 * 1000); const am = teamMembers.filter(m => m.isActive !== false && !m.isManager);
-  const stats = useMemo(() => { const ci = tasks.filter(t => new Date(t.createdAt) >= sd); const cl = tasks.filter(t => t.status === 'closed' && t.updatedAt && new Date(t.updatedAt) >= sd); const pp = {}; am.forEach(m => { pp[m.id] = { name: m.name, color: m.color, created: 0, closed: 0, open: 0, subtasksDone: 0, comments: 0 }; }); ci.forEach(t => { if (t.createdBy && pp[t.createdBy]) pp[t.createdBy].created++; }); cl.forEach(t => { (t.assignees || []).forEach(a => { if (pp[a]) pp[a].closed++; }); }); tasks.filter(t => t.status === 'open' || t.status === 'longterm').forEach(t => { (t.assignees || []).forEach(a => { if (pp[a]) pp[a].open++; }); }); tasks.forEach(t => { (t.comments || []).forEach(c => { if (new Date(c.createdAt) >= sd && pp[c.author]) pp[c.author].comments++; }); }); tasks.forEach(t => { (t.subtasks || []).forEach(s => { if (s.status === 'closed' && s.assignee && pp[s.assignee]) pp[s.assignee].subtasksDone++; }); }); const dd = []; for (let i = period - 1; i >= 0; i--) { const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000); const ds = d.toISOString().split('T')[0]; dd.push({ date: d.toLocaleDateString(lang === 'en' ? 'en-US' : 'pl-PL', { day: 'numeric', month: 'short' }), created: tasks.filter(t => t.createdAt?.startsWith(ds)).length, closed: tasks.filter(t => t.status === 'closed' && t.updatedAt?.startsWith(ds)).length }); } return { totalCreated: ci.length, totalClosed: cl.length, currentOpen: tasks.filter(t => t.status === 'open' || t.status === 'longterm').length, currentPending: tasks.filter(t => t.status === 'pending').length, perPerson: pp, dailyData: dd, createdPerDay: (ci.length / period).toFixed(1), closedPerDay: (cl.length / period).toFixed(1) }; }, [tasks, teamMembers, period, sd]);
-  return <aside className="w-full lg:w-[640px] bg-white border-l flex flex-col overflow-hidden flex-shrink-0 fixed lg:static inset-0 z-40 lg:z-auto" style={{ borderColor: '#e8eaed' }}><div className="p-4 border-b flex items-center justify-between" style={{ borderColor: '#e8eaed' }}><div className="flex items-center gap-2"><BarChart3 size={20} style={{ color: '#1a73e8' }} /><h2 className="font-medium" style={{ color: '#202124' }}>{t.dashboardTitle}</h2></div><div className="flex items-center gap-2"><select value={period} onChange={e => setPeriod(Number(e.target.value))} className="text-sm px-3 py-1.5 border rounded-lg" style={{ borderColor: '#dadce0' }}><option value={7}>{t.last7days}</option><option value={14}>{t.last14days}</option><option value={30}>{t.last30days}</option></select><button onClick={onClose} className="p-2 rounded-full hover:bg-gray-100" style={{ color: '#5f6368' }}><X size={18} /></button></div></div><div className="flex-1 overflow-y-auto p-5 space-y-6"><div className="grid grid-cols-2 gap-3"><div className="p-4 rounded-xl" style={{ background: '#e8f0fe' }}><div className="flex items-center gap-2 mb-1"><TrendingUp size={16} style={{ color: '#1a73e8' }} /><span className="text-xs font-medium" style={{ color: '#1a73e8' }}>{t.tasksCreated}</span></div><div className="text-3xl font-bold" style={{ color: '#1a73e8' }}>{stats.totalCreated}</div><div className="text-xs mt-1" style={{ color: '#5f6368' }}>{stats.createdPerDay}{t.perDay}</div></div><div className="p-4 rounded-xl" style={{ background: '#e6f4ea' }}><div className="flex items-center gap-2 mb-1"><CheckCircle size={16} style={{ color: '#34a853' }} /><span className="text-xs font-medium" style={{ color: '#34a853' }}>{t.tasksClosed}</span></div><div className="text-3xl font-bold" style={{ color: '#34a853' }}>{stats.totalClosed}</div><div className="text-xs mt-1" style={{ color: '#5f6368' }}>{stats.closedPerDay}{t.perDay}</div></div><div className="p-4 rounded-xl" style={{ background: '#fff3e0' }}><div className="flex items-center gap-2 mb-1"><Circle size={16} style={{ color: '#ff7043' }} /><span className="text-xs font-medium" style={{ color: '#ff7043' }}>{t.tasksOpen}</span></div><div className="text-3xl font-bold" style={{ color: '#ff7043' }}>{stats.currentOpen}</div></div><div className="p-4 rounded-xl" style={{ background: '#fef7e0' }}><div className="flex items-center gap-2 mb-1"><AlertCircle size={16} style={{ color: '#fbbc04' }} /><span className="text-xs font-medium" style={{ color: '#fbbc04' }}>{t.pending}</span></div><div className="text-3xl font-bold" style={{ color: '#fbbc04' }}>{stats.currentPending}</div></div></div><div><h3 className="text-sm font-medium mb-3" style={{ color: '#202124' }}>Dzienne zadania</h3><div className="rounded-xl border p-4" style={{ borderColor: '#e8eaed' }}><div className="flex items-end gap-1" style={{ height: '120px' }}>{stats.dailyData.map((d, i) => { const mv = Math.max(...stats.dailyData.map(x => Math.max(x.created, x.closed)), 1); return <div key={i} className="flex-1 flex flex-col items-center gap-0.5" title={`${d.date}: ${d.created}/${d.closed}`}><div className="w-full flex gap-0.5 items-end" style={{ height: '100px' }}><div className="flex-1 rounded-t" style={{ height: `${Math.max((d.created/mv)*100,2)}%`, background: '#4285f4', minHeight: d.created > 0 ? '4px' : '0' }} /><div className="flex-1 rounded-t" style={{ height: `${Math.max((d.closed/mv)*100,2)}%`, background: '#34a853', minHeight: d.closed > 0 ? '4px' : '0' }} /></div>{(i % Math.ceil(stats.dailyData.length/7) === 0 || i === stats.dailyData.length-1) && <span style={{ color: '#9aa0a6', fontSize: '9px' }}>{d.date}</span>}</div>; })}</div><div className="flex items-center gap-4 mt-3 pt-3 border-t" style={{ borderColor: '#e8eaed' }}><div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded" style={{ background: '#4285f4' }} /><span className="text-xs" style={{ color: '#5f6368' }}>{t.tasksCreated}</span></div><div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded" style={{ background: '#34a853' }} /><span className="text-xs" style={{ color: '#5f6368' }}>{t.tasksClosed}</span></div></div></div></div><div><h3 className="text-sm font-medium mb-3" style={{ color: '#202124' }}>Obciążenie na osobę</h3><div className="space-y-3">{Object.entries(stats.perPerson).map(([id, p]) => <div key={id} className="rounded-xl border p-4" style={{ borderColor: '#e8eaed' }}><div className="flex items-center gap-3 mb-3"><div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-medium" style={{ background: p.color }}>{getInitials(p.name)}</div><span className="flex-1 text-sm font-medium" style={{ color: '#202124' }}>{p.name}</span><div className="text-right"><span className="text-lg font-bold" style={{ color: '#202124' }}>{p.open}</span><span className="text-xs ml-1" style={{ color: '#5f6368' }}>otwarte</span></div></div><div className="grid grid-cols-4 gap-2 text-center">{[{v:p.created,c:'#4285f4',l:'utworz.'},{v:p.closed,c:'#34a853',l:'zamkn.'},{v:p.subtasksDone,c:'#a142f4',l:'subtaski'},{v:p.comments,c:'#ff7043',l:'koment.'}].map((x,i) => <div key={i} className="p-2 rounded-lg" style={{ background: '#f1f3f4' }}><div className="text-sm font-bold" style={{ color: x.c }}>{x.v}</div><div className="text-xs" style={{ color: '#5f6368' }}>{x.l}</div></div>)}</div></div>)}</div></div></div></aside>;
+  const today = new Date().toISOString().split('T')[0];
+  const ago30 = new Date(Date.now() - 30 * 86400000).toISOString().split('T')[0];
+  const [from, setFrom] = useState(ago30);
+  const [to, setTo] = useState(today);
+
+  const inR = (d) => {
+    if (!d) return false;
+    const ds = d.split('T')[0];
+    return (!from || ds >= from) && (!to || ds <= to);
+  };
+
+  const setPreset = (days) => {
+    setFrom(new Date(Date.now() - days * 86400000).toISOString().split('T')[0]);
+    setTo(today);
+  };
+
+  const shortName = (name) => {
+    const map = { 'Aleksandra': 'Ola', 'Klaudia': 'Klaudia', 'Wojciech': 'Wojtek', 'Damian': 'Damian', 'Edyta': 'Edyta', 'Alessandro': 'Ale', 'Claudia': 'Claudia' };
+    const first = name.split(' ')[0];
+    return map[first] || first;
+  };
+
+  const data = useMemo(() => {
+    const cr = tasks.filter(t => inR(t.createdAt));
+    const cl = tasks.filter(t => t.status === 'closed' && t.updatedAt && inR(t.updatedAt));
+    const ac = tasks.filter(t => !['closed', 'pending'].includes(t.status));
+    const am = teamMembers.filter(m => m.isActive !== false && !m.isManager);
+
+    const byMarket = MARKETS.map(m => ({
+      ...m,
+      cr: cr.filter(t => t.market === m.id).length,
+      cl: cl.filter(t => t.market === m.id).length,
+      ac: ac.filter(t => t.market === m.id).length,
+    }));
+
+    const byPerson = am.map(p => ({
+      ...p,
+      short: shortName(p.name),
+      cr: cr.filter(t => t.assignees?.includes(p.id)).length,
+      cl: cl.filter(t => t.assignees?.includes(p.id)).length,
+      ac: ac.filter(t => t.assignees?.includes(p.id)).length,
+    }));
+
+    return { cr: cr.length, cl: cl.length, ac: ac.length, byMarket, byPerson };
+  }, [tasks, teamMembers, from, to]);
+
+  const maxM = Math.max(...data.byMarket.flatMap(m => [m.cr, m.cl, m.ac]), 1);
+  const maxP = Math.max(...data.byPerson.flatMap(p => [p.cr, p.cl, p.ac]), 1);
+
+  const DBar = ({ value, max, color }) => {
+    const pct = max > 0 ? Math.min(100, (value / max) * 100) : 0;
+    return (
+      <div style={{ height: 18, background: '#f1f3f4', borderRadius: 3, position: 'relative', overflow: 'hidden' }}>
+        <div style={{ position: 'absolute', inset: 0, width: `${pct}%`, background: color, borderRadius: 3, transition: 'width 0.3s ease' }} />
+        {value > 0 && (
+          <span style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 600, color: pct > 30 ? '#fff' : color }}>
+            {value}
+          </span>
+        )}
+      </div>
+    );
+  };
+
+  const CC = { cr: '#4285f4', cl: '#34a853', ac: '#fbbc04' };
+  const presets = [7, 14, 30, 60];
+
+  return (
+    <aside className="w-full lg:w-[540px] bg-white border-l flex flex-col overflow-hidden flex-shrink-0 fixed lg:static inset-0 z-40 lg:z-auto" style={{ borderColor: '#e8eaed' }}>
+      {/* Header */}
+      <div className="p-3 border-b flex items-center justify-between" style={{ borderColor: '#e8eaed' }}>
+        <div className="flex items-center gap-2">
+          <BarChart3 size={18} style={{ color: '#1a73e8' }} />
+          <span className="text-sm font-medium" style={{ color: '#202124' }}>Dashboard</span>
+        </div>
+        <button onClick={onClose} className="p-1.5 rounded-full hover:bg-gray-100" style={{ color: '#5f6368' }}><X size={16} /></button>
+      </div>
+
+      {/* Date filters */}
+      <div className="px-3 py-2 border-b flex items-center gap-1.5 flex-wrap" style={{ borderColor: '#e8eaed', background: '#f8f9fa' }}>
+        {presets.map(d => {
+          const expected = new Date(Date.now() - d * 86400000).toISOString().split('T')[0];
+          const active = from === expected && to === today;
+          return (
+            <button key={d} onClick={() => setPreset(d)}
+              className="px-2 py-1 rounded text-xs font-medium"
+              style={{ background: active ? '#e8f0fe' : '#fff', color: active ? '#1a73e8' : '#5f6368', border: `1px solid ${active ? '#1a73e8' : '#dadce0'}` }}>
+              {d}d
+            </button>
+          );
+        })}
+        <div className="flex items-center gap-1 px-2 py-1 rounded-lg ml-auto" style={{ border: '1px solid #dadce0', background: '#fff' }}>
+          <Calendar size={12} style={{ color: '#5f6368' }} />
+          <input type="date" value={from} onChange={e => setFrom(e.target.value)}
+            className="text-xs border-none outline-none bg-transparent" style={{ color: '#202124', width: 100 }} />
+          <span className="text-xs" style={{ color: '#9aa0a6' }}>–</span>
+          <input type="date" value={to} onChange={e => setTo(e.target.value)}
+            className="text-xs border-none outline-none bg-transparent" style={{ color: '#202124', width: 100 }} />
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="flex-1 overflow-y-auto p-3 space-y-3">
+        {/* KPIs */}
+        <div className="grid grid-cols-3 gap-2">
+          {[
+            { label: lang === 'en' ? 'Created' : 'Utworzone', val: data.cr, color: CC.cr },
+            { label: lang === 'en' ? 'Closed' : 'Zamknięte', val: data.cl, color: CC.cl },
+            { label: lang === 'en' ? 'Active' : 'Aktywne', val: data.ac, color: CC.ac },
+          ].map(k => (
+            <div key={k.label} className="rounded-lg p-3" style={{ background: '#f8f9fa', borderLeft: `3px solid ${k.color}` }}>
+              <div className="text-xl font-bold" style={{ color: k.color, lineHeight: 1 }}>{k.val}</div>
+              <div className="text-xs mt-1" style={{ color: '#5f6368' }}>{k.label}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Legend */}
+        <div className="flex gap-3 px-1">
+          {[
+            { label: lang === 'en' ? 'Created' : 'Utworzone', c: CC.cr },
+            { label: lang === 'en' ? 'Closed' : 'Zamknięte', c: CC.cl },
+            { label: lang === 'en' ? 'Active' : 'Aktywne', c: CC.ac },
+          ].map(l => (
+            <div key={l.label} className="flex items-center gap-1.5">
+              <div className="w-2 h-2 rounded-full" style={{ background: l.c }} />
+              <span className="text-xs" style={{ color: '#5f6368' }}>{l.label}</span>
+            </div>
+          ))}
+        </div>
+
+        {/* Markets */}
+        <div className="rounded-lg border p-3" style={{ borderColor: '#e8eaed' }}>
+          <div className="text-xs font-semibold mb-2.5" style={{ color: '#202124' }}>
+            {lang === 'en' ? 'Markets' : 'Rynki'}
+          </div>
+          {data.byMarket.map(m => (
+            <div key={m.id} className="flex items-center gap-2 mb-1.5" style={{ minHeight: 22 }}>
+              <div className="flex items-center gap-1.5 flex-shrink-0" style={{ width: 72 }}>
+                <span className="text-sm">{m.icon}</span>
+                <span className="text-xs font-medium" style={{ color: '#202124' }}>{m.name}</span>
+              </div>
+              <div className="flex-1 flex gap-1" style={{ maxWidth: 320 }}>
+                <div style={{ flex: 1 }}><DBar value={m.cr} max={maxM} color={CC.cr} /></div>
+                <div style={{ flex: 1 }}><DBar value={m.cl} max={maxM} color={CC.cl} /></div>
+                <div style={{ flex: 1 }}><DBar value={m.ac} max={maxM} color={CC.ac} /></div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Team */}
+        <div className="rounded-lg border p-3" style={{ borderColor: '#e8eaed' }}>
+          <div className="text-xs font-semibold mb-2.5" style={{ color: '#202124' }}>
+            {lang === 'en' ? 'Team' : 'Zespół'}
+          </div>
+          {data.byPerson.map(p => (
+            <div key={p.id} className="flex items-center gap-2 mb-1.5" style={{ minHeight: 22 }}>
+              <div className="flex items-center gap-1.5 flex-shrink-0" style={{ width: 72 }}>
+                <div className="w-5 h-5 rounded-full flex items-center justify-center text-white font-medium flex-shrink-0" style={{ background: p.color, fontSize: 8 }}>
+                  {getInitials(p.name)}
+                </div>
+                <span className="text-xs font-medium truncate" style={{ color: '#202124' }}>{p.short}</span>
+              </div>
+              <div className="flex-1 flex gap-1" style={{ maxWidth: 320 }}>
+                <div style={{ flex: 1 }}><DBar value={p.cr} max={maxP} color={CC.cr} /></div>
+                <div style={{ flex: 1 }}><DBar value={p.cl} max={maxP} color={CC.cl} /></div>
+                <div style={{ flex: 1 }}><DBar value={p.ac} max={maxP} color={CC.ac} /></div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Footer info */}
+        <div className="text-center py-1">
+          <span className="text-xs" style={{ color: '#9aa0a6' }}>{from} — {to}</span>
+        </div>
+      </div>
+    </aside>
+  );
 }
 
 // === USERS PANEL ===
