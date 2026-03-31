@@ -2,7 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Google-style font - Plus Jakarta Sans - bardzo nowoczesna, czytelna */
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
 
 * {
@@ -13,12 +12,13 @@
 body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  background: #f9fafb;
 }
 
-/* Google-style scrollbar */
+/* Scrollbar - thinner, more subtle */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 5px;
+  height: 5px;
 }
 
 ::-webkit-scrollbar-track {
@@ -26,15 +26,15 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #dadce0;
-  border-radius: 4px;
+  background: #d1d5db;
+  border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #bdc1c6;
+  background: #9ca3af;
 }
 
-/* Google-style focus */
+/* Focus - clean ring */
 input:focus,
 select:focus,
 textarea:focus,
@@ -45,16 +45,16 @@ textarea:focus,
 input:focus,
 select:focus,
 textarea:focus {
-  border-color: #1a73e8 !important;
-  box-shadow: 0 0 0 2px rgba(26, 115, 232, 0.2);
+  border-color: #3b82f6 !important;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.12);
 }
 
-/* Selection - Google blue */
+/* Selection */
 ::selection {
-  background: rgba(26, 115, 232, 0.2);
+  background: rgba(59, 130, 246, 0.15);
 }
 
-/* Rich text editor - Google Docs style */
+/* Rich text editor */
 .prose-docs ul,
 [contenteditable] ul {
   list-style-type: disc;
@@ -80,7 +80,7 @@ textarea:focus {
   font-size: 1.5rem;
   font-weight: 600;
   margin: 1rem 0 0.5rem;
-  color: #202124;
+  color: #111827;
 }
 
 .prose-docs h2,
@@ -88,41 +88,41 @@ textarea:focus {
   font-size: 1.25rem;
   font-weight: 600;
   margin: 0.75rem 0 0.5rem;
-  color: #202124;
+  color: #111827;
 }
 
 .prose-docs blockquote,
 [contenteditable] blockquote {
-  border-left: 4px solid #dadce0;
+  border-left: 3px solid #e5e7eb;
   padding-left: 1rem;
   margin: 0.75rem 0;
-  color: #5f6368;
+  color: #6b7280;
   font-style: italic;
 }
 
 .prose-docs pre,
 [contenteditable] pre {
-  background: #f8f9fa;
+  background: #f3f4f6;
   padding: 0.75rem 1rem;
   border-radius: 8px;
-  font-family: 'Google Sans Mono', 'Monaco', 'Menlo', monospace;
-  font-size: 0.875rem;
+  font-family: 'JetBrains Mono', 'Monaco', 'Menlo', monospace;
+  font-size: 0.85rem;
   overflow-x: auto;
-  border: 1px solid #e8eaed;
+  border: 0.5px solid #e5e7eb;
 }
 
 .prose-docs code,
 [contenteditable] code {
-  background: #f1f3f4;
+  background: #f3f4f6;
   padding: 0.125rem 0.375rem;
   border-radius: 4px;
-  font-family: 'Google Sans Mono', 'Monaco', 'Menlo', monospace;
-  font-size: 0.875em;
+  font-family: 'JetBrains Mono', 'Monaco', 'Menlo', monospace;
+  font-size: 0.85em;
 }
 
 .prose-docs a,
 [contenteditable] a {
-  color: #1a73e8;
+  color: #3b82f6;
   text-decoration: none;
 }
 
@@ -136,10 +136,10 @@ textarea:focus {
   line-height: 1.6;
 }
 
-/* Placeholder for contenteditable - Google style */
+/* Placeholder for contenteditable */
 [contenteditable]:empty:before {
   content: attr(data-placeholder);
-  color: #9aa0a6;
+  color: #9ca3af;
   pointer-events: none;
 }
 
@@ -152,6 +152,15 @@ textarea:focus {
 
 .animate-spin {
   animation: spin 1s linear infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+.animate-pulse {
+  animation: pulse 2s ease-in-out infinite;
 }
 
 /* Line clamp */
@@ -169,7 +178,7 @@ textarea:focus {
   overflow: hidden;
 }
 
-/* Drag and drop - smooth */
+/* Drag and drop */
 [draggable="true"] {
   cursor: grab;
   transition: opacity 0.15s ease;
@@ -179,33 +188,293 @@ textarea:focus {
   cursor: grabbing;
 }
 
-/* Tooltip/dropdown styling for color pickers */
+/* Tooltip/dropdown */
 .group:hover > .hidden {
   display: grid !important;
 }
 
-/* Google-style buttons */
+/* Buttons - subtle transitions */
 button {
-  transition: background-color 0.15s ease, box-shadow 0.15s ease, transform 0.1s ease;
+  transition: background-color 0.12s ease, box-shadow 0.12s ease, transform 0.08s ease;
 }
 
 button:active {
   transform: scale(0.98);
 }
 
-/* Google-style cards with subtle shadow */
+/* Cards - very subtle shadow, thinner border */
 .bg-white {
-  box-shadow: 0 1px 2px 0 rgba(60, 64, 67, 0.1);
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.03);
 }
 
-/* Smooth transitions */
+/* Smooth transitions - scoped to colors only */
 * {
   transition-property: color, background-color, border-color, opacity;
-  transition-duration: 0.15s;
+  transition-duration: 0.12s;
   transition-timing-function: ease;
 }
 
-/* Override for elements that shouldn't transition */
+/* Override for inputs */
 input, textarea, [contenteditable] {
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  transition: border-color 0.12s ease, box-shadow 0.12s ease;
+}
+
+/* === CONCEPT A OVERRIDES === */
+
+/* Sidebar */
+.av-sidebar {
+  border-right: 0.5px solid #e5e7eb;
+  background: #ffffff;
+}
+
+/* Sidebar items - clean, no icons by default */
+.av-sb-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 5px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  color: #6b7280;
+  cursor: pointer;
+  transition: background-color 0.1s ease;
+}
+
+.av-sb-item:hover {
+  background: #f3f4f6;
+}
+
+.av-sb-item.active {
+  background: #eff6ff;
+  color: #2563eb;
+  font-weight: 500;
+}
+
+.av-sb-item .av-count {
+  font-size: 11px;
+  color: #9ca3af;
+  font-variant-numeric: tabular-nums;
+}
+
+.av-sb-item.active .av-count {
+  color: #2563eb;
+}
+
+/* Task rows */
+.av-task-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #ffffff;
+  border: 0.5px solid #e5e7eb;
+  cursor: pointer;
+  transition: border-color 0.1s ease, box-shadow 0.1s ease;
+}
+
+.av-task-row:hover {
+  border-color: #d1d5db;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+}
+
+.av-task-row.selected {
+  border-color: #93c5fd;
+  background: #f0f7ff;
+}
+
+/* Status dot */
+.av-status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* Avatars */
+.av-avatar {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 8px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.av-avatar-sm {
+  width: 16px;
+  height: 16px;
+  font-size: 7px;
+}
+
+.av-avatar-lg {
+  width: 24px;
+  height: 24px;
+  font-size: 9px;
+}
+
+/* Pill badges */
+.av-pill {
+  font-size: 10px;
+  padding: 2px 7px;
+  border-radius: 10px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+/* Detail panel */
+.av-detail-panel {
+  border-left: 0.5px solid #e5e7eb;
+  background: #ffffff;
+}
+
+/* Section label */
+.av-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 4px;
+}
+
+/* Comment bubble */
+.av-comment {
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #f3f4f6;
+  margin-bottom: 4px;
+}
+
+.av-comment-author {
+  font-size: 11px;
+  font-weight: 500;
+  color: #111827;
+}
+
+.av-comment-time {
+  font-size: 10px;
+  color: #9ca3af;
+  font-weight: 400;
+}
+
+.av-comment-text {
+  font-size: 12px;
+  color: #4b5563;
+  margin-top: 2px;
+  line-height: 1.4;
+}
+
+/* Header */
+.av-header {
+  background: #ffffff;
+  border-bottom: 0.5px solid #e5e7eb;
+  padding: 10px 16px;
+}
+
+/* Primary button */
+.av-btn-primary {
+  padding: 5px 14px;
+  border-radius: 7px;
+  font-size: 12px;
+  font-weight: 500;
+  background: #2563eb;
+  color: #ffffff;
+  border: none;
+  cursor: pointer;
+}
+
+.av-btn-primary:hover {
+  background: #1d4ed8;
+}
+
+/* Secondary button */
+.av-btn-secondary {
+  padding: 5px 12px;
+  border-radius: 7px;
+  font-size: 11px;
+  font-weight: 500;
+  background: #ffffff;
+  color: #6b7280;
+  border: 0.5px solid #e5e7eb;
+  cursor: pointer;
+}
+
+.av-btn-secondary:hover {
+  background: #f9fafb;
+  border-color: #d1d5db;
+}
+
+/* Separator */
+.av-sep {
+  height: 0.5px;
+  background: #e5e7eb;
+  margin: 6px 0;
+}
+
+/* Status colors */
+.av-status-open { background: #eff6ff; color: #2563eb; }
+.av-status-longterm { background: #f5f3ff; color: #7c3aed; }
+.av-status-paused { background: #fff7ed; color: #ea580c; }
+.av-status-monitoring { background: #ecfeff; color: #0891b2; }
+.av-status-approval { background: #f0fdfa; color: #0d9488; }
+.av-status-ideas { background: #fefce8; color: #ca8a04; }
+.av-status-closed { background: #f0fdf4; color: #16a34a; }
+.av-status-pending { background: #fefce8; color: #d97706; }
+
+/* Priority colors */
+.av-priority-urgent { background: #fef2f2; color: #dc2626; }
+.av-priority-high { background: #fef2f2; color: #ef4444; }
+.av-priority-medium { background: #fefce8; color: #ca8a04; }
+.av-priority-low { background: #f0fdf4; color: #16a34a; }
+
+/* Subtask checkbox */
+.av-subtask {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 0;
+  font-size: 12px;
+}
+
+.av-subtask.done {
+  color: #9ca3af;
+  text-decoration: line-through;
+}
+
+/* Tag pill */
+.av-tag {
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-weight: 500;
+}
+
+/* Select/input styling */
+.av-select {
+  font-size: 11px;
+  padding: 4px 8px;
+  border: 0.5px solid #e5e7eb;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #6b7280;
+  cursor: pointer;
+}
+
+.av-select:hover {
+  border-color: #d1d5db;
+}
+
+/* Date input */
+.av-date-input {
+  font-size: 11px;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: #111827;
+  width: 100px;
 }
