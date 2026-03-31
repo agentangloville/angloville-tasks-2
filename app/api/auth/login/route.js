@@ -25,7 +25,6 @@ export async function POST(request) {
       return Response.json({ error: 'User not found' }, { status: 401 });
     }
 
-    // Porównaj PIN z hashem
     const isValid = await bcrypt.compare(pin, data.pin);
     if (!isValid) {
       return Response.json({ error: 'Invalid PIN' }, { status: 401 });
