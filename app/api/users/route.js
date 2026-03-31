@@ -59,16 +59,27 @@ export async function POST(request) {
         updates.pin = await bcrypt.hash(data.pin, 10);
       }
 
-      const { error } = await supabase
+      console.log('=== UPDATE USER DEBUG ===');
+      console.log('User ID:', data.id);
+      console.log('Raw data.language:', data.language);
+      console.log('Updates object:', JSON.stringify(updates));
+
+      const { data: result, error } = await supabase
         .from('team_members')
         .update(updates)
-        .eq('id', data.id);
+        .eq('id', data.id)
+        .select('id, language')
+        .single();
+
+      console.log('Supabase result:', JSON.stringify(result));
+      console.log('Supabase error:', error ? JSON.stringify(error) : 'none');
+      console.log('=== END DEBUG ===');
 
       if (error) {
         return Response.json({ error: error.message }, { status: 500 });
       }
 
-      return Response.json({ success: true });
+      return Response.json({ success: true, updated: result });
     }
 
     return Response.json({ error: 'Unknown action' }, { status: 400 });
