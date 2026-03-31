@@ -14,6 +14,7 @@ const MARKETS = [
   { id: 'it', name: 'Włochy', nameEn: 'Italy', icon: '🇮🇹' },
   { id: 'exchange', name: 'Wymiana', nameEn: 'Exchange', icon: '🎓' },
   { id: 'tefl', name: 'TEFL in Asia', nameEn: 'TEFL in Asia', icon: '🌏' },
+  { id: 'brazil', name: 'Brazylia', nameEn: 'Brazil', icon: '🇧🇷' },
 ];
 
 const PL_SUBCATEGORIES = [
