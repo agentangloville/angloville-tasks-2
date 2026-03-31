@@ -752,10 +752,60 @@ function TableView({ sends, onUpdate, t, lang }) {
   }, [sends, titleFilter, marketFilter, statusFilter]);
 
   const startEdit = (send, field) => { setEditCell({ id: send.id, field }); setEditValue(send[field] || ''); };
-  const saveEdit = () => { if (!editCell) return; onUpdate(editCell.id, { [editCell.field]: editValue }); setSavedId(editCell.id); setTimeout(() => setSavedId(null), 1200); setEditCell(null); };
-  const cancelEdit = () => setEditCell(null);
-  const handleKey = (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); saveEdit(); } if (e.key === 'Escape') cancelEdit(); };
+  const saveEdit = useCallback(() => { if (!editCell) return; onUpdate(editCell.id, { [editCell.field]: editValue }); setSavedId(editCell.id); setTimeout(() => setSavedId(null), 1200); setEditCell(null); }, [editCell, editValue, onUpdate]);
+  const cancelEdit = () => { setEditCell(null); };
+  const handleKey = (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); saveEdit(); } if (e.key === 'Escape') { e.preventDefault(); cancelEdit(); } };
+  const handleBlur = (e) => {
+    // Only save if clicking outside the table editing area
+    const related = e.relatedTarget;
+    if (related && related.closest && related.closest('.av-table')) return;
+    saveEdit();
+  };
   const isEd = (id, field) => editCell?.id === id && editCell?.field === field;
+
+  // Stable edit input — not re-rendered on parent state changes
+  const EditInput = ({ field, mono }) => {
+    const [localVal, setLocalVal] = useState(editValue);
+    const inputRef = React.useRef(null);
+    const isSms = sends.find(s => s.id === editCell?.id)?.channel === 'sms';
+    const showCounter = isSms && (field === 'notes' || field === 'subjectLine');
+    const charLimit = 160;
+    const over = showCounter && localVal.length > charLimit;
+
+    useEffect(() => { setLocalVal(editValue); }, [editValue]);
+
+    const onLocalChange = (e) => {
+      setLocalVal(e.target.value);
+      setEditValue(e.target.value);
+    };
+
+    const inputStyle = {
+      width: '100%', padding: '4px 8px', border: `1.5px solid ${over ? '#ef4444' : '#2563eb'}`,
+      borderRadius: 4, fontSize: 12, fontFamily: mono ? 'monospace' : 'inherit',
+      direction: 'ltr', textAlign: 'left', outline: 'none', background: 'white',
+      color: '#111827', boxSizing: 'border-box',
+    };
+
+    return (
+      <div style={{ direction: 'ltr', textAlign: 'left' }}>
+        {field === 'notes' ? (
+          <textarea ref={inputRef} value={localVal} onChange={onLocalChange} onKeyDown={handleKey} onBlur={handleBlur}
+            style={{ ...inputStyle, minHeight: 56, resize: 'vertical' }} autoFocus />
+        ) : (
+          <input ref={inputRef} type={field === 'sendDate' ? 'date' : field === 'sendTime' ? 'time' : 'text'}
+            value={localVal} onChange={onLocalChange} onKeyDown={handleKey} onBlur={handleBlur}
+            style={inputStyle} autoFocus />
+        )}
+        {showCounter && (
+          <div style={{ textAlign: 'right', marginTop: 2 }}>
+            <span style={{ fontSize: 11, fontWeight: 500, color: over ? '#ef4444' : localVal.length > 140 ? '#f59e0b' : '#9ca3af' }}>
+              {localVal.length}/{charLimit}
+            </span>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   const Cell = ({ send, field, mono }) => {
     const val = send[field] || '';
@@ -764,41 +814,7 @@ function TableView({ sends, onUpdate, t, lang }) {
     const charLimit = 160;
 
     if (isEd(send.id, field)) {
-      const over = showCounter && editValue.length > charLimit;
-      const inputStyle = {
-        width: '100%',
-        padding: '4px 8px',
-        border: `1.5px solid ${over ? '#ef4444' : '#2563eb'}`,
-        borderRadius: 4,
-        fontSize: 12,
-        fontFamily: mono ? 'monospace' : 'inherit',
-        direction: 'ltr',
-        textAlign: 'left',
-        unicodeBidi: 'plaintext',
-        outline: 'none',
-        background: 'white',
-        color: '#111827',
-        boxSizing: 'border-box',
-      };
-      return (
-        <div style={{ direction: 'ltr', textAlign: 'left' }}>
-          {field === 'notes' ? (
-            <textarea value={editValue} onChange={e => setEditValue(e.target.value)} onKeyDown={handleKey} onBlur={saveEdit}
-              style={{ ...inputStyle, minHeight: 56, resize: 'vertical' }} autoFocus />
-          ) : (
-            <input type={field === 'sendDate' ? 'date' : field === 'sendTime' ? 'time' : 'text'} value={editValue}
-              onChange={e => setEditValue(e.target.value)} onKeyDown={handleKey} onBlur={saveEdit}
-              style={inputStyle} autoFocus />
-          )}
-          {showCounter && (
-            <div style={{ textAlign: 'right', marginTop: 2 }}>
-              <span style={{ fontSize: 11, fontWeight: 500, color: over ? '#ef4444' : editValue.length > 140 ? '#f59e0b' : '#9ca3af' }}>
-                {editValue.length}/{charLimit}
-              </span>
-            </div>
-          )}
-        </div>
-      );
+      return <EditInput field={field} mono={mono} />;
     }
 
     const over = showCounter && val.length > charLimit;
@@ -819,15 +835,15 @@ function TableView({ sends, onUpdate, t, lang }) {
   };
 
   const StatusCell = ({ send }) => {
-    if (isEd(send.id, 'status')) return <select value={editValue} onChange={e => setEditValue(e.target.value)} onBlur={saveEdit} autoFocus style={{ width: '100%', padding: '4px 6px', border: '1.5px solid #2563eb', borderRadius: 4, fontSize: 12, direction: 'ltr', textAlign: 'left', outline: 'none' }}>{STATUSES.map(s => <option key={s.id} value={s.id}>{lang==='en'?s.nameEn:s.name}</option>)}</select>;
+    if (isEd(send.id, 'status')) return <select value={editValue} onChange={e => { setEditValue(e.target.value); setTimeout(saveEdit, 0); }} onBlur={handleBlur} autoFocus style={{ width: '100%', padding: '4px 6px', border: '1.5px solid #2563eb', borderRadius: 4, fontSize: 12, outline: 'none' }}>{STATUSES.map(s => <option key={s.id} value={s.id}>{lang==='en'?s.nameEn:s.name}</option>)}</select>;
     const st = STATUSES.find(s => s.id === send.status);
     return <div onClick={() => startEdit(send, 'status')} style={{ cursor: 'pointer', padding: '4px 0' }}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 8px', borderRadius: 10, fontSize: 11, fontWeight: 500, background: st?.bg, color: st?.color }}>{lang==='en'?st?.nameEn:st?.name}</span></div>;
   };
 
   const MarketCell = ({ send }) => {
-    if (isEd(send.id, 'market')) return <select value={editValue} onChange={e => setEditValue(e.target.value)} onBlur={saveEdit} autoFocus style={{ width: '100%', padding: '4px 6px', border: '1.5px solid #2563eb', borderRadius: 4, fontSize: 12, direction: 'ltr', textAlign: 'left', outline: 'none' }}>{MARKETS.map(m => <option key={m.id} value={m.id}>{m.icon} {m.name}</option>)}</select>;
+    if (isEd(send.id, 'market')) return <select value={editValue} onChange={e => { setEditValue(e.target.value); setTimeout(saveEdit, 0); }} onBlur={handleBlur} autoFocus style={{ width: '100%', padding: '4px 6px', border: '1.5px solid #2563eb', borderRadius: 4, fontSize: 12, outline: 'none' }}>{MARKETS.map(m => <option key={m.id} value={m.id}>{m.icon} {m.name}</option>)}</select>;
     const mk = MARKETS.find(m => m.id === send.market);
-    return <div onClick={() => startEdit(send, 'market')} style={{ cursor: 'pointer', fontSize: 12, padding: '6px 8px', borderRadius: 4, direction: 'ltr', textAlign: 'left' }} onMouseEnter={e => e.currentTarget.style.background='#eff6ff'} onMouseLeave={e => e.currentTarget.style.background='transparent'}>{mk?.icon} {mk?.name}</div>;
+    return <div onClick={() => startEdit(send, 'market')} style={{ cursor: 'pointer', fontSize: 12, padding: '6px 8px', borderRadius: 4 }} onMouseEnter={e => e.currentTarget.style.background='#eff6ff'} onMouseLeave={e => e.currentTarget.style.background='transparent'}>{mk?.icon} {mk?.name}</div>;
   };
 
   return (
