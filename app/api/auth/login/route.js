@@ -1,8 +1,9 @@
 import { createClient } from '@supabase/supabase-js';
+import bcrypt from 'bcryptjs';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_KEY // Use service key for server-side
+  process.env.SUPABASE_SERVICE_KEY
 );
 
 export async function POST(request) {
@@ -13,7 +14,6 @@ export async function POST(request) {
       return Response.json({ error: 'Missing credentials' }, { status: 400 });
     }
 
-    // Verify PIN server-side
     const { data, error } = await supabase
       .from('team_members')
       .select('id, name, email, color, role, is_manager, language, restricted_to_market, see_only_assigned, is_active, pin')
@@ -25,12 +25,12 @@ export async function POST(request) {
       return Response.json({ error: 'User not found' }, { status: 401 });
     }
 
-    // Check PIN
-    if (data.pin !== pin) {
+    // Porównaj PIN z hashem
+    const isValid = await bcrypt.compare(pin, data.pin);
+    if (!isValid) {
       return Response.json({ error: 'Invalid PIN' }, { status: 401 });
     }
 
-    // Return user data WITHOUT pin
     return Response.json({
       success: true,
       user: {
