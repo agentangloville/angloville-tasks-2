@@ -71,6 +71,7 @@ const T = {
     links: 'Linki', addLink: '+ Link', addPerson: '+ Dodaj',
     segmentPlaceholder: 'np. alumni, leady wakacje...',
     subjectPlaceholder: 'Temat emaila...', notesPlaceholder: 'Notatki...',
+    taskLink: 'Link do taska', taskLinkPlaceholder: 'https://...vercel.app/ (opcjonalnie)',
     backToTasks: '← Taskery', selectTools: 'Wybierz...',
     editThis: 'Tylko tę wysyłkę', editAll: 'Całą serię',
     deleteThis: 'Tylko tę', deleteAll: 'Całą serię',
@@ -90,6 +91,7 @@ const T = {
     links: 'Links', addLink: '+ Link', addPerson: '+ Add',
     segmentPlaceholder: 'e.g. alumni, summer leads...',
     subjectPlaceholder: 'Email subject...', notesPlaceholder: 'Notes...',
+    taskLink: 'Related task', taskLinkPlaceholder: 'https://...vercel.app/ (optional)',
     backToTasks: '← Tasks', selectTools: 'Select...',
     editThis: 'This send only', editAll: 'All in series',
     deleteThis: 'This only', deleteAll: 'Entire series',
@@ -242,11 +244,12 @@ function SendFormModal({ send, onSave, onClose, currentUser, teamMembers, t, lan
     title: send?.title || '', description: send?.description || '',
     channel: send?.channel || 'email', tools: send?.tools || [],
     market: send?.market || 'pl', segment: send?.segment || '',
-    sendDate: send?.sendDate || fmt(new Date()),
+    sendDate: send?.sendDate || send?._prefillDate || fmt(new Date()),
     sendTime: send?.sendTime ? fmtTime(send.sendTime) : '10:00',
     recurrence: send?.recurrence || null, recurrenceEndDate: send?.recurrenceEndDate || '',
     status: send?.status || 'scheduled', subjectLine: send?.subjectLine || '',
     notes: send?.notes || '', links: send?.links || [],
+    taskLink: send?.taskLink || '',
     assignees: send?.assignees || [currentUser],
   });
 
@@ -356,6 +359,11 @@ function SendFormModal({ send, onSave, onClose, currentUser, teamMembers, t, lan
           </div>
 
           <AssigneeSelector assignees={f.assignees} teamMembers={teamMembers} onChange={a => sF({...f, assignees: a})} t={t} />
+          <div>
+            <label className="text-sm font-medium block mb-1.5" style={{ color: '#111827' }}>{t.taskLink}</label>
+            <input type="url" value={f.taskLink} onChange={e => sF({...f, taskLink: e.target.value})} className="w-full px-3 py-2 border rounded-lg text-sm" style={{ borderColor: '#d1d5db' }} placeholder={t.taskLinkPlaceholder} />
+          </div>
+
           <LinksEditor links={f.links} onChange={links => sF({...f, links})} t={t} />
 
           <div>
@@ -440,6 +448,7 @@ function SendDetail({ send, onUpdate, onDelete, onEdit, onClose, teamMembers, t,
 
         {send.subjectLine && <div><label className="text-xs font-medium block mb-1" style={{ color: '#6b7280' }}>{t.subjectLine}</label><div className="px-3 py-2 rounded-lg text-sm" style={{ background: '#f3f4f6' }}>{send.subjectLine}</div></div>}
         <LinksDisplay links={send.links} />
+        {send.taskLink && <div><label className="text-xs font-medium block mb-1" style={{ color: '#6b7280' }}>{t.taskLink}</label><a href={send.taskLink} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-blue-50 text-sm" style={{ color: '#2563eb' }}><ExternalLink size={13} /><span className="hover:underline">{lang==='en'?'Open task':'Otwórz task'}</span></a></div>}
         {send.notes && <div><label className="text-xs font-medium block mb-1" style={{ color: '#6b7280' }}>{t.notes}</label><div className="px-3 py-2 rounded-lg text-sm whitespace-pre-wrap" style={{ background: '#f3f4f6', color: '#374151' }}>{send.notes}</div></div>}
       </div>
     </aside>
@@ -766,7 +775,7 @@ export default function PlannerPage() {
 
         <div className="flex-1 overflow-y-auto p-3 lg:p-4">
           {view==='calendar'
-            ? <CalendarView sends={calendarSends} year={calYear} month={calMonth} onSelectDay={d => {setSelectedDate(d);setSelectedSend(null);}} onSelectSend={setSelectedSend} selectedDate={selectedDate} lang={lang} />
+            ? <CalendarView sends={calendarSends} year={calYear} month={calMonth} onSelectDay={d => {setSelectedDate(d);setSelectedSend(null);setEditSend({ _prefillDate: d });setShowForm(true);}} onSelectSend={setSelectedSend} selectedDate={selectedDate} lang={lang} />
             : <div className="max-w-4xl mx-auto"><ListView sends={filteredSends} onSelectSend={setSelectedSend} selectedId={selectedSend?.id} teamMembers={teamMembers} t={t} lang={lang} /></div>
           }
         </div>
