@@ -281,7 +281,7 @@ function DashboardPanel({ tasks, teamMembers, onClose, t, lang }) {
   const presets = [7, 14, 30, 60];
 
   return (
-    <aside className="w-full lg:w-[540px] bg-white border-l flex flex-col overflow-hidden flex-shrink-0 fixed lg:static inset-0 z-40 lg:z-auto" style={{ borderColor: '#e8eaed' }}>
+    <aside className="w-full lg:w-[640px] bg-white border-l flex flex-col overflow-hidden flex-shrink-0 fixed lg:static inset-0 z-40 lg:z-auto" style={{ borderColor: '#e8eaed' }}>
       {/* Header */}
       <div className="p-3 border-b flex items-center justify-between" style={{ borderColor: '#e8eaed' }}>
         <div className="flex items-center gap-2">
@@ -355,7 +355,7 @@ function DashboardPanel({ tasks, teamMembers, onClose, t, lang }) {
                 <span className="text-sm">{m.icon}</span>
                 <span className="text-xs font-medium" style={{ color: '#202124' }}>{m.name}</span>
               </div>
-              <div className="flex-1 flex gap-1" style={{ maxWidth: 320 }}>
+              <div className="flex-1 flex gap-1">
                 <div style={{ flex: 1 }}><DBar value={m.cr} max={maxM} color={CC.cr} /></div>
                 <div style={{ flex: 1 }}><DBar value={m.cl} max={maxM} color={CC.cl} /></div>
                 <div style={{ flex: 1 }}><DBar value={m.ac} max={maxM} color={CC.ac} /></div>
@@ -377,7 +377,7 @@ function DashboardPanel({ tasks, teamMembers, onClose, t, lang }) {
                 </div>
                 <span className="text-xs font-medium truncate" style={{ color: '#202124' }}>{p.short}</span>
               </div>
-              <div className="flex-1 flex gap-1" style={{ maxWidth: 320 }}>
+              <div className="flex-1 flex gap-1">
                 <div style={{ flex: 1 }}><DBar value={p.cr} max={maxP} color={CC.cr} /></div>
                 <div style={{ flex: 1 }}><DBar value={p.cl} max={maxP} color={CC.cl} /></div>
                 <div style={{ flex: 1 }}><DBar value={p.ac} max={maxP} color={CC.ac} /></div>
