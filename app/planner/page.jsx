@@ -390,13 +390,12 @@ function SendDetail({ send, onUpdate, onDelete, onEdit, onClose, onSelectSend, a
   const assigned = (send.assignees||[]).map(id => teamMembers.find(m => m.id === id)).filter(Boolean);
   const ChIcon = ch?.icon || Mail;
 
-  // Series siblings: find parent + all children
+  // Series siblings: all sends with same title + market (not just parentId)
   const seriesSiblings = useMemo(() => {
-    if (!isPartOfSeries(send)) return [];
-    const pid = getSeriesRoot(send);
-    return allSends
-      .filter(s => s.id === pid || s.parentId === pid)
-      .sort((a, b) => a.sendDate.localeCompare(b.sendDate));
+    const siblings = allSends
+      .filter(s => s.title === send.title && s.market === send.market)
+      .sort((a, b) => a.sendDate.localeCompare(b.sendDate) || (a.sendTime||'').localeCompare(b.sendTime||''));
+    return siblings.length > 1 ? siblings : [];
   }, [send, allSends]);
 
   // Show 3 previous + current + 5 next
@@ -416,7 +415,7 @@ function SendDetail({ send, onUpdate, onDelete, onEdit, onClose, onSelectSend, a
           <ChIcon size={18} style={{ color: ch?.color }} />
           <span className="text-sm font-medium" style={{ color: '#111827' }}>{ch?.name}</span>
           <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: st?.bg, color: st?.color }}>{lang==='en' ? st?.nameEn : st?.name}</span>
-          {isPartOfSeries(send) && <Repeat size={13} style={{ color: '#7c3aed' }} />}
+          {(isPartOfSeries(send) || seriesSiblings.length > 0) && <Repeat size={13} style={{ color: '#7c3aed' }} />}
         </div>
         <div className="flex items-center gap-1">
           <button onClick={() => onEdit(send)} className="p-1.5 rounded-full hover:bg-gray-100" style={{ color: '#6b7280' }}><Edit3 size={16} /></button>
