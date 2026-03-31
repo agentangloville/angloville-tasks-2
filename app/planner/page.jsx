@@ -411,7 +411,7 @@ function SendDetail({ send, onUpdate, onDelete, onEdit, onClose, onSelectSend, a
   }, [seriesSiblings, send.id]);
 
   return (
-    <aside className="w-full lg:w-[420px] bg-white border-l flex flex-col overflow-hidden flex-shrink-0 fixed lg:static inset-0 z-40 lg:z-auto" style={{ borderColor: '#e5e7eb' }}>
+    <aside className="w-full lg:w-[520px] bg-white border-l flex flex-col overflow-hidden flex-shrink-0 fixed lg:static inset-0 z-40 lg:z-auto" style={{ borderColor: '#e5e7eb' }}>
       <div className="p-3 border-b flex items-center justify-between" style={{ borderColor: '#e5e7eb' }}>
         <div className="flex items-center gap-2">
           <ChIcon size={18} style={{ color: ch?.color }} />
