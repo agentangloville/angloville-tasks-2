@@ -5,7 +5,7 @@ import {
   Plus, X, Check, Edit3, Trash2, ChevronLeft, ChevronRight,
   Calendar, List, Mail, MessageSquare, Phone, Clock,
   Filter, Loader2, LogOut, Lock, Menu, Repeat,
-  CheckCircle, Circle, XCircle, ExternalLink, Users
+  CheckCircle, Circle, XCircle, ExternalLink, Users, Download
 } from 'lucide-react';
 import { getTeamMembers } from '../../lib/supabase';
 import {
@@ -73,6 +73,7 @@ const T = {
     subjectPlaceholder: 'Temat emaila...', notesPlaceholder: 'Notatki...',
     taskLink: 'Link do taska', taskLinkPlaceholder: 'https://...vercel.app/ (opcjonalnie)',
     backToTasks: '← Taskery', selectTools: 'Wybierz...',
+    exportBtn: 'Eksport', exportTitle: 'Eksportuj harmonogram', exportMarkets: 'Rynki', exportStatuses: 'Statusy', exportChannels: 'Kanały', exportRange: 'Zakres dat', exportDownload: 'Pobierz CSV', exportAll: 'Wszystkie',
     editThis: 'Tylko tę wysyłkę', editAll: 'Całą serię',
     deleteThis: 'Tylko tę', deleteAll: 'Całą serię',
     editRecurring: 'Edytuj cykliczną', deleteRecurring: 'Usuń cykliczną',
@@ -93,6 +94,7 @@ const T = {
     subjectPlaceholder: 'Email subject...', notesPlaceholder: 'Notes...',
     taskLink: 'Related task', taskLinkPlaceholder: 'https://...vercel.app/ (optional)',
     backToTasks: '← Tasks', selectTools: 'Select...',
+    exportBtn: 'Export', exportTitle: 'Export schedule', exportMarkets: 'Markets', exportStatuses: 'Statuses', exportChannels: 'Channels', exportRange: 'Date range', exportDownload: 'Download CSV', exportAll: 'All',
     editThis: 'This send only', editAll: 'All in series',
     deleteThis: 'This only', deleteAll: 'Entire series',
     editRecurring: 'Edit recurring', deleteRecurring: 'Delete recurring',
@@ -708,6 +710,165 @@ function LoginScreen({ onLogin, teamMembers }) {
   return <div className="min-h-screen flex items-center justify-center p-4" style={{ background: '#f8f9fa' }}><div className="bg-white rounded-2xl p-8 w-full max-w-sm" style={{ boxShadow: '0 1px 3px 0 rgba(60,64,67,.3), 0 4px 8px 3px rgba(60,64,67,.15)' }}><div className="text-center mb-8"><img src="https://angloville.com/wp-content/themes/angloville/assets/images/logo.svg" alt="Angloville" className="h-10 mx-auto mb-4" /><h1 className="text-xl font-semibold" style={{ color: '#111827' }}>Planner wysyłek</h1><p className="text-sm mt-1" style={{ color: '#6b7280' }}>Email · SMS · WhatsApp · Infomeetingi</p></div><form onSubmit={hl} className="space-y-4">{err&&<div className="p-3 rounded-lg text-sm text-center" style={{ background: '#fef2f2', color: '#dc2626' }}>{err}</div>}<div><label className="block text-sm font-medium mb-1.5" style={{ color: '#111827' }}>Osoba</label><select value={su} onChange={e=>{setSu(e.target.value);setErr('');}} className="w-full px-4 py-3 border rounded-lg text-sm" style={{ borderColor: '#d1d5db' }}><option value="">Wybierz...</option>{am.map(m=><option key={m.id} value={m.id}>{m.name}</option>)}</select></div><div><label className="block text-sm font-medium mb-1.5" style={{ color: '#111827' }}>PIN</label><input type="password" value={pin} onChange={e=>{setPin(e.target.value.replace(/\D/g,'').slice(0,4));setErr('');}} className="w-full px-4 py-3 border rounded-lg text-sm text-center tracking-widest" style={{ borderColor: '#d1d5db' }} placeholder="••••" maxLength={4} inputMode="numeric" /></div><button type="submit" disabled={ld} className="w-full py-3 rounded-lg font-medium flex items-center justify-center gap-2 disabled:opacity-70" style={{ background: '#2563eb', color: 'white' }}>{ld?<Loader2 size={18} className="animate-spin" />:<Lock size={18} />}{ld?'...':'Zaloguj się'}</button></form></div></div>;
 }
 
+// ── Export Modal ─────────────────────────────────────
+
+function ExportModal({ sends, onClose, t, lang }) {
+  const [selMarkets, setSelMarkets] = useState(MARKETS.map(m => m.id));
+  const [selStatuses, setSelStatuses] = useState(['todo', 'scheduled']);
+  const [selChannels, setSelChannels] = useState(CHANNELS.map(c => c.id));
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+
+  const toggleArr = (arr, setArr, val) => {
+    setArr(prev => prev.includes(val) ? prev.filter(v => v !== val) : [...prev, val]);
+  };
+  const toggleAll = (arr, setArr, allVals) => {
+    setArr(arr.length === allVals.length ? [] : allVals);
+  };
+
+  const filtered = useMemo(() => {
+    return sends.filter(s => {
+      if (!selMarkets.includes(s.market)) return false;
+      if (!selStatuses.includes(s.status)) return false;
+      if (!selChannels.includes(s.channel)) return false;
+      if (dateFrom && s.sendDate < dateFrom) return false;
+      if (dateTo && s.sendDate > dateTo) return false;
+      return true;
+    }).sort((a, b) => a.sendDate.localeCompare(b.sendDate));
+  }, [sends, selMarkets, selStatuses, selChannels, dateFrom, dateTo]);
+
+  const downloadCSV = () => {
+    const headers = ['Date', 'Time', 'Title', 'Market', 'Channel', 'Tools', 'Status', 'Segment', 'Subject Line', 'Notes/Idea'];
+    const rows = filtered.map(s => {
+      const mk = MARKETS.find(m => m.id === s.market);
+      const tools = (s.tools || []).map(id => TOOLS.find(t => t.id === id)?.name || id).join(', ');
+      const st = STATUSES.find(x => x.id === s.status);
+      return [
+        s.sendDate,
+        (s.sendTime || '').substring(0, 5),
+        s.title,
+        mk ? (lang === 'en' ? mk.name : mk.name) : s.market,
+        s.channel,
+        tools,
+        lang === 'en' ? (st?.nameEn || s.status) : (st?.name || s.status),
+        s.segment || '',
+        (s.subjectLine || '').replace(/"/g, '""'),
+        (s.notes || '').replace(/"/g, '""').replace(/\n/g, ' '),
+      ];
+    });
+
+    const csv = [headers, ...rows].map(r => r.map(c => `"${c}"`).join(',')).join('\n');
+    const BOM = '\uFEFF';
+    const blob = new Blob([BOM + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `angloville-planner-${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
+      <div className="bg-white rounded-xl w-full max-w-md max-h-[90vh] overflow-y-auto" style={{ boxShadow: '0 24px 38px 3px rgba(0,0,0,.14)' }} onClick={e => e.stopPropagation()}>
+        <div className="p-5 border-b flex items-center justify-between" style={{ borderColor: '#e5e7eb' }}>
+          <div className="flex items-center gap-2">
+            <Download size={20} style={{ color: '#2563eb' }} />
+            <h3 className="text-lg font-medium" style={{ color: '#111827' }}>{t.exportTitle}</h3>
+          </div>
+          <button onClick={onClose} style={{ color: '#6b7280' }}><X size={20} /></button>
+        </div>
+
+        <div className="p-5 space-y-5">
+          {/* Markets — multi-select */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-sm font-medium" style={{ color: '#111827' }}>{t.exportMarkets}</label>
+              <button onClick={() => toggleAll(selMarkets, setSelMarkets, MARKETS.map(m => m.id))} className="text-xs" style={{ color: '#2563eb' }}>
+                {selMarkets.length === MARKETS.length ? t.cancel : t.exportAll}
+              </button>
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {MARKETS.map(mk => {
+                const on = selMarkets.includes(mk.id);
+                return <button key={mk.id} type="button" onClick={() => toggleArr(selMarkets, setSelMarkets, mk.id)}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium border"
+                  style={{ borderColor: on ? '#2563eb' : '#d1d5db', background: on ? '#eff6ff' : 'white', color: on ? '#2563eb' : '#6b7280' }}>
+                  {mk.icon} {mk.name} {on && <Check size={12} />}
+                </button>;
+              })}
+            </div>
+          </div>
+
+          {/* Channels — multi-select */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-sm font-medium" style={{ color: '#111827' }}>{t.exportChannels}</label>
+              <button onClick={() => toggleAll(selChannels, setSelChannels, CHANNELS.map(c => c.id))} className="text-xs" style={{ color: '#2563eb' }}>
+                {selChannels.length === CHANNELS.length ? t.cancel : t.exportAll}
+              </button>
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {CHANNELS.map(ch => {
+                const on = selChannels.includes(ch.id);
+                const I = ch.icon;
+                return <button key={ch.id} type="button" onClick={() => toggleArr(selChannels, setSelChannels, ch.id)}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium border"
+                  style={{ borderColor: on ? ch.color : '#d1d5db', background: on ? ch.bg : 'white', color: on ? ch.color : '#6b7280' }}>
+                  <I size={12} /> {ch.name} {on && <Check size={12} />}
+                </button>;
+              })}
+            </div>
+          </div>
+
+          {/* Statuses — multi-select */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-sm font-medium" style={{ color: '#111827' }}>{t.exportStatuses}</label>
+              <button onClick={() => toggleAll(selStatuses, setSelStatuses, STATUSES.map(s => s.id))} className="text-xs" style={{ color: '#2563eb' }}>
+                {selStatuses.length === STATUSES.length ? t.cancel : t.exportAll}
+              </button>
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {STATUSES.map(st => {
+                const on = selStatuses.includes(st.id);
+                return <button key={st.id} type="button" onClick={() => toggleArr(selStatuses, setSelStatuses, st.id)}
+                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-full text-xs font-medium border"
+                  style={{ borderColor: on ? st.color : '#d1d5db', background: on ? st.bg : 'white', color: on ? st.color : '#6b7280' }}>
+                  {lang === 'en' ? st.nameEn : st.name} {on && <Check size={12} />}
+                </button>;
+              })}
+            </div>
+          </div>
+
+          {/* Date range */}
+          <div>
+            <label className="text-sm font-medium block mb-2" style={{ color: '#111827' }}>{t.exportRange}</label>
+            <div className="flex items-center gap-2">
+              <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="flex-1 px-3 py-2 border rounded-lg text-sm" style={{ borderColor: '#d1d5db' }} />
+              <span className="text-xs" style={{ color: '#9ca3af' }}>–</span>
+              <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="flex-1 px-3 py-2 border rounded-lg text-sm" style={{ borderColor: '#d1d5db' }} />
+            </div>
+          </div>
+
+          {/* Preview count */}
+          <div className="px-4 py-3 rounded-lg text-center" style={{ background: '#f8f9fa', border: '1px solid #e5e7eb' }}>
+            <span className="text-2xl font-bold" style={{ color: '#2563eb' }}>{filtered.length}</span>
+            <span className="text-sm ml-2" style={{ color: '#6b7280' }}>{lang === 'en' ? 'sends to export' : 'wysyłek do eksportu'}</span>
+          </div>
+        </div>
+
+        <div className="p-5 border-t flex justify-end gap-3" style={{ borderColor: '#e5e7eb' }}>
+          <button onClick={onClose} className="px-5 py-2.5 rounded-lg text-sm font-medium hover:bg-gray-100" style={{ color: '#6b7280' }}>{t.cancel}</button>
+          <button onClick={downloadCSV} disabled={filtered.length === 0} className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium disabled:opacity-50" style={{ background: '#2563eb', color: 'white' }}>
+            <Download size={16} /> {t.exportDownload}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Main App ─────────────────────────────────────────
 
 export default function PlannerPage() {
@@ -724,6 +885,7 @@ export default function PlannerPage() {
   const [selectedDate, setSelectedDate] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [seriesModal, setSeriesModal] = useState(null); // { type: 'edit'|'delete', send }
+  const [showExport, setShowExport] = useState(false);
   const now = new Date();
   const [calYear, setCalYear] = useState(now.getFullYear());
   const [calMonth, setCalMonth] = useState(now.getMonth());
@@ -906,6 +1068,7 @@ export default function PlannerPage() {
               <button onClick={() => setView('list')} className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium" style={{ background: view==='list'?'#2563eb':'white', color: view==='list'?'white':'#6b7280', borderLeft: '1px solid #d1d5db' }}><List size={14} /><span className="hidden sm:inline">{t.list}</span></button>
             </div>
             <button onClick={loadSends} className="p-2 rounded-full hover:bg-gray-100" style={{ color: '#6b7280' }}><Loader2 size={18} /></button>
+            <button onClick={() => setShowExport(true)} className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium border hover:bg-gray-50" style={{ borderColor: '#d1d5db', color: '#6b7280' }}><Download size={14} /><span className="hidden sm:inline">{t.exportBtn}</span></button>
             <button onClick={() => {setEditSend(null);setShowForm(true);}} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium text-xs" style={{ background: '#2563eb', color: 'white' }}><Plus size={15} /><span className="hidden sm:inline">{t.newSend}</span></button>
           </div>
         </header>
@@ -928,6 +1091,7 @@ export default function PlannerPage() {
       {selectedSend && <SendDetail send={selectedSend} onUpdate={handleUpdateSend} onDelete={handleDeleteSend} onEdit={handleEditSend} onClose={() => setSelectedSend(null)} onSelectSend={setSelectedSend} allSends={sends} teamMembers={teamMembers} t={t} lang={lang} />}
       {showForm && <SendFormModal send={editSend} onSave={handleSaveSend} onClose={() => {setShowForm(false);setEditSend(null);}} currentUser={currentUser} teamMembers={teamMembers} t={t} lang={lang} />}
       {seriesModal && <SeriesChoiceModal type={seriesModal.type} onChoice={handleSeriesChoice} onClose={() => setSeriesModal(null)} t={t} />}
+      {showExport && <ExportModal sends={sends} onClose={() => setShowExport(false)} t={t} lang={lang} />}
     </div>
   );
 }
