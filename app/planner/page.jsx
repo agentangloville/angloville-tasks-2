@@ -765,19 +765,34 @@ function TableView({ sends, onUpdate, t, lang }) {
 
     if (isEd(send.id, field)) {
       const over = showCounter && editValue.length > charLimit;
+      const inputStyle = {
+        width: '100%',
+        padding: '4px 8px',
+        border: `1.5px solid ${over ? '#ef4444' : '#2563eb'}`,
+        borderRadius: 4,
+        fontSize: 12,
+        fontFamily: mono ? 'monospace' : 'inherit',
+        direction: 'ltr',
+        textAlign: 'left',
+        unicodeBidi: 'plaintext',
+        outline: 'none',
+        background: 'white',
+        color: '#111827',
+        boxSizing: 'border-box',
+      };
       return (
-        <div>
+        <div style={{ direction: 'ltr', textAlign: 'left' }}>
           {field === 'notes' ? (
             <textarea value={editValue} onChange={e => setEditValue(e.target.value)} onKeyDown={handleKey} onBlur={saveEdit}
-              className="w-full px-2 py-1 border rounded text-xs resize-none" style={{ borderColor: over ? '#ef4444' : '#2563eb', minHeight: 56, direction: 'ltr', textAlign: 'left', unicodeBidi: 'plaintext' }} autoFocus />
+              style={{ ...inputStyle, minHeight: 56, resize: 'vertical' }} autoFocus />
           ) : (
             <input type={field === 'sendDate' ? 'date' : field === 'sendTime' ? 'time' : 'text'} value={editValue}
               onChange={e => setEditValue(e.target.value)} onKeyDown={handleKey} onBlur={saveEdit}
-              className="w-full px-2 py-1 border rounded text-xs" style={{ borderColor: over ? '#ef4444' : '#2563eb', direction: 'ltr', textAlign: 'left' }} autoFocus />
+              style={inputStyle} autoFocus />
           )}
           {showCounter && (
-            <div className="flex justify-end mt-0.5">
-              <span className="text-xs font-medium" style={{ color: over ? '#ef4444' : editValue.length > 140 ? '#f59e0b' : '#9ca3af' }}>
+            <div style={{ textAlign: 'right', marginTop: 2 }}>
+              <span style={{ fontSize: 11, fontWeight: 500, color: over ? '#ef4444' : editValue.length > 140 ? '#f59e0b' : '#9ca3af' }}>
                 {editValue.length}/{charLimit}
               </span>
             </div>
@@ -788,24 +803,31 @@ function TableView({ sends, onUpdate, t, lang }) {
 
     const over = showCounter && val.length > charLimit;
     return (
-      <div onClick={() => startEdit(send, field)} className="px-2 py-1.5 rounded cursor-pointer hover:bg-blue-50 text-xs truncate"
-        style={{ color: val ? (over ? '#ef4444' : '#111827') : '#d1d5db', fontFamily: mono ? 'monospace' : 'inherit', minHeight: 28 }} title={val || t.clickToEdit}>
+      <div onClick={() => startEdit(send, field)}
+        style={{ padding: '6px 8px', borderRadius: 4, cursor: 'pointer', fontSize: 12, minHeight: 28,
+          color: val ? (over ? '#ef4444' : '#111827') : '#d1d5db',
+          fontFamily: mono ? 'monospace' : 'inherit',
+          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+          direction: 'ltr', textAlign: 'left' }}
+        title={val || t.clickToEdit}
+        onMouseEnter={e => e.currentTarget.style.background = '#eff6ff'}
+        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
         {val || '—'}
-        {over && <span className="ml-1 text-xs font-bold" style={{ color: '#ef4444' }}>({val.length}/{charLimit})</span>}
+        {over && <span style={{ marginLeft: 4, fontSize: 11, fontWeight: 700, color: '#ef4444' }}>({val.length}/{charLimit})</span>}
       </div>
     );
   };
 
   const StatusCell = ({ send }) => {
-    if (isEd(send.id, 'status')) return <select value={editValue} onChange={e => setEditValue(e.target.value)} onBlur={saveEdit} autoFocus className="w-full px-1 py-1 border rounded text-xs" style={{ borderColor: '#2563eb' }}>{STATUSES.map(s => <option key={s.id} value={s.id}>{lang==='en'?s.nameEn:s.name}</option>)}</select>;
+    if (isEd(send.id, 'status')) return <select value={editValue} onChange={e => setEditValue(e.target.value)} onBlur={saveEdit} autoFocus style={{ width: '100%', padding: '4px 6px', border: '1.5px solid #2563eb', borderRadius: 4, fontSize: 12, direction: 'ltr', textAlign: 'left', outline: 'none' }}>{STATUSES.map(s => <option key={s.id} value={s.id}>{lang==='en'?s.nameEn:s.name}</option>)}</select>;
     const st = STATUSES.find(s => s.id === send.status);
-    return <div onClick={() => startEdit(send, 'status')} className="cursor-pointer"><span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium" style={{ background: st?.bg, color: st?.color }}>{lang==='en'?st?.nameEn:st?.name}</span></div>;
+    return <div onClick={() => startEdit(send, 'status')} style={{ cursor: 'pointer', padding: '4px 0' }}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 8px', borderRadius: 10, fontSize: 11, fontWeight: 500, background: st?.bg, color: st?.color }}>{lang==='en'?st?.nameEn:st?.name}</span></div>;
   };
 
   const MarketCell = ({ send }) => {
-    if (isEd(send.id, 'market')) return <select value={editValue} onChange={e => setEditValue(e.target.value)} onBlur={saveEdit} autoFocus className="w-full px-1 py-1 border rounded text-xs" style={{ borderColor: '#2563eb' }}>{MARKETS.map(m => <option key={m.id} value={m.id}>{m.icon} {m.name}</option>)}</select>;
+    if (isEd(send.id, 'market')) return <select value={editValue} onChange={e => setEditValue(e.target.value)} onBlur={saveEdit} autoFocus style={{ width: '100%', padding: '4px 6px', border: '1.5px solid #2563eb', borderRadius: 4, fontSize: 12, direction: 'ltr', textAlign: 'left', outline: 'none' }}>{MARKETS.map(m => <option key={m.id} value={m.id}>{m.icon} {m.name}</option>)}</select>;
     const mk = MARKETS.find(m => m.id === send.market);
-    return <div onClick={() => startEdit(send, 'market')} className="cursor-pointer text-xs px-2 py-1.5 rounded hover:bg-blue-50">{mk?.icon} {mk?.name}</div>;
+    return <div onClick={() => startEdit(send, 'market')} style={{ cursor: 'pointer', fontSize: 12, padding: '6px 8px', borderRadius: 4, direction: 'ltr', textAlign: 'left' }} onMouseEnter={e => e.currentTarget.style.background='#eff6ff'} onMouseLeave={e => e.currentTarget.style.background='transparent'}>{mk?.icon} {mk?.name}</div>;
   };
 
   return (
