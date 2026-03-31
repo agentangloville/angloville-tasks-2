@@ -5,7 +5,8 @@ import {
   Plus, X, Check, Edit3, Trash2, ChevronLeft, ChevronRight,
   Calendar, List, Mail, MessageSquare, Phone, Send, Clock,
   Filter, Loader2, LogOut, Lock, Menu, Repeat, Globe,
-  CheckCircle, Circle, XCircle, ArrowLeft, ChevronDown
+  CheckCircle, Circle, XCircle, ArrowLeft, ChevronDown,
+  ExternalLink, Link2
 } from 'lucide-react';
 import { getTeamMembers } from '../../lib/supabase';
 import {
@@ -19,12 +20,15 @@ const MARKETS = [
   { id: 'pl', name: 'Polska', icon: '🇵🇱' },
   { id: 'ns', name: 'Native Speakers', icon: '🇬🇧' },
   { id: 'it', name: 'Włochy', icon: '🇮🇹' },
+  { id: 'exchange', name: 'Wymiana', icon: '🎓' },
+  { id: 'tefl', name: 'TEFL in Asia', icon: '🌏' },
+  { id: 'brazil', name: 'Brazylia', icon: '🇧🇷' },
 ];
 
 const CHANNELS = [
   { id: 'email', name: 'Email', icon: Mail, color: '#2563eb', bg: '#eff6ff' },
   { id: 'sms', name: 'SMS', icon: Phone, color: '#16a34a', bg: '#f0fdf4' },
-  { id: 'whatsapp', name: 'WhatsApp', icon: MessageSquare, color: '#25d366', bg: '#f0fdf4' },
+  { id: 'whatsapp', name: 'WhatsApp', icon: MessageSquare, color: '#25d366', bg: '#ecfdf5' },
 ];
 
 const TOOLS = [
@@ -54,7 +58,7 @@ const RECURRENCE_OPTIONS = [
 const TRANSLATIONS = {
   pl: {
     planner: 'Planer wysyłek', calendar: 'Kalendarz', list: 'Lista', newSend: 'Nowa wysyłka',
-    title: 'Tytuł', description: 'Opis', channel: 'Kanał', tool: 'Narzędzie', market: 'Rynek',
+    title: 'Tytuł', description: 'Opis', channel: 'Kanał', tools: 'Narzędzia', market: 'Rynek',
     segment: 'Segment', sendDate: 'Data wysyłki', sendTime: 'Godzina', recurrence: 'Powtarzanie',
     recurrenceEnd: 'Powtarzaj do', status: 'Status', subjectLine: 'Temat', notes: 'Notatki',
     save: 'Zapisz', cancel: 'Anuluj', delete: 'Usuń', edit: 'Edytuj', close: 'Zamknij',
@@ -63,17 +67,16 @@ const TRANSLATIONS = {
     draft: 'Szkic', scheduled: 'Zaplanowane', sent: 'Wysłane', cancelled: 'Anulowane',
     markSent: 'Oznacz jako wysłane', markCancelled: 'Anuluj', restore: 'Przywróć',
     loading: 'Ładowanie...', deleteSend: 'Usunąć wysyłkę?', assignedTo: 'Przypisane do',
-    oneTime: 'Jednorazowo', weekly: 'Co tydzień', biweekly: 'Co 2 tygodnie', monthly: 'Co miesiąc',
-    recurring: 'Cykliczne', createSeries: 'Utwórz serię', seriesCreated: 'Seria utworzona',
+    recurring: 'Cykliczne', links: 'Linki', addLink: '+ Dodaj link', linkName: 'Nazwa',
+    linkUrl: 'URL', noLinks: 'Brak linków',
     segmentPlaceholder: 'np. alumni, leady wakacje, rodzice Junior...',
     subjectPlaceholder: 'Temat emaila...',
     notesPlaceholder: 'Dodatkowe notatki...',
-    backToTasks: '← Taskery',
-    mon: 'Pon', tue: 'Wt', wed: 'Śr', thu: 'Czw', fri: 'Pt', sat: 'Sob', sun: 'Nd',
+    backToTasks: '← Taskery', selectTools: 'Wybierz narzędzia...',
   },
   en: {
     planner: 'Send Planner', calendar: 'Calendar', list: 'List', newSend: 'New send',
-    title: 'Title', description: 'Description', channel: 'Channel', tool: 'Tool', market: 'Market',
+    title: 'Title', description: 'Description', channel: 'Channel', tools: 'Tools', market: 'Market',
     segment: 'Segment', sendDate: 'Send date', sendTime: 'Time', recurrence: 'Recurrence',
     recurrenceEnd: 'Repeat until', status: 'Status', subjectLine: 'Subject line', notes: 'Notes',
     save: 'Save', cancel: 'Cancel', delete: 'Delete', edit: 'Edit', close: 'Close',
@@ -82,13 +85,12 @@ const TRANSLATIONS = {
     draft: 'Draft', scheduled: 'Scheduled', sent: 'Sent', cancelled: 'Cancelled',
     markSent: 'Mark as sent', markCancelled: 'Cancel', restore: 'Restore',
     loading: 'Loading...', deleteSend: 'Delete send?', assignedTo: 'Assigned to',
-    oneTime: 'One-time', weekly: 'Weekly', biweekly: 'Biweekly', monthly: 'Monthly',
-    recurring: 'Recurring', createSeries: 'Create series', seriesCreated: 'Series created',
+    recurring: 'Recurring', links: 'Links', addLink: '+ Add link', linkName: 'Name',
+    linkUrl: 'URL', noLinks: 'No links',
     segmentPlaceholder: 'e.g. alumni, summer leads, parents...',
     subjectPlaceholder: 'Email subject line...',
     notesPlaceholder: 'Additional notes...',
-    backToTasks: '← Tasks',
-    mon: 'Mon', tue: 'Tue', wed: 'Wed', thu: 'Thu', fri: 'Fri', sat: 'Sat', sun: 'Sun',
+    backToTasks: '← Tasks', selectTools: 'Select tools...',
   },
 };
 
@@ -108,18 +110,15 @@ function getMonthDays(year, month) {
   const firstDay = new Date(year, month, 1);
   const lastDay = new Date(year, month + 1, 0);
   let startWeekday = firstDay.getDay();
-  startWeekday = startWeekday === 0 ? 6 : startWeekday - 1; // Monday start
+  startWeekday = startWeekday === 0 ? 6 : startWeekday - 1;
   const days = [];
-  // Previous month padding
   for (let i = startWeekday - 1; i >= 0; i--) {
     const d = new Date(year, month, -i);
     days.push({ date: d, isCurrentMonth: false });
   }
-  // Current month
   for (let i = 1; i <= lastDay.getDate(); i++) {
     days.push({ date: new Date(year, month, i), isCurrentMonth: true });
   }
-  // Next month padding
   const remaining = 42 - days.length;
   for (let i = 1; i <= remaining; i++) {
     days.push({ date: new Date(year, month + 1, i), isCurrentMonth: false });
@@ -141,15 +140,14 @@ function formatTime(timeStr) {
   return timeStr.substring(0, 5);
 }
 
-function isToday(dateStr) {
-  return dateStr === formatDate(new Date());
+function isToday(dateStr) { return dateStr === formatDate(new Date()); }
+function isPast(dateStr) { return dateStr < formatDate(new Date()); }
+
+function getToolNames(toolIds) {
+  return (toolIds || []).map(id => TOOLS.find(t => t.id === id)).filter(Boolean);
 }
 
-function isPast(dateStr) {
-  return dateStr < formatDate(new Date());
-}
-
-// ── Login Screen (shared logic) ──────────────────────────
+// ── Login Screen ──────────────────────────────────────────
 
 function LoginScreen({ onLogin, teamMembers }) {
   const [su, setSu] = useState('');
@@ -164,10 +162,7 @@ function LoginScreen({ onLogin, teamMembers }) {
     if (!pin || pin.length < 4) { setErr('Wpisz 4-cyfrowy PIN'); return; }
     setLd(true); setErr('');
     try {
-      const r = await fetch('/api/auth/login', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: su, pin })
-      });
+      const r = await fetch('/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: su, pin }) });
       const d = await r.json();
       if (d.success) { localStorage.setItem('av_tasks_user', su); onLogin(su); }
       else { setErr('Nieprawidłowy PIN'); setPin(''); }
@@ -206,6 +201,95 @@ function LoginScreen({ onLogin, teamMembers }) {
   );
 }
 
+// ── Links Editor ──────────────────────────────────────────
+
+function LinksEditor({ links, onChange, t }) {
+  const addLink = () => onChange([...links, { name: '', url: '' }]);
+  const updateLink = (idx, field, value) => {
+    const updated = links.map((l, i) => i === idx ? { ...l, [field]: value } : l);
+    onChange(updated);
+  };
+  const removeLink = (idx) => onChange(links.filter((_, i) => i !== idx));
+
+  return (
+    <div>
+      <label className="text-sm font-medium block mb-1.5" style={{ color: '#111827' }}>{t.links}</label>
+      <div className="space-y-2">
+        {links.map((link, i) => (
+          <div key={i} className="flex items-center gap-2">
+            <input type="text" value={link.name} onChange={e => updateLink(i, 'name', e.target.value)}
+              className="flex-1 px-3 py-1.5 border rounded-lg text-sm" style={{ borderColor: '#d1d5db' }}
+              placeholder={t.linkName} />
+            <input type="url" value={link.url} onChange={e => updateLink(i, 'url', e.target.value)}
+              className="flex-[2] px-3 py-1.5 border rounded-lg text-sm" style={{ borderColor: '#d1d5db' }}
+              placeholder="https://..." />
+            <button type="button" onClick={() => removeLink(i)} className="p-1 rounded hover:bg-red-50" style={{ color: '#ef4444' }}><X size={16} /></button>
+          </div>
+        ))}
+      </div>
+      <button type="button" onClick={addLink} className="mt-2 text-xs font-medium px-2 py-1 rounded hover:bg-blue-50" style={{ color: '#2563eb' }}>{t.addLink}</button>
+    </div>
+  );
+}
+
+function LinksDisplay({ links, t }) {
+  if (!links?.length) return null;
+  return (
+    <div>
+      <label className="text-xs font-medium block mb-1" style={{ color: '#6b7280' }}>{t.links}</label>
+      <div className="space-y-1">
+        {links.map((link, i) => (
+          <a key={i} href={link.url} target="_blank" rel="noopener noreferrer"
+            className="flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-blue-50 text-sm" style={{ color: '#2563eb' }}>
+            <ExternalLink size={13} />
+            <span className="hover:underline">{link.name || (() => { try { return new URL(link.url).hostname; } catch { return link.url; } })()}</span>
+          </a>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── Multi-Tool Selector ───────────────────────────────────
+
+function ToolMultiSelect({ selectedTools, channel, onChange, t }) {
+  const filteredTools = TOOLS.filter(tool => tool.channel === channel);
+
+  const toggle = (toolId) => {
+    if (selectedTools.includes(toolId)) {
+      onChange(selectedTools.filter(id => id !== toolId));
+    } else {
+      onChange([...selectedTools, toolId]);
+    }
+  };
+
+  return (
+    <div>
+      <label className="text-sm font-medium block mb-1.5" style={{ color: '#111827' }}>{t.tools}</label>
+      <div className="flex flex-wrap gap-1.5">
+        {filteredTools.map(tool => {
+          const active = selectedTools.includes(tool.id);
+          return (
+            <button key={tool.id} type="button" onClick={() => toggle(tool.id)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border"
+              style={{
+                background: active ? tool.color + '18' : '#f3f4f6',
+                color: active ? tool.color : '#6b7280',
+                borderColor: active ? tool.color : 'transparent',
+              }}>
+              {tool.name}
+              {active && <Check size={12} />}
+            </button>
+          );
+        })}
+      </div>
+      {selectedTools.length === 0 && (
+        <p className="text-xs mt-1" style={{ color: '#9ca3af' }}>{t.selectTools}</p>
+      )}
+    </div>
+  );
+}
+
 // ── Send Form Modal ──────────────────────────────────────
 
 function SendFormModal({ send, onSave, onClose, currentUser, teamMembers, t, lang }) {
@@ -214,7 +298,7 @@ function SendFormModal({ send, onSave, onClose, currentUser, teamMembers, t, lan
     title: send?.title || '',
     description: send?.description || '',
     channel: send?.channel || 'email',
-    tool: send?.tool || 'hubspot',
+    tools: send?.tools || ['hubspot'],
     market: send?.market || 'pl',
     segment: send?.segment || '',
     sendDate: send?.sendDate || formatDate(new Date()),
@@ -224,16 +308,16 @@ function SendFormModal({ send, onSave, onClose, currentUser, teamMembers, t, lan
     status: send?.status || 'scheduled',
     subjectLine: send?.subjectLine || '',
     notes: send?.notes || '',
+    links: send?.links || [],
     assignedTo: send?.assignedTo || currentUser,
   });
 
-  const filteredTools = TOOLS.filter(tool => tool.channel === f.channel);
-
-  useEffect(() => {
-    if (!filteredTools.find(t => t.id === f.tool)) {
-      sF(p => ({ ...p, tool: filteredTools[0]?.id || '' }));
-    }
-  }, [f.channel]);
+  // When channel changes, reset tools to first available for that channel
+  const handleChannelChange = (newChannel) => {
+    const availableTools = TOOLS.filter(t => t.channel === newChannel);
+    const validTools = f.tools.filter(id => availableTools.some(t => t.id === id));
+    sF({ ...f, channel: newChannel, tools: validTools.length > 0 ? validTools : (availableTools[0] ? [availableTools[0].id] : []) });
+  };
 
   const handleSave = () => {
     if (!f.title.trim() || !f.sendDate) return;
@@ -242,6 +326,7 @@ function SendFormModal({ send, onSave, onClose, currentUser, teamMembers, t, lan
       sendTime: f.sendTime || '10:00',
       recurrence: f.recurrence || null,
       recurrenceEndDate: f.recurrenceEndDate || null,
+      links: f.links.filter(l => l.url.trim()),
       createdBy: send?.createdBy || currentUser,
     });
   };
@@ -261,31 +346,26 @@ function SendFormModal({ send, onSave, onClose, currentUser, teamMembers, t, lan
             <input type="text" value={f.title} onChange={e => sF({ ...f, title: e.target.value })} className="w-full px-4 py-2.5 border rounded-lg text-sm" style={{ borderColor: '#d1d5db' }} placeholder={lang === 'pl' ? 'Np. Newsletter wakacyjny' : 'e.g. Summer newsletter'} autoFocus />
           </div>
 
-          {/* Channel + Tool */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="text-sm font-medium block mb-1.5" style={{ color: '#111827' }}>{t.channel}</label>
-              <div className="flex gap-1.5">
-                {CHANNELS.map(ch => {
-                  const Icon = ch.icon;
-                  const active = f.channel === ch.id;
-                  return (
-                    <button key={ch.id} type="button" onClick={() => sF({ ...f, channel: ch.id })}
-                      className="flex-1 flex items-center justify-center gap-1.5 px-2 py-2 rounded-lg text-xs font-medium"
-                      style={{ background: active ? ch.bg : '#f3f4f6', color: active ? ch.color : '#6b7280', border: active ? `1.5px solid ${ch.color}` : '1.5px solid transparent' }}>
-                      <Icon size={14} />{ch.name}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-            <div>
-              <label className="text-sm font-medium block mb-1.5" style={{ color: '#111827' }}>{t.tool}</label>
-              <select value={f.tool} onChange={e => sF({ ...f, tool: e.target.value })} className="w-full px-3 py-2 border rounded-lg text-sm" style={{ borderColor: '#d1d5db' }}>
-                {filteredTools.map(tool => <option key={tool.id} value={tool.id}>{tool.name}</option>)}
-              </select>
+          {/* Channel */}
+          <div>
+            <label className="text-sm font-medium block mb-1.5" style={{ color: '#111827' }}>{t.channel}</label>
+            <div className="flex gap-1.5">
+              {CHANNELS.map(ch => {
+                const Icon = ch.icon;
+                const active = f.channel === ch.id;
+                return (
+                  <button key={ch.id} type="button" onClick={() => handleChannelChange(ch.id)}
+                    className="flex-1 flex items-center justify-center gap-1.5 px-2 py-2 rounded-lg text-xs font-medium"
+                    style={{ background: active ? ch.bg : '#f3f4f6', color: active ? ch.color : '#6b7280', border: active ? `1.5px solid ${ch.color}` : '1.5px solid transparent' }}>
+                    <Icon size={14} />{ch.name}
+                  </button>
+                );
+              })}
             </div>
           </div>
+
+          {/* Tools (multi-select) */}
+          <ToolMultiSelect selectedTools={f.tools} channel={f.channel} onChange={tools => sF({ ...f, tools })} t={t} />
 
           {/* Market + Segment */}
           <div className="grid grid-cols-2 gap-4">
@@ -322,20 +402,22 @@ function SendFormModal({ send, onSave, onClose, currentUser, teamMembers, t, lan
           </div>
 
           {/* Recurrence */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="text-sm font-medium block mb-1.5" style={{ color: '#111827' }}>{t.recurrence}</label>
-              <select value={f.recurrence || ''} onChange={e => sF({ ...f, recurrence: e.target.value || null })} className="w-full px-3 py-2 border rounded-lg text-sm" style={{ borderColor: '#d1d5db' }}>
-                {RECURRENCE_OPTIONS.map(r => <option key={r.id || 'none'} value={r.id || ''}>{lang === 'en' ? r.nameEn : r.name}</option>)}
-              </select>
-            </div>
-            {f.recurrence && (
+          {!isEdit && (
+            <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="text-sm font-medium block mb-1.5" style={{ color: '#111827' }}>{t.recurrenceEnd}</label>
-                <input type="date" value={f.recurrenceEndDate || ''} onChange={e => sF({ ...f, recurrenceEndDate: e.target.value })} className="w-full px-3 py-2 border rounded-lg text-sm" style={{ borderColor: '#d1d5db' }} />
+                <label className="text-sm font-medium block mb-1.5" style={{ color: '#111827' }}>{t.recurrence}</label>
+                <select value={f.recurrence || ''} onChange={e => sF({ ...f, recurrence: e.target.value || null })} className="w-full px-3 py-2 border rounded-lg text-sm" style={{ borderColor: '#d1d5db' }}>
+                  {RECURRENCE_OPTIONS.map(r => <option key={r.id || 'none'} value={r.id || ''}>{lang === 'en' ? r.nameEn : r.name}</option>)}
+                </select>
               </div>
-            )}
-          </div>
+              {f.recurrence && (
+                <div>
+                  <label className="text-sm font-medium block mb-1.5" style={{ color: '#111827' }}>{t.recurrenceEnd}</label>
+                  <input type="date" value={f.recurrenceEndDate || ''} onChange={e => sF({ ...f, recurrenceEndDate: e.target.value })} className="w-full px-3 py-2 border rounded-lg text-sm" style={{ borderColor: '#d1d5db' }} />
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Status */}
           <div>
@@ -364,6 +446,9 @@ function SendFormModal({ send, onSave, onClose, currentUser, teamMembers, t, lan
             </select>
           </div>
 
+          {/* Links */}
+          <LinksEditor links={f.links} onChange={links => sF({ ...f, links })} t={t} />
+
           {/* Notes */}
           <div>
             <label className="text-sm font-medium block mb-1.5" style={{ color: '#111827' }}>{t.notes}</label>
@@ -382,14 +467,13 @@ function SendFormModal({ send, onSave, onClose, currentUser, teamMembers, t, lan
 
 // ── Send Detail Panel ────────────────────────────────────
 
-function SendDetail({ send, onUpdate, onDelete, onClose, teamMembers, t, lang }) {
+function SendDetail({ send, onUpdate, onDelete, onEdit, onClose, teamMembers, t, lang }) {
   const ch = CHANNELS.find(c => c.id === send.channel);
-  const tool = TOOLS.find(tl => tl.id === send.tool);
+  const tools = getToolNames(send.tools);
   const mk = MARKETS.find(m => m.id === send.market);
   const st = STATUSES.find(s => s.id === send.status);
   const assignee = teamMembers.find(m => m.id === send.assignedTo);
   const ChIcon = ch?.icon || Mail;
-  const StIcon = st?.icon || Circle;
 
   return (
     <aside className="w-full lg:w-[420px] bg-white border-l flex flex-col overflow-hidden flex-shrink-0 fixed lg:static inset-0 z-40 lg:z-auto" style={{ borderColor: '#e5e7eb' }}>
@@ -400,7 +484,8 @@ function SendDetail({ send, onUpdate, onDelete, onClose, teamMembers, t, lang })
           <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: st?.bg, color: st?.color }}>{lang === 'en' ? st?.nameEn : st?.name}</span>
         </div>
         <div className="flex items-center gap-1">
-          <button onClick={() => onDelete(send.id)} className="p-1.5 rounded-full hover:bg-red-50" style={{ color: '#6b7280' }}><Trash2 size={16} /></button>
+          <button onClick={() => onEdit(send)} className="p-1.5 rounded-full hover:bg-gray-100" style={{ color: '#6b7280' }} title={t.edit}><Edit3 size={16} /></button>
+          <button onClick={() => onDelete(send.id)} className="p-1.5 rounded-full hover:bg-red-50" style={{ color: '#6b7280' }} title={t.delete}><Trash2 size={16} /></button>
           <button onClick={onClose} className="p-1.5 rounded-full hover:bg-gray-100" style={{ color: '#6b7280' }}><X size={16} /></button>
         </div>
       </div>
@@ -447,9 +532,14 @@ function SendDetail({ send, onUpdate, onDelete, onClose, teamMembers, t, lang })
             <span className="text-xs font-medium" style={{ color: '#6b7280' }}>{t.market}</span>
             <span className="text-sm">{mk?.icon} {mk?.name}</span>
           </div>
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium" style={{ color: '#6b7280' }}>{t.tool}</span>
-            <span className="text-sm font-medium" style={{ color: tool?.color }}>{tool?.name}</span>
+          <div className="flex items-start justify-between">
+            <span className="text-xs font-medium" style={{ color: '#6b7280' }}>{t.tools}</span>
+            <div className="flex flex-wrap gap-1 justify-end">
+              {tools.map(tool => (
+                <span key={tool.id} className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: tool.color + '18', color: tool.color }}>{tool.name}</span>
+              ))}
+              {tools.length === 0 && <span className="text-xs" style={{ color: '#9ca3af' }}>—</span>}
+            </div>
           </div>
           {send.segment && (
             <div className="flex items-center justify-between">
@@ -474,6 +564,14 @@ function SendDetail({ send, onUpdate, onDelete, onClose, teamMembers, t, lang })
               </span>
             </div>
           )}
+          {send.parentId && (
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium" style={{ color: '#6b7280' }}>{t.recurring}</span>
+              <span className="flex items-center gap-1 text-xs" style={{ color: '#7c3aed' }}>
+                <Repeat size={11} />{lang === 'en' ? 'Part of series' : 'Część serii'}
+              </span>
+            </div>
+          )}
         </div>
 
         {send.subjectLine && (
@@ -482,6 +580,8 @@ function SendDetail({ send, onUpdate, onDelete, onClose, teamMembers, t, lang })
             <div className="px-3 py-2 rounded-lg text-sm" style={{ background: '#f3f4f6', color: '#111827' }}>{send.subjectLine}</div>
           </div>
         )}
+
+        <LinksDisplay links={send.links} t={t} />
 
         {send.notes && (
           <div>
@@ -512,13 +612,11 @@ function CalendarView({ sends, year, month, onSelectDay, onSelectSend, selectedD
 
   return (
     <div className="bg-white rounded-xl border" style={{ borderColor: '#e5e7eb' }}>
-      {/* Day headers */}
       <div className="grid grid-cols-7 border-b" style={{ borderColor: '#e5e7eb' }}>
         {dayNames.map(d => (
           <div key={d} className="text-center py-2.5 text-xs font-medium" style={{ color: '#6b7280' }}>{d}</div>
         ))}
       </div>
-      {/* Days grid */}
       <div className="grid grid-cols-7">
         {days.map((day, i) => {
           const dateStr = formatDate(day.date);
@@ -550,13 +648,13 @@ function CalendarView({ sends, year, month, onSelectDay, onSelectSend, selectedD
               <div className="space-y-0.5">
                 {daySends.slice(0, 3).map(s => {
                   const ch = CHANNELS.find(c => c.id === s.channel);
-                  const st = STATUSES.find(st => st.id === s.status);
                   return (
                     <div key={s.id} onClick={e => { e.stopPropagation(); onSelectSend(s); }}
                       className="flex items-center gap-1 px-1 py-0.5 rounded text-xs truncate hover:opacity-80"
                       style={{ background: ch?.bg, color: ch?.color, opacity: s.status === 'cancelled' ? 0.4 : s.status === 'sent' ? 0.6 : 1 }}>
                       {s.status === 'sent' && <CheckCircle size={9} />}
                       {s.status === 'cancelled' && <XCircle size={9} />}
+                      {s.parentId && <Repeat size={8} />}
                       <span className="truncate" style={{ fontSize: '10px', fontWeight: 500, textDecoration: s.status === 'cancelled' ? 'line-through' : 'none' }}>
                         {MARKETS.find(m => m.id === s.market)?.icon} {s.title}
                       </span>
@@ -601,7 +699,7 @@ function ListView({ sends, onSelectSend, selectedSendId, teamMembers, t, lang })
       {grouped.map(([date, daySends]) => (
         <div key={date}>
           <div className="flex items-center gap-2 mb-2 px-1">
-            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${isToday(date) ? '' : ''}`}
+            <span className="text-xs font-semibold px-2 py-0.5 rounded-full"
               style={{ background: isToday(date) ? '#2563eb' : '#f3f4f6', color: isToday(date) ? 'white' : isPast(date) ? '#9ca3af' : '#111827' }}>
               {formatDisplayDate(date, lang)}
             </span>
@@ -610,7 +708,7 @@ function ListView({ sends, onSelectSend, selectedSendId, teamMembers, t, lang })
           <div className="space-y-1">
             {daySends.map(s => {
               const ch = CHANNELS.find(c => c.id === s.channel);
-              const tool = TOOLS.find(tl => tl.id === s.tool);
+              const tools = getToolNames(s.tools);
               const mk = MARKETS.find(m => m.id === s.market);
               const st = STATUSES.find(st => st.id === s.status);
               const StIcon = st?.icon || Circle;
@@ -640,9 +738,12 @@ function ListView({ sends, onSelectSend, selectedSendId, teamMembers, t, lang })
                     {s.segment && <p className="text-xs truncate" style={{ color: '#9ca3af' }}>{s.segment}</p>}
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
-                    <span className="text-xs font-medium" style={{ color: tool?.color }}>{tool?.name}</span>
+                    {tools.slice(0, 2).map(tool => (
+                      <span key={tool.id} className="text-xs font-medium" style={{ color: tool.color }}>{tool.name}</span>
+                    ))}
+                    {tools.length > 2 && <span className="text-xs" style={{ color: '#9ca3af' }}>+{tools.length - 2}</span>}
                     <span className="text-xs" style={{ color: '#9ca3af' }}>{formatTime(s.sendTime)}</span>
-                    {s.recurrence && <Repeat size={12} style={{ color: '#7c3aed' }} />}
+                    {(s.recurrence || s.parentId) && <Repeat size={12} style={{ color: '#7c3aed' }} />}
                     {assignee && (
                       <div className="w-5 h-5 rounded-full flex items-center justify-center text-white text-xs font-medium" style={{ background: assignee.color }}>
                         {getInitials(assignee.name)}
@@ -670,31 +771,27 @@ export default function PlannerPage() {
   const [loadingTeam, setLoadingTeam] = useState(true);
   const [checkingAuth, setCheckingAuth] = useState(true);
 
-  const [view, setView] = useState('calendar'); // calendar | list
+  const [view, setView] = useState('calendar');
   const [showForm, setShowForm] = useState(false);
   const [editSend, setEditSend] = useState(null);
   const [selectedSend, setSelectedSend] = useState(null);
   const [selectedDate, setSelectedDate] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  // Calendar state
   const now = new Date();
   const [calYear, setCalYear] = useState(now.getFullYear());
   const [calMonth, setCalMonth] = useState(now.getMonth());
 
-  // Filters
   const [filterMarket, setFilterMarket] = useState('all');
   const [filterChannel, setFilterChannel] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
 
-  // Team
   useEffect(() => { (async () => { setLoadingTeam(true); const m = await getTeamMembers(); if (m.length > 0) setTeamMembers(m); setLoadingTeam(false); })(); }, []);
 
   const currentMember = teamMembers.find(m => m.id === currentUser);
   const lang = currentMember?.language || 'pl';
   const t = TRANSLATIONS[lang];
 
-  // Auth
   useEffect(() => {
     const su = localStorage.getItem('av_tasks_user');
     if (su) {
@@ -706,7 +803,6 @@ export default function PlannerPage() {
     } else setCheckingAuth(false);
   }, []);
 
-  // Load sends
   const loadSends = useCallback(async () => {
     const data = await getScheduledSends();
     setSends(data);
@@ -718,7 +814,6 @@ export default function PlannerPage() {
 
   const handleLogout = () => { localStorage.removeItem('av_tasks_user'); setCurrentUser(null); setSends([]); setSelectedSend(null); };
 
-  // Filtered sends
   const filteredSends = useMemo(() => {
     return sends.filter(s => {
       if (filterMarket !== 'all' && s.market !== filterMarket) return false;
@@ -728,7 +823,6 @@ export default function PlannerPage() {
     });
   }, [sends, filterMarket, filterChannel, filterStatus]);
 
-  // Calendar-filtered sends (only current month view)
   const calendarSends = useMemo(() => {
     const start = new Date(calYear, calMonth - 1, 20);
     const end = new Date(calYear, calMonth + 1, 10);
@@ -737,19 +831,17 @@ export default function PlannerPage() {
     return filteredSends.filter(s => s.sendDate >= startStr && s.sendDate <= endStr);
   }, [filteredSends, calYear, calMonth]);
 
-  // Handlers
   const handleSaveSend = async (data) => {
     if (editSend?.id) {
       const updated = await updateScheduledSend(editSend.id, data);
       if (updated) {
         setSends(prev => prev.map(s => s.id === updated.id ? updated : s));
-        if (selectedSend?.id === updated.id) setSelectedSend(updated);
+        setSelectedSend(prev => prev?.id === updated.id ? updated : prev);
       }
     } else {
       const created = await createScheduledSend(data);
       if (created) {
         setSends(prev => [...prev, created]);
-        // Generate recurrences
         if (created.recurrence && created.recurrenceEndDate) {
           const occurrences = await generateRecurrences(created);
           if (occurrences.length > 0) {
@@ -766,7 +858,7 @@ export default function PlannerPage() {
     const updated = await updateScheduledSend(id, updates);
     if (updated) {
       setSends(prev => prev.map(s => s.id === updated.id ? updated : s));
-      if (selectedSend?.id === updated.id) setSelectedSend(updated);
+      setSelectedSend(prev => prev?.id === updated.id ? updated : prev);
     }
   };
 
@@ -779,14 +871,13 @@ export default function PlannerPage() {
     }
   };
 
-  const handleSelectSend = (send) => {
-    setSelectedSend(send);
+  const handleEditSend = (send) => {
+    setEditSend(send);
+    setShowForm(true);
   };
 
-  const handleSelectDay = (dateStr) => {
-    setSelectedDate(dateStr);
-    setSelectedSend(null);
-  };
+  const handleSelectSend = (send) => { setSelectedSend(send); };
+  const handleSelectDay = (dateStr) => { setSelectedDate(dateStr); setSelectedSend(null); };
 
   const prevMonth = () => { if (calMonth === 0) { setCalMonth(11); setCalYear(y => y - 1); } else setCalMonth(m => m - 1); };
   const nextMonth = () => { if (calMonth === 11) { setCalMonth(0); setCalYear(y => y + 1); } else setCalMonth(m => m + 1); };
@@ -794,13 +885,10 @@ export default function PlannerPage() {
 
   const monthNames = lang === 'en' ? MONTH_NAMES_EN : MONTH_NAMES_PL;
 
-  // Counts for sidebar
   const counts = useMemo(() => {
-    const filtered = sends.filter(s => {
-      if (filterMarket !== 'all' && s.market !== filterMarket) return false;
-      return true;
-    });
+    const filtered = sends.filter(s => filterMarket === 'all' || s.market === filterMarket);
     return {
+      all: filtered.length,
       scheduled: filtered.filter(s => s.status === 'scheduled').length,
       draft: filtered.filter(s => s.status === 'draft').length,
       sent: filtered.filter(s => s.status === 'sent').length,
@@ -817,7 +905,6 @@ export default function PlannerPage() {
 
   return (
     <div className="min-h-screen flex" style={{ background: '#f9fafb', fontFamily: "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}>
-      {/* Mobile overlay */}
       {sidebarOpen && <div className="fixed inset-0 bg-black/50 z-30 lg:hidden" onClick={() => setSidebarOpen(false)} />}
 
       {/* ── Sidebar ── */}
@@ -830,7 +917,6 @@ export default function PlannerPage() {
           <button onClick={() => setSidebarOpen(false)} className="p-1 rounded hover:bg-gray-100 lg:hidden" style={{ color: '#9ca3af' }}><X size={16} /></button>
         </div>
 
-        {/* Market filter */}
         <div className="px-3 py-2.5" style={{ borderBottom: '0.5px solid #e5e7eb' }}>
           <select value={filterMarket} onChange={e => setFilterMarket(e.target.value)} className="w-full rounded-md px-2.5 py-1.5 text-xs border" style={{ borderColor: '#e5e7eb', color: '#374151', borderWidth: '0.5px' }}>
             <option value="all">{t.allMarkets}</option>
@@ -838,21 +924,17 @@ export default function PlannerPage() {
           </select>
         </div>
 
-        {/* Status nav */}
         <div className="p-2 flex-1 overflow-y-auto">
           <div className="space-y-0.5">
-            {/* All */}
             <button onClick={() => { setFilterStatus('all'); setFilterChannel('all'); setSidebarOpen(false); }}
               className="w-full flex items-center justify-between px-2.5 py-1 rounded-md text-xs"
               style={{ background: filterStatus === 'all' && filterChannel === 'all' ? '#eff6ff' : 'transparent', color: filterStatus === 'all' && filterChannel === 'all' ? '#2563eb' : '#374151', fontWeight: filterStatus === 'all' && filterChannel === 'all' ? 500 : 400 }}>
               <div className="flex items-center gap-1.5"><Filter size={13} style={{ color: '#2563eb' }} /><span>{lang === 'en' ? 'All sends' : 'Wszystkie'}</span></div>
-              <span style={{ color: '#9ca3af', fontSize: '11px' }}>{filteredSends.length}</span>
+              <span style={{ color: '#9ca3af', fontSize: '11px' }}>{counts.all}</span>
             </button>
 
-            {/* By status */}
             <div className="mt-2 mb-1 px-2.5"><span className="text-xs font-medium" style={{ color: '#9ca3af' }}>{t.status}</span></div>
             {STATUSES.map(s => {
-              const Icon = s.icon;
               const active = filterStatus === s.id && filterChannel === 'all';
               return (
                 <button key={s.id} onClick={() => { setFilterStatus(s.id); setFilterChannel('all'); setSidebarOpen(false); }}
@@ -867,7 +949,6 @@ export default function PlannerPage() {
               );
             })}
 
-            {/* By channel */}
             <div className="mt-3 mb-1 px-2.5"><span className="text-xs font-medium" style={{ color: '#9ca3af' }}>{t.channel}</span></div>
             {CHANNELS.map(ch => {
               const Icon = ch.icon;
@@ -886,23 +967,15 @@ export default function PlannerPage() {
             })}
           </div>
 
-          {/* Link back to tasks */}
           <div className="mt-6 mx-2">
-            <a href="/" className="text-xs px-2.5 py-1.5 rounded-md hover:bg-gray-100 block" style={{ color: '#2563eb' }}>
-              {t.backToTasks}
-            </a>
+            <a href="/" className="text-xs px-2.5 py-1.5 rounded-md hover:bg-gray-100 block" style={{ color: '#2563eb' }}>{t.backToTasks}</a>
           </div>
         </div>
 
-        {/* User footer */}
         <div className="px-3 py-2.5" style={{ borderTop: '0.5px solid #e5e7eb' }}>
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-medium" style={{ background: currentMember?.color, fontSize: '9px' }}>
-              {getInitials(currentMember?.name || '')}
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="text-xs font-medium truncate" style={{ color: '#374151' }}>{currentMember?.name?.split(' ')[0]}</div>
-            </div>
+            <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-medium" style={{ background: currentMember?.color, fontSize: '9px' }}>{getInitials(currentMember?.name || '')}</div>
+            <div className="flex-1 min-w-0"><div className="text-xs font-medium truncate" style={{ color: '#374151' }}>{currentMember?.name?.split(' ')[0]}</div></div>
             <button onClick={handleLogout} className="p-1 rounded-full hover:bg-gray-100" style={{ color: '#9ca3af' }}><LogOut size={15} /></button>
           </div>
         </div>
@@ -910,28 +983,21 @@ export default function PlannerPage() {
 
       {/* ── Main ── */}
       <main className="flex-1 flex flex-col overflow-hidden min-w-0">
-        {/* Header */}
         <header className="bg-white px-4 lg:px-6 py-2.5 flex items-center justify-between gap-2" style={{ borderBottom: '0.5px solid #e5e7eb' }}>
           <div className="flex items-center gap-3">
             <button onClick={() => setSidebarOpen(true)} className="p-2 rounded-full hover:bg-gray-100 lg:hidden flex-shrink-0" style={{ color: '#9ca3af' }}><Menu size={20} /></button>
-
             {view === 'calendar' && (
               <div className="flex items-center gap-2">
                 <button onClick={prevMonth} className="p-1.5 rounded-full hover:bg-gray-100" style={{ color: '#6b7280' }}><ChevronLeft size={18} /></button>
-                <h2 className="text-sm lg:text-base font-semibold min-w-[160px] text-center" style={{ color: '#111827' }}>
-                  {monthNames[calMonth]} {calYear}
-                </h2>
+                <h2 className="text-sm lg:text-base font-semibold min-w-[160px] text-center" style={{ color: '#111827' }}>{monthNames[calMonth]} {calYear}</h2>
                 <button onClick={nextMonth} className="p-1.5 rounded-full hover:bg-gray-100" style={{ color: '#6b7280' }}><ChevronRight size={18} /></button>
                 <button onClick={goToday} className="text-xs px-2.5 py-1 rounded-md border" style={{ borderColor: '#d1d5db', color: '#6b7280' }}>{t.today}</button>
               </div>
             )}
-            {view === 'list' && (
-              <h2 className="text-sm lg:text-base font-semibold" style={{ color: '#111827' }}>{t.planner}</h2>
-            )}
+            {view === 'list' && <h2 className="text-sm lg:text-base font-semibold" style={{ color: '#111827' }}>{t.planner}</h2>}
           </div>
 
           <div className="flex items-center gap-2">
-            {/* View toggle */}
             <div className="flex rounded-lg overflow-hidden border" style={{ borderColor: '#d1d5db' }}>
               <button onClick={() => setView('calendar')} className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium"
                 style={{ background: view === 'calendar' ? '#2563eb' : 'white', color: view === 'calendar' ? 'white' : '#6b7280' }}>
@@ -942,7 +1008,6 @@ export default function PlannerPage() {
                 <List size={14} /><span className="hidden sm:inline">{t.list}</span>
               </button>
             </div>
-
             <button onClick={loadSends} className="p-2 rounded-full hover:bg-gray-100" style={{ color: '#6b7280' }}><Loader2 size={18} className={loading ? 'animate-spin' : ''} /></button>
             <button onClick={() => { setEditSend(null); setShowForm(true); }} className="flex items-center gap-1.5 px-3 lg:px-3.5 py-1.5 rounded-lg font-medium text-xs" style={{ background: '#2563eb', color: 'white' }}>
               <Plus size={15} /><span className="hidden sm:inline">{t.newSend}</span>
@@ -950,29 +1015,12 @@ export default function PlannerPage() {
           </div>
         </header>
 
-        {/* Content */}
         <div className="flex-1 overflow-y-auto p-3 lg:p-4">
           {view === 'calendar' ? (
-            <CalendarView
-              sends={calendarSends}
-              year={calYear}
-              month={calMonth}
-              onSelectDay={handleSelectDay}
-              onSelectSend={handleSelectSend}
-              selectedDate={selectedDate}
-              t={t}
-              lang={lang}
-            />
+            <CalendarView sends={calendarSends} year={calYear} month={calMonth} onSelectDay={handleSelectDay} onSelectSend={handleSelectSend} selectedDate={selectedDate} t={t} lang={lang} />
           ) : (
             <div className="max-w-4xl mx-auto">
-              <ListView
-                sends={filteredSends}
-                onSelectSend={handleSelectSend}
-                selectedSendId={selectedSend?.id}
-                teamMembers={teamMembers}
-                t={t}
-                lang={lang}
-              />
+              <ListView sends={filteredSends} onSelectSend={handleSelectSend} selectedSendId={selectedSend?.id} teamMembers={teamMembers} t={t} lang={lang} />
             </div>
           )}
         </div>
@@ -980,28 +1028,12 @@ export default function PlannerPage() {
 
       {/* ── Detail Panel ── */}
       {selectedSend && (
-        <SendDetail
-          send={selectedSend}
-          onUpdate={handleUpdateSend}
-          onDelete={handleDeleteSend}
-          onClose={() => setSelectedSend(null)}
-          teamMembers={teamMembers}
-          t={t}
-          lang={lang}
-        />
+        <SendDetail send={selectedSend} onUpdate={handleUpdateSend} onDelete={handleDeleteSend} onEdit={handleEditSend} onClose={() => setSelectedSend(null)} teamMembers={teamMembers} t={t} lang={lang} />
       )}
 
       {/* ── Form Modal ── */}
       {showForm && (
-        <SendFormModal
-          send={editSend}
-          onSave={handleSaveSend}
-          onClose={() => { setShowForm(false); setEditSend(null); }}
-          currentUser={currentUser}
-          teamMembers={teamMembers}
-          t={t}
-          lang={lang}
-        />
+        <SendFormModal send={editSend} onSave={handleSaveSend} onClose={() => { setShowForm(false); setEditSend(null); }} currentUser={currentUser} teamMembers={teamMembers} t={t} lang={lang} />
       )}
     </div>
   );
