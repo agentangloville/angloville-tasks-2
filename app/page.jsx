@@ -5,7 +5,7 @@ import { Plus, Check, X, Edit3, Trash2, CheckCircle, Circle, Send, MessageSquare
 import { getTasks, createTask, updateTask as updateTaskDb, deleteTask as deleteTaskDb, getQuickLinks, createQuickLink, deleteQuickLink, uploadFile, getTeamMembers, getAllTeamMembers, createTeamMember, updateTeamMember, getCustomTags, createCustomTag, updateCustomTag, deleteCustomTag as deleteCustomTagDb } from '../lib/supabase';
 
 const FALLBACK_TEAM = [
-  { id: 'edyta', name: 'Edyta Kędzior', email: 'e.kedzior@angloville.pl', isManager: true, color: '#4285f4', language: 'pl', restrictedToMarket: null, seeOnlyAssigned: false },
+  { id: 'edyta', name: 'Edyta Kędzior', email: 'e.kedzior@angloville.pl', isManager: true, color: '#3b82f6', language: 'pl', restrictedToMarket: null, seeOnlyAssigned: false },
 ];
 
 const MARKETS = [
@@ -29,11 +29,11 @@ const PRIORITIES = [
 ];
 
 const PRIORITY_ORDER = { urgent: 0, high: 1, medium: 2, low: 3, null: 4 };
-const TAG_COLORS = ['#4285f4', '#7c3aed', '#16a34a', '#f59e0b', '#ef4444', '#ec4899', '#0891b2', '#ea580c', '#8d6e63', '#607d8b'];
+const TAG_COLORS = ['#3b82f6', '#7c3aed', '#16a34a', '#f59e0b', '#ef4444', '#ec4899', '#0891b2', '#ea580c', '#8d6e63', '#607d8b'];
 
 const STATUSES = [
   { id: 'pending', name: 'Oczekujące', nameEn: 'Pending', icon: AlertCircle, color: '#f59e0b', bg: '#fefce8' },
-  { id: 'open', name: 'Otwarte', nameEn: 'Open', icon: Circle, color: '#4285f4', bg: '#eff6ff' },
+  { id: 'open', name: 'Otwarte', nameEn: 'Open', icon: Circle, color: '#3b82f6', bg: '#eff6ff' },
   { id: 'longterm', name: 'Long-term', nameEn: 'Long-term', icon: Clock, color: '#7c3aed', bg: '#f5f3ff' },
   { id: 'paused', name: 'Wstrzymane', nameEn: 'Paused', icon: Pause, color: '#ea580c', bg: '#fff7ed' },
   { id: 'monitoring', name: 'Do obserwacji', nameEn: 'Monitoring', icon: Eye, color: '#0891b2', bg: '#ecfeff' },
@@ -42,7 +42,7 @@ const STATUSES = [
   { id: 'closed', name: 'Zamknięte', nameEn: 'Closed', icon: CheckCircle, color: '#16a34a', bg: '#f0fdf4' },
 ];
 
-const COLORS = ['#4285f4', '#7c3aed', '#16a34a', '#f59e0b', '#ef4444', '#ec4899', '#0891b2', '#ea580c', '#8d6e63', '#607d8b'];
+const COLORS = ['#3b82f6', '#7c3aed', '#16a34a', '#f59e0b', '#ef4444', '#ec4899', '#0891b2', '#ea580c', '#8d6e63', '#607d8b'];
 
 const TRANSLATIONS = {
   pl: {
@@ -178,7 +178,7 @@ function NotificationBell({ tasks, currentUser, readTimestamps, teamMembers, onS
   const handleMarkAllRead = () => { setAllTasksRead(tasks, currentUser); window.location.reload(); };
   const ft = lang === 'en' ? formatTimeAgoEn : formatTimeAgo;
   const getPos = () => { if (!buttonRef.current) return {}; const r = buttonRef.current.getBoundingClientRect(); return { top: r.bottom + 8, right: Math.max(8, window.innerWidth - r.right) }; };
-  return (<div className="relative" ref={ref}><button ref={buttonRef} onClick={() => setOpen(!open)} className="relative p-2 rounded-full hover:bg-gray-100" style={{ color: totalCount > 0 ? '#2563eb' : '#6b7280' }}><Bell size={22} className={totalCount > 0 ? 'animate-pulse' : ''} />{totalCount > 0 && <span className="absolute -top-1 -right-1 min-w-[20px] h-5 flex items-center justify-center px-1 rounded-full text-xs font-bold text-white" style={{ background: mentionCount > 0 ? '#ef4444' : '#f59e0b' }}>{totalCount > 99 ? '99+' : totalCount}</span>}</button>{open && <div className="fixed w-96 max-w-[calc(100vw-2rem)] bg-white rounded-xl overflow-hidden" style={{ boxShadow: '0 4px 20px rgba(0,0,0,.15)', border: '1px solid #e5e7eb', maxHeight: '80vh', zIndex: 9999, ...getPos() }}><div className="px-4 py-3 border-b flex items-center justify-between" style={{ borderColor: '#e5e7eb', background: '#f9fafb' }}><div className="flex items-center gap-2"><Bell size={18} style={{ color: '#2563eb' }} /><h3 className="font-medium" style={{ color: '#111827' }}>{t.notifications}</h3>{totalCount > 0 && <span className="px-2 py-0.5 rounded-full text-xs font-medium" style={{ background: '#eff6ff', color: '#2563eb' }}>{totalCount}</span>}</div><div className="flex items-center gap-1">{totalCount > 0 && <button onClick={handleMarkAllRead} className="text-xs px-2 py-1 rounded hover:bg-gray-200" style={{ color: '#2563eb' }}>{t.markAllRead}</button>}</div></div><div className="overflow-y-auto" style={{ maxHeight: '400px' }}>{notifications.length === 0 ? <div className="py-12 text-center"><Bell size={32} className="mx-auto mb-3" style={{ color: '#d1d5db' }} /><p className="text-sm" style={{ color: '#9ca3af' }}>{t.noNotifications}</p></div> : <div>{notifications.slice(0, 50).map(n => { const isMn = n.type === 'mention'; const mk = MARKETS.find(m => m.id === n.task.market); return <button key={n.id} onClick={() => { onSelectTask(n.task); setOpen(false); }} className="w-full px-4 py-3 flex gap-3 hover:bg-gray-50 text-left border-b" style={{ borderColor: '#f3f4f6', background: n.isRead ? '#fafafa' : 'white' }}><div className="relative flex-shrink-0"><div className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-medium" style={{ background: n.author?.color || '#6b7280', opacity: n.isRead ? 0.5 : 1 }}>{n.author ? getInitials(n.author.name) : '?'}</div>{isMn && !n.isRead && <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center" style={{ background: '#ef4444' }}><AtSign size={12} className="text-white" /></div>}</div><div className="flex-1 min-w-0"><div className="flex items-center gap-2 mb-0.5"><span className="font-medium text-sm" style={{ color: n.isRead ? '#9ca3af' : '#111827' }}>{n.author?.name || '?'}</span><span className="text-xs" style={{ color: '#9ca3af' }}>{ft(n.createdAt)}</span></div><p className="text-sm mb-1" style={{ color: n.isRead ? '#bdc1c6' : (isMn ? '#ef4444' : '#6b7280') }}>{isMn ? t.mentionedYou : t.newComment}</p><div className="flex items-center gap-1.5"><span style={{ opacity: n.isRead ? 0.5 : 1 }}>{mk?.icon}</span><span className="text-sm truncate" style={{ color: n.isRead ? '#9ca3af' : '#111827' }}>{n.task.title}</span></div></div></button>; })}</div>}</div></div>}</div>);
+  return (<div className="relative" ref={ref}><button ref={buttonRef} onClick={() => setOpen(!open)} className="relative p-2 rounded-full hover:bg-gray-100" style={{ color: totalCount > 0 ? '#2563eb' : '#6b7280' }}><Bell size={22} className={totalCount > 0 ? 'animate-pulse' : ''} />{totalCount > 0 && <span className="absolute -top-1 -right-1 min-w-[20px] h-5 flex items-center justify-center px-1 rounded-full text-xs font-bold text-white" style={{ background: mentionCount > 0 ? '#ef4444' : '#f59e0b' }}>{totalCount > 99 ? '99+' : totalCount}</span>}</button>{open && <div className="fixed w-96 max-w-[calc(100vw-2rem)] bg-white rounded-xl overflow-hidden" style={{ boxShadow: '0 4px 20px rgba(0,0,0,.15)', border: '1px solid #e5e7eb', maxHeight: '80vh', zIndex: 9999, ...getPos() }}><div className="px-4 py-3 border-b flex items-center justify-between" style={{ borderColor: '#e5e7eb', background: '#f8f9fa' }}><div className="flex items-center gap-2"><Bell size={18} style={{ color: '#2563eb' }} /><h3 className="font-medium" style={{ color: '#111827' }}>{t.notifications}</h3>{totalCount > 0 && <span className="px-2 py-0.5 rounded-full text-xs font-medium" style={{ background: '#eff6ff', color: '#2563eb' }}>{totalCount}</span>}</div><div className="flex items-center gap-1">{totalCount > 0 && <button onClick={handleMarkAllRead} className="text-xs px-2 py-1 rounded hover:bg-gray-200" style={{ color: '#2563eb' }}>{t.markAllRead}</button>}</div></div><div className="overflow-y-auto" style={{ maxHeight: '400px' }}>{notifications.length === 0 ? <div className="py-12 text-center"><Bell size={32} className="mx-auto mb-3" style={{ color: '#d1d5db' }} /><p className="text-sm" style={{ color: '#9ca3af' }}>{t.noNotifications}</p></div> : <div>{notifications.slice(0, 50).map(n => { const isMn = n.type === 'mention'; const mk = MARKETS.find(m => m.id === n.task.market); return <button key={n.id} onClick={() => { onSelectTask(n.task); setOpen(false); }} className="w-full px-4 py-3 flex gap-3 hover:bg-gray-50 text-left border-b" style={{ borderColor: '#f3f4f6', background: n.isRead ? '#fafafa' : 'white' }}><div className="relative flex-shrink-0"><div className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-medium" style={{ background: n.author?.color || '#6b7280', opacity: n.isRead ? 0.5 : 1 }}>{n.author ? getInitials(n.author.name) : '?'}</div>{isMn && !n.isRead && <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center" style={{ background: '#ef4444' }}><AtSign size={12} className="text-white" /></div>}</div><div className="flex-1 min-w-0"><div className="flex items-center gap-2 mb-0.5"><span className="font-medium text-sm" style={{ color: n.isRead ? '#9ca3af' : '#111827' }}>{n.author?.name || '?'}</span><span className="text-xs" style={{ color: '#9ca3af' }}>{ft(n.createdAt)}</span></div><p className="text-sm mb-1" style={{ color: n.isRead ? '#bdc1c6' : (isMn ? '#ef4444' : '#6b7280') }}>{isMn ? t.mentionedYou : t.newComment}</p><div className="flex items-center gap-1.5"><span style={{ opacity: n.isRead ? 0.5 : 1 }}>{mk?.icon}</span><span className="text-sm truncate" style={{ color: n.isRead ? '#9ca3af' : '#111827' }}>{n.task.title}</span></div></div></button>; })}</div>}</div></div>}</div>);
 }
 
 // === MENTION INPUT ===
@@ -187,7 +187,7 @@ function MentionInput({ value, onChange, onSubmit, placeholder, teamMembers }) {
   const handleChange = (e) => { const nv = e.target.value; const c = e.target.selectionStart; onChange(nv); setCp(c); const tb = nv.substring(0, c); const la = tb.lastIndexOf('@'); if (la !== -1) { const ta = tb.substring(la + 1); const cb = la > 0 ? nv[la - 1] : ' '; if ((cb === ' ' || cb === '\n' || la === 0) && !ta.includes(' ')) { setMs(la); const q = ta.toLowerCase(); const f = teamMembers.filter(m => m.isActive !== false && (m.name.toLowerCase().includes(q) || m.id.toLowerCase().includes(q) || m.name.split(' ')[0].toLowerCase().includes(q))); setSuggestions(f.slice(0, 5)); setShowS(f.length > 0); return; } } setShowS(false); setMs(-1); };
   const insertM = (member) => { if (ms === -1) return; const b = value.substring(0, ms); const a = value.substring(cp); const mt = `@${member.id} `; onChange(b + mt + a); setShowS(false); setMs(-1); setTimeout(() => { if (inputRef.current) { inputRef.current.focus(); inputRef.current.setSelectionRange(ms + mt.length, ms + mt.length); } }, 0); };
   const handleKD = (e) => { if (e.key === 'Enter' && !e.shiftKey && !showS) { e.preventDefault(); onSubmit(); } if (e.key === 'Escape') setShowS(false); if (showS && suggestions.length > 0 && (e.key === 'Tab' || (e.key === 'Enter' && showS))) { e.preventDefault(); insertM(suggestions[0]); } };
-  return <div className="relative flex-1"><textarea ref={inputRef} value={value} onChange={handleChange} onKeyDown={handleKD} placeholder={placeholder} rows={2} className="w-full px-4 py-2.5 rounded-xl text-sm resize-none" style={{ background: '#f3f4f6', border: '1px solid #e5e7eb' }} />{showS && <div className="absolute left-0 bottom-full mb-1 w-64 bg-white rounded-lg overflow-hidden z-50" style={{ boxShadow: '0 4px 12px rgba(0,0,0,.15)', border: '1px solid #e5e7eb' }}><div className="px-3 py-2 border-b" style={{ borderColor: '#e5e7eb', background: '#f9fafb' }}><span className="text-xs font-medium" style={{ color: '#6b7280' }}>Oznacz osobę</span></div>{suggestions.map(m => <button key={m.id} onClick={() => insertM(m)} className="w-full px-3 py-2 flex items-center gap-2 hover:bg-gray-50 text-left"><div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-medium" style={{ background: m.color }}>{getInitials(m.name)}</div><div><p className="text-sm font-medium" style={{ color: '#111827' }}>{m.name}</p><p className="text-xs" style={{ color: '#9ca3af' }}>@{m.id}</p></div></button>)}</div>}</div>;
+  return <div className="relative flex-1"><textarea ref={inputRef} value={value} onChange={handleChange} onKeyDown={handleKD} placeholder={placeholder} rows={2} className="w-full px-4 py-2.5 rounded-xl text-sm resize-none" style={{ background: '#f3f4f6', border: '1px solid #e5e7eb' }} />{showS && <div className="absolute left-0 bottom-full mb-1 w-64 bg-white rounded-lg overflow-hidden z-50" style={{ boxShadow: '0 4px 12px rgba(0,0,0,.15)', border: '1px solid #e5e7eb' }}><div className="px-3 py-2 border-b" style={{ borderColor: '#e5e7eb', background: '#f8f9fa' }}><span className="text-xs font-medium" style={{ color: '#6b7280' }}>Oznacz osobę</span></div>{suggestions.map(m => <button key={m.id} onClick={() => insertM(m)} className="w-full px-3 py-2 flex items-center gap-2 hover:bg-gray-50 text-left"><div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-medium" style={{ background: m.color }}>{getInitials(m.name)}</div><div><p className="text-sm font-medium" style={{ color: '#111827' }}>{m.name}</p><p className="text-xs" style={{ color: '#9ca3af' }}>@{m.id}</p></div></button>)}</div>}</div>;
 }
 
 function CommentText({ text, teamMembers }) { const re = /(https?:\/\/[^\s]+|@\w+)/g; const ur = /(https?:\/\/[^\s]+)/g; const parts = text.split(re); return <span>{parts.map((p, i) => { if (p.match(ur)) { let l = p; try { l = new URL(p).hostname.replace('www.', ''); } catch {} return <a key={i} href={p} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 px-1 py-0.5 rounded hover:bg-blue-50" style={{ color: '#2563eb', textDecoration: 'underline' }} onClick={e => e.stopPropagation()}><ExternalLink size={12} />{l}</a>; } if (p.startsWith('@')) { const n = p.substring(1).toLowerCase(); const m = teamMembers.find(m => m.id.toLowerCase() === n || m.name.split(' ')[0].toLowerCase() === n); return <span key={i} className="inline-flex items-center gap-0.5 px-1 py-0.5 rounded" style={{ background: '#eff6ff', color: '#2563eb', fontWeight: 500 }}><AtSign size={12} />{m ? m.name : p.substring(1)}</span>; } return p; })}</span>; }
@@ -196,7 +196,7 @@ function AttachmentUploader({ onUpload, uploading }) { const r = useRef(null); r
 function AttachmentList({ attachments, onRemove, showRemove = true }) { if (!attachments?.length) return null; return <div className="mt-2 space-y-1">{attachments.map(att => { const FI = getFileIcon(att.type); const isImg = att.type?.startsWith('image/'); return <div key={att.id} className="flex items-center gap-3 px-3 py-2 rounded-lg group" style={{ background: '#f3f4f6' }}>{isImg ? <img src={att.url} alt={att.name} className="w-10 h-10 rounded object-cover cursor-pointer" onClick={() => window.open(att.url, '_blank')} /> : <div className="w-10 h-10 rounded flex items-center justify-center" style={{ background: '#e5e7eb' }}><FI size={20} style={{ color: '#6b7280' }} /></div>}<div className="flex-1 min-w-0"><p className="text-sm font-medium truncate" style={{ color: '#111827' }}>{att.name}</p><p className="text-xs" style={{ color: '#9ca3af' }}>{formatFileSize(att.size)}</p></div><a href={att.url} target="_blank" rel="noopener noreferrer" className="p-1.5 rounded hover:bg-gray-200" style={{ color: '#6b7280' }}><Download size={16} /></a>{showRemove && onRemove && <button onClick={() => onRemove(att.id)} className="p-1.5 rounded hover:bg-red-50 opacity-0 group-hover:opacity-100" style={{ color: '#ef4444' }}><X size={16} /></button>}</div>; })}</div>; }
 
 // === LOGIN ===
-function LoginScreen({ onLogin, teamMembers }) { const [su, setSu] = useState(''); const [pin, setPin] = useState(''); const [err, setErr] = useState(''); const [ld, setLd] = useState(false); const am = teamMembers.filter(m => m.isActive !== false); const hl = async (e) => { e.preventDefault(); if (!su) { setErr('Wybierz osobę'); return; } if (!pin || pin.length < 4) { setErr('Wpisz 4-cyfrowy PIN'); return; } setLd(true); setErr(''); try { const r = await fetch('/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: su, pin }) }); const d = await r.json(); if (d.success) { localStorage.setItem('av_tasks_user', su); onLogin(su); } else { setErr('Nieprawidłowy PIN'); setPin(''); } } catch { setErr('Błąd połączenia'); } setLd(false); }; return <div className="min-h-screen flex items-center justify-center p-4" style={{ background: '#f9fafb' }}><div className="bg-white rounded-2xl p-8 w-full max-w-sm" style={{ boxShadow: '0 1px 3px 0 rgba(60,64,67,.3), 0 4px 8px 3px rgba(60,64,67,.15)' }}><div className="text-center mb-8"><img src="https://angloville.com/wp-content/themes/angloville/assets/images/logo.svg" alt="Angloville" className="h-10 mx-auto mb-4" /><h1 className="text-xl font-semibold" style={{ color: '#111827' }}>Marketing Tasks</h1></div><form onSubmit={hl} className="space-y-4">{err && <div className="p-3 rounded-lg text-sm text-center" style={{ background: '#fef2f2', color: '#dc2626' }}>{err}</div>}<div><label className="block text-sm font-medium mb-1.5" style={{ color: '#111827' }}>Osoba</label><select value={su} onChange={e => { setSu(e.target.value); setErr(''); }} className="w-full px-4 py-3 border rounded-lg text-sm" style={{ borderColor: '#d1d5db' }}><option value="">Wybierz...</option>{am.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}</select></div><div><label className="block text-sm font-medium mb-1.5" style={{ color: '#111827' }}>PIN</label><input type="password" value={pin} onChange={e => { setPin(e.target.value.replace(/\D/g, '').slice(0, 4)); setErr(''); }} className="w-full px-4 py-3 border rounded-lg text-sm text-center tracking-widest" style={{ borderColor: '#d1d5db' }} placeholder="••••" maxLength={4} inputMode="numeric" /></div><button type="submit" disabled={ld} className="w-full py-3 rounded-lg font-medium flex items-center justify-center gap-2 disabled:opacity-70" style={{ background: '#2563eb', color: 'white' }}>{ld ? <Loader2 size={18} className="animate-spin" /> : <Lock size={18} />}{ld ? 'Logowanie...' : 'Zaloguj się'}</button></form></div></div>; }
+function LoginScreen({ onLogin, teamMembers }) { const [su, setSu] = useState(''); const [pin, setPin] = useState(''); const [err, setErr] = useState(''); const [ld, setLd] = useState(false); const am = teamMembers.filter(m => m.isActive !== false); const hl = async (e) => { e.preventDefault(); if (!su) { setErr('Wybierz osobę'); return; } if (!pin || pin.length < 4) { setErr('Wpisz 4-cyfrowy PIN'); return; } setLd(true); setErr(''); try { const r = await fetch('/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: su, pin }) }); const d = await r.json(); if (d.success) { localStorage.setItem('av_tasks_user', su); onLogin(su); } else { setErr('Nieprawidłowy PIN'); setPin(''); } } catch { setErr('Błąd połączenia'); } setLd(false); }; return <div className="min-h-screen flex items-center justify-center p-4" style={{ background: '#f8f9fa' }}><div className="bg-white rounded-2xl p-8 w-full max-w-sm" style={{ boxShadow: '0 1px 3px 0 rgba(60,64,67,.3), 0 4px 8px 3px rgba(60,64,67,.15)' }}><div className="text-center mb-8"><img src="https://angloville.com/wp-content/themes/angloville/assets/images/logo.svg" alt="Angloville" className="h-10 mx-auto mb-4" /><h1 className="text-xl font-semibold" style={{ color: '#111827' }}>Marketing Tasks</h1></div><form onSubmit={hl} className="space-y-4">{err && <div className="p-3 rounded-lg text-sm text-center" style={{ background: '#fef2f2', color: '#dc2626' }}>{err}</div>}<div><label className="block text-sm font-medium mb-1.5" style={{ color: '#111827' }}>Osoba</label><select value={su} onChange={e => { setSu(e.target.value); setErr(''); }} className="w-full px-4 py-3 border rounded-lg text-sm" style={{ borderColor: '#d1d5db' }}><option value="">Wybierz...</option>{am.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}</select></div><div><label className="block text-sm font-medium mb-1.5" style={{ color: '#111827' }}>PIN</label><input type="password" value={pin} onChange={e => { setPin(e.target.value.replace(/\D/g, '').slice(0, 4)); setErr(''); }} className="w-full px-4 py-3 border rounded-lg text-sm text-center tracking-widest" style={{ borderColor: '#d1d5db' }} placeholder="••••" maxLength={4} inputMode="numeric" /></div><button type="submit" disabled={ld} className="w-full py-3 rounded-lg font-medium flex items-center justify-center gap-2 disabled:opacity-70" style={{ background: '#2563eb', color: 'white' }}>{ld ? <Loader2 size={18} className="animate-spin" /> : <Lock size={18} />}{ld ? 'Logowanie...' : 'Zaloguj się'}</button></form></div></div>; }
 
 // === RICH TEXT ===
 function RichTextEditor({ value, onChange, placeholder, minHeight = '150px' }) { const er = useRef(null); useEffect(() => { if (er.current && er.current.innerHTML !== value) er.current.innerHTML = value || ''; }, [value]); const ec = (cmd, v = null) => { document.execCommand(cmd, false, v); er.current?.focus(); hc(); }; const hc = () => { if (er.current) onChange(er.current.innerHTML); }; return <div className="border rounded-lg overflow-hidden bg-white" style={{ borderColor: '#d1d5db' }}><div className="flex items-center gap-0.5 px-2 py-1.5 border-b flex-wrap" style={{ background: '#f3f4f6', borderColor: '#d1d5db' }}><button type="button" onClick={() => ec('undo')} className="p-1.5 rounded hover:bg-gray-200"><Undo size={18} style={{ color: '#444746' }} /></button><button type="button" onClick={() => ec('redo')} className="p-1.5 rounded hover:bg-gray-200"><Redo size={18} style={{ color: '#444746' }} /></button><div className="w-px h-5 mx-1.5" style={{ background: '#d1d5db' }} /><button type="button" onClick={() => ec('bold')} className="p-1.5 rounded hover:bg-gray-200"><Bold size={18} style={{ color: '#444746' }} /></button><button type="button" onClick={() => ec('italic')} className="p-1.5 rounded hover:bg-gray-200"><Italic size={18} style={{ color: '#444746' }} /></button><button type="button" onClick={() => ec('underline')} className="p-1.5 rounded hover:bg-gray-200"><Underline size={18} style={{ color: '#444746' }} /></button><div className="w-px h-5 mx-1.5" style={{ background: '#d1d5db' }} /><button type="button" onClick={() => { const u = prompt('URL:'); if (u) ec('createLink', u); }} className="p-1.5 rounded hover:bg-gray-200"><Link2 size={18} style={{ color: '#444746' }} /></button><div className="w-px h-5 mx-1.5" style={{ background: '#d1d5db' }} /><button type="button" onClick={() => ec('insertUnorderedList')} className="p-1.5 rounded hover:bg-gray-200"><List size={18} style={{ color: '#444746' }} /></button><button type="button" onClick={() => ec('insertOrderedList')} className="p-1.5 rounded hover:bg-gray-200"><ListOrdered size={18} style={{ color: '#444746' }} /></button></div><div ref={er} contentEditable onInput={hc} onBlur={hc} className="px-4 py-3 text-sm focus:outline-none overflow-y-auto" style={{ color: '#111827', minHeight, maxHeight: '400px' }} data-placeholder={placeholder} suppressContentEditableWarning /></div>; }
@@ -207,192 +207,10 @@ function TranslationPopup({ title, description, onClose }) { const [tt, setTt] =
 function SubtaskProgress({ subtasks }) { if (!subtasks?.length) return null; const d = subtasks.filter(s => s.status === 'closed').length; return <div className="flex items-center gap-1.5"><ListTodo size={12} style={{ color: '#6b7280' }} /><span className="text-xs" style={{ color: '#6b7280' }}>{d}/{subtasks.length}</span></div>; }
 
 // === DASHBOARD ===
-// ============================================
-// NOWY DashboardPanel — podmień starą funkcję w app/page.jsx
-// Znajdź: "function DashboardPanel(" ... aż do "}"  (przed "function UsersPanel")
-// Wklej poniższe zamiast starej funkcji:
-// ============================================
-
 function DashboardPanel({ tasks, teamMembers, onClose, t, lang }) {
-  const today = new Date().toISOString().split('T')[0];
-  const ago30 = new Date(Date.now() - 30 * 86400000).toISOString().split('T')[0];
-  const [from, setFrom] = useState(ago30);
-  const [to, setTo] = useState(today);
-
-  const inR = (d) => {
-    if (!d) return false;
-    const ds = d.split('T')[0];
-    return (!from || ds >= from) && (!to || ds <= to);
-  };
-
-  const setPreset = (days) => {
-    setFrom(new Date(Date.now() - days * 86400000).toISOString().split('T')[0]);
-    setTo(today);
-  };
-
-  const shortName = (name) => {
-    const map = { 'Aleksandra': 'Ola', 'Klaudia': 'Klaudia', 'Wojciech': 'Wojtek', 'Damian': 'Damian', 'Edyta': 'Edyta', 'Alessandro': 'Ale', 'Claudia': 'Claudia' };
-    const first = name.split(' ')[0];
-    return map[first] || first;
-  };
-
-  const data = useMemo(() => {
-    const cr = tasks.filter(t => inR(t.createdAt));
-    const cl = tasks.filter(t => t.status === 'closed' && t.updatedAt && inR(t.updatedAt));
-    const ac = tasks.filter(t => !['closed', 'pending'].includes(t.status));
-    const am = teamMembers.filter(m => m.isActive !== false && !m.isManager);
-
-    const byMarket = MARKETS.map(m => ({
-      ...m,
-      cr: cr.filter(t => t.market === m.id).length,
-      cl: cl.filter(t => t.market === m.id).length,
-      ac: ac.filter(t => t.market === m.id).length,
-    }));
-
-    const byPerson = am.map(p => ({
-      ...p,
-      short: shortName(p.name),
-      cr: cr.filter(t => t.assignees?.includes(p.id)).length,
-      cl: cl.filter(t => t.assignees?.includes(p.id)).length,
-      ac: ac.filter(t => t.assignees?.includes(p.id)).length,
-    }));
-
-    return { cr: cr.length, cl: cl.length, ac: ac.length, byMarket, byPerson };
-  }, [tasks, teamMembers, from, to]);
-
-  const maxM = Math.max(...data.byMarket.flatMap(m => [m.cr, m.cl, m.ac]), 1);
-  const maxP = Math.max(...data.byPerson.flatMap(p => [p.cr, p.cl, p.ac]), 1);
-
-  const DBar = ({ value, max, color }) => {
-    const pct = max > 0 ? Math.min(100, (value / max) * 100) : 0;
-    return (
-      <div style={{ height: 18, background: '#f1f3f4', borderRadius: 3, position: 'relative', overflow: 'hidden' }}>
-        <div style={{ position: 'absolute', inset: 0, width: `${pct}%`, background: color, borderRadius: 3, transition: 'width 0.3s ease' }} />
-        {value > 0 && (
-          <span style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 600, color: pct > 30 ? '#fff' : color }}>
-            {value}
-          </span>
-        )}
-      </div>
-    );
-  };
-
-  const CC = { cr: '#4285f4', cl: '#34a853', ac: '#fbbc04' };
-  const presets = [7, 14, 30, 60];
-
-  return (
-    <aside className="w-full lg:w-[640px] bg-white border-l flex flex-col overflow-hidden flex-shrink-0 fixed lg:static inset-0 z-40 lg:z-auto" style={{ borderColor: '#e8eaed' }}>
-      {/* Header */}
-      <div className="p-3 border-b flex items-center justify-between" style={{ borderColor: '#e8eaed' }}>
-        <div className="flex items-center gap-2">
-          <BarChart3 size={18} style={{ color: '#1a73e8' }} />
-          <span className="text-sm font-medium" style={{ color: '#202124' }}>Dashboard</span>
-        </div>
-        <button onClick={onClose} className="p-1.5 rounded-full hover:bg-gray-100" style={{ color: '#5f6368' }}><X size={16} /></button>
-      </div>
-
-      {/* Date filters */}
-      <div className="px-3 py-2 border-b flex items-center gap-1.5 flex-wrap" style={{ borderColor: '#e8eaed', background: '#f8f9fa' }}>
-        {presets.map(d => {
-          const expected = new Date(Date.now() - d * 86400000).toISOString().split('T')[0];
-          const active = from === expected && to === today;
-          return (
-            <button key={d} onClick={() => setPreset(d)}
-              className="px-2 py-1 rounded text-xs font-medium"
-              style={{ background: active ? '#e8f0fe' : '#fff', color: active ? '#1a73e8' : '#5f6368', border: `1px solid ${active ? '#1a73e8' : '#dadce0'}` }}>
-              {d}d
-            </button>
-          );
-        })}
-        <div className="flex items-center gap-1 px-2 py-1 rounded-lg ml-auto" style={{ border: '1px solid #dadce0', background: '#fff' }}>
-          <Calendar size={12} style={{ color: '#5f6368' }} />
-          <input type="date" value={from} onChange={e => setFrom(e.target.value)}
-            className="text-xs border-none outline-none bg-transparent" style={{ color: '#202124', width: 100 }} />
-          <span className="text-xs" style={{ color: '#9aa0a6' }}>–</span>
-          <input type="date" value={to} onChange={e => setTo(e.target.value)}
-            className="text-xs border-none outline-none bg-transparent" style={{ color: '#202124', width: 100 }} />
-        </div>
-      </div>
-
-      {/* Content */}
-      <div className="flex-1 overflow-y-auto p-3 space-y-3">
-        {/* KPIs */}
-        <div className="grid grid-cols-3 gap-2">
-          {[
-            { label: lang === 'en' ? 'Created' : 'Utworzone', val: data.cr, color: CC.cr },
-            { label: lang === 'en' ? 'Closed' : 'Zamknięte', val: data.cl, color: CC.cl },
-            { label: lang === 'en' ? 'Active' : 'Aktywne', val: data.ac, color: CC.ac },
-          ].map(k => (
-            <div key={k.label} className="rounded-lg p-3" style={{ background: '#f8f9fa', borderLeft: `3px solid ${k.color}` }}>
-              <div className="text-xl font-bold" style={{ color: k.color, lineHeight: 1 }}>{k.val}</div>
-              <div className="text-xs mt-1" style={{ color: '#5f6368' }}>{k.label}</div>
-            </div>
-          ))}
-        </div>
-
-        {/* Legend */}
-        <div className="flex gap-3 px-1">
-          {[
-            { label: lang === 'en' ? 'Created' : 'Utworzone', c: CC.cr },
-            { label: lang === 'en' ? 'Closed' : 'Zamknięte', c: CC.cl },
-            { label: lang === 'en' ? 'Active' : 'Aktywne', c: CC.ac },
-          ].map(l => (
-            <div key={l.label} className="flex items-center gap-1.5">
-              <div className="w-2 h-2 rounded-full" style={{ background: l.c }} />
-              <span className="text-xs" style={{ color: '#5f6368' }}>{l.label}</span>
-            </div>
-          ))}
-        </div>
-
-        {/* Markets */}
-        <div className="rounded-lg border p-3" style={{ borderColor: '#e8eaed' }}>
-          <div className="text-xs font-semibold mb-2.5" style={{ color: '#202124' }}>
-            {lang === 'en' ? 'Markets' : 'Rynki'}
-          </div>
-          {data.byMarket.map(m => (
-            <div key={m.id} className="flex items-center gap-2 mb-1.5" style={{ minHeight: 22 }}>
-              <div className="flex items-center gap-1.5 flex-shrink-0" style={{ width: 72 }}>
-                <span className="text-sm">{m.icon}</span>
-                <span className="text-xs font-medium" style={{ color: '#202124' }}>{m.name}</span>
-              </div>
-              <div className="flex-1 flex gap-1">
-                <div style={{ flex: 1 }}><DBar value={m.cr} max={maxM} color={CC.cr} /></div>
-                <div style={{ flex: 1 }}><DBar value={m.cl} max={maxM} color={CC.cl} /></div>
-                <div style={{ flex: 1 }}><DBar value={m.ac} max={maxM} color={CC.ac} /></div>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Team */}
-        <div className="rounded-lg border p-3" style={{ borderColor: '#e8eaed' }}>
-          <div className="text-xs font-semibold mb-2.5" style={{ color: '#202124' }}>
-            {lang === 'en' ? 'Team' : 'Zespół'}
-          </div>
-          {data.byPerson.map(p => (
-            <div key={p.id} className="flex items-center gap-2 mb-1.5" style={{ minHeight: 22 }}>
-              <div className="flex items-center gap-1.5 flex-shrink-0" style={{ width: 72 }}>
-                <div className="w-5 h-5 rounded-full flex items-center justify-center text-white font-medium flex-shrink-0" style={{ background: p.color, fontSize: 8 }}>
-                  {getInitials(p.name)}
-                </div>
-                <span className="text-xs font-medium truncate" style={{ color: '#202124' }}>{p.short}</span>
-              </div>
-              <div className="flex-1 flex gap-1">
-                <div style={{ flex: 1 }}><DBar value={p.cr} max={maxP} color={CC.cr} /></div>
-                <div style={{ flex: 1 }}><DBar value={p.cl} max={maxP} color={CC.cl} /></div>
-                <div style={{ flex: 1 }}><DBar value={p.ac} max={maxP} color={CC.ac} /></div>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Footer info */}
-        <div className="text-center py-1">
-          <span className="text-xs" style={{ color: '#9aa0a6' }}>{from} — {to}</span>
-        </div>
-      </div>
-    </aside>
-  );
+  const [period, setPeriod] = useState(7); const now = new Date(); const sd = new Date(now.getTime() - period * 24 * 60 * 60 * 1000); const am = teamMembers.filter(m => m.isActive !== false && !m.isManager);
+  const stats = useMemo(() => { const ci = tasks.filter(t => new Date(t.createdAt) >= sd); const cl = tasks.filter(t => t.status === 'closed' && t.updatedAt && new Date(t.updatedAt) >= sd); const pp = {}; am.forEach(m => { pp[m.id] = { name: m.name, color: m.color, created: 0, closed: 0, open: 0, subtasksDone: 0, comments: 0 }; }); ci.forEach(t => { if (t.createdBy && pp[t.createdBy]) pp[t.createdBy].created++; }); cl.forEach(t => { (t.assignees || []).forEach(a => { if (pp[a]) pp[a].closed++; }); }); tasks.filter(t => t.status === 'open' || t.status === 'longterm').forEach(t => { (t.assignees || []).forEach(a => { if (pp[a]) pp[a].open++; }); }); tasks.forEach(t => { (t.comments || []).forEach(c => { if (new Date(c.createdAt) >= sd && pp[c.author]) pp[c.author].comments++; }); }); tasks.forEach(t => { (t.subtasks || []).forEach(s => { if (s.status === 'closed' && s.assignee && pp[s.assignee]) pp[s.assignee].subtasksDone++; }); }); const dd = []; for (let i = period - 1; i >= 0; i--) { const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000); const ds = d.toISOString().split('T')[0]; dd.push({ date: d.toLocaleDateString(lang === 'en' ? 'en-US' : 'pl-PL', { day: 'numeric', month: 'short' }), created: tasks.filter(t => t.createdAt?.startsWith(ds)).length, closed: tasks.filter(t => t.status === 'closed' && t.updatedAt?.startsWith(ds)).length }); } return { totalCreated: ci.length, totalClosed: cl.length, currentOpen: tasks.filter(t => t.status === 'open' || t.status === 'longterm').length, currentPending: tasks.filter(t => t.status === 'pending').length, perPerson: pp, dailyData: dd, createdPerDay: (ci.length / period).toFixed(1), closedPerDay: (cl.length / period).toFixed(1) }; }, [tasks, teamMembers, period, sd]);
+  return <aside className="w-full lg:w-[640px] bg-white border-l flex flex-col overflow-hidden flex-shrink-0 fixed lg:static inset-0 z-40 lg:z-auto" style={{ borderColor: '#e5e7eb' }}><div className="p-4 border-b flex items-center justify-between" style={{ borderColor: '#e5e7eb' }}><div className="flex items-center gap-2"><BarChart3 size={20} style={{ color: '#2563eb' }} /><h2 className="font-medium" style={{ color: '#111827' }}>{t.dashboardTitle}</h2></div><div className="flex items-center gap-2"><select value={period} onChange={e => setPeriod(Number(e.target.value))} className="text-sm px-3 py-1.5 border rounded-lg" style={{ borderColor: '#d1d5db' }}><option value={7}>{t.last7days}</option><option value={14}>{t.last14days}</option><option value={30}>{t.last30days}</option></select><button onClick={onClose} className="p-2 rounded-full hover:bg-gray-100" style={{ color: '#6b7280' }}><X size={18} /></button></div></div><div className="flex-1 overflow-y-auto p-5 space-y-6"><div className="grid grid-cols-2 gap-3"><div className="p-4 rounded-xl" style={{ background: '#eff6ff' }}><div className="flex items-center gap-2 mb-1"><TrendingUp size={16} style={{ color: '#2563eb' }} /><span className="text-xs font-medium" style={{ color: '#2563eb' }}>{t.tasksCreated}</span></div><div className="text-3xl font-bold" style={{ color: '#2563eb' }}>{stats.totalCreated}</div><div className="text-xs mt-1" style={{ color: '#6b7280' }}>{stats.createdPerDay}{t.perDay}</div></div><div className="p-4 rounded-xl" style={{ background: '#f0fdf4' }}><div className="flex items-center gap-2 mb-1"><CheckCircle size={16} style={{ color: '#16a34a' }} /><span className="text-xs font-medium" style={{ color: '#16a34a' }}>{t.tasksClosed}</span></div><div className="text-3xl font-bold" style={{ color: '#16a34a' }}>{stats.totalClosed}</div><div className="text-xs mt-1" style={{ color: '#6b7280' }}>{stats.closedPerDay}{t.perDay}</div></div><div className="p-4 rounded-xl" style={{ background: '#fff7ed' }}><div className="flex items-center gap-2 mb-1"><Circle size={16} style={{ color: '#ea580c' }} /><span className="text-xs font-medium" style={{ color: '#ea580c' }}>{t.tasksOpen}</span></div><div className="text-3xl font-bold" style={{ color: '#ea580c' }}>{stats.currentOpen}</div></div><div className="p-4 rounded-xl" style={{ background: '#fefce8' }}><div className="flex items-center gap-2 mb-1"><AlertCircle size={16} style={{ color: '#f59e0b' }} /><span className="text-xs font-medium" style={{ color: '#f59e0b' }}>{t.pending}</span></div><div className="text-3xl font-bold" style={{ color: '#f59e0b' }}>{stats.currentPending}</div></div></div><div><h3 className="text-sm font-medium mb-3" style={{ color: '#111827' }}>Dzienne zadania</h3><div className="rounded-xl border p-4" style={{ borderColor: '#e5e7eb' }}><div className="flex items-end gap-1" style={{ height: '120px' }}>{stats.dailyData.map((d, i) => { const mv = Math.max(...stats.dailyData.map(x => Math.max(x.created, x.closed)), 1); return <div key={i} className="flex-1 flex flex-col items-center gap-0.5" title={`${d.date}: ${d.created}/${d.closed}`}><div className="w-full flex gap-0.5 items-end" style={{ height: '100px' }}><div className="flex-1 rounded-t" style={{ height: `${Math.max((d.created/mv)*100,2)}%`, background: '#3b82f6', minHeight: d.created > 0 ? '4px' : '0' }} /><div className="flex-1 rounded-t" style={{ height: `${Math.max((d.closed/mv)*100,2)}%`, background: '#16a34a', minHeight: d.closed > 0 ? '4px' : '0' }} /></div>{(i % Math.ceil(stats.dailyData.length/7) === 0 || i === stats.dailyData.length-1) && <span style={{ color: '#9ca3af', fontSize: '9px' }}>{d.date}</span>}</div>; })}</div><div className="flex items-center gap-4 mt-3 pt-3 border-t" style={{ borderColor: '#e5e7eb' }}><div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded" style={{ background: '#3b82f6' }} /><span className="text-xs" style={{ color: '#6b7280' }}>{t.tasksCreated}</span></div><div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded" style={{ background: '#16a34a' }} /><span className="text-xs" style={{ color: '#6b7280' }}>{t.tasksClosed}</span></div></div></div></div><div><h3 className="text-sm font-medium mb-3" style={{ color: '#111827' }}>Obciążenie na osobę</h3><div className="space-y-3">{Object.entries(stats.perPerson).map(([id, p]) => <div key={id} className="rounded-xl border p-4" style={{ borderColor: '#e5e7eb' }}><div className="flex items-center gap-3 mb-3"><div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-medium" style={{ background: p.color }}>{getInitials(p.name)}</div><span className="flex-1 text-sm font-medium" style={{ color: '#111827' }}>{p.name}</span><div className="text-right"><span className="text-lg font-bold" style={{ color: '#111827' }}>{p.open}</span><span className="text-xs ml-1" style={{ color: '#6b7280' }}>otwarte</span></div></div><div className="grid grid-cols-4 gap-2 text-center">{[{v:p.created,c:'#3b82f6',l:'utworz.'},{v:p.closed,c:'#16a34a',l:'zamkn.'},{v:p.subtasksDone,c:'#7c3aed',l:'subtaski'},{v:p.comments,c:'#ea580c',l:'koment.'}].map((x,i) => <div key={i} className="p-2 rounded-lg" style={{ background: '#f3f4f6' }}><div className="text-sm font-bold" style={{ color: x.c }}>{x.v}</div><div className="text-xs" style={{ color: '#6b7280' }}>{x.l}</div></div>)}</div></div>)}</div></div></div></aside>;
 }
 
 // === USERS PANEL ===
@@ -410,7 +228,7 @@ function QuickLinksSection({ currentUser, t }) { const [lk, setLk] = useState([]
 function SortDropdown({ value, onChange, t }) { const [op, setOp] = useState(false); const r = useRef(null); useEffect(() => { const h = e => { if (r.current && !r.current.contains(e.target)) setOp(false); }; document.addEventListener('mousedown', h); return () => document.removeEventListener('mousedown', h); }, []); const opts = [{ id: 'newest', label: t.sortNewest, icon: ArrowDown }, { id: 'oldest', label: t.sortOldest, icon: ArrowUp }, { id: 'priority', label: t.sortPriority, icon: Flag }, { id: 'activity', label: t.sortActivity, icon: Activity }]; const cur = opts.find(o => o.id === value) || opts[0]; return <div className="relative" ref={r}><button onClick={() => setOp(!op)} className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm hover:bg-gray-100" style={{ color: '#6b7280', border: '1px solid #d1d5db' }}><ArrowUpDown size={16} /><span className="hidden sm:inline">{cur.label}</span><ChevronDown size={14} className={`transition-transform ${op ? 'rotate-180' : ''}`} /></button>{op && <div className="absolute right-0 top-full mt-1 bg-white rounded-lg py-1 z-20 min-w-[180px]" style={{ boxShadow: '0 4px 12px rgba(0,0,0,.15)', border: '1px solid #e5e7eb' }}>{opts.map(o => { const I = o.icon; return <button key={o.id} onClick={() => { onChange(o.id); setOp(false); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-gray-50 text-left" style={{ color: value === o.id ? '#2563eb' : '#111827', background: value === o.id ? '#eff6ff' : 'transparent' }}><I size={16} /><span>{o.label}</span>{value === o.id && <Check size={16} className="ml-auto" />}</button>; })}</div>}</div>; }
 
 // === PENDING VIEW ===
-function PendingView({ tasks, approveTask, deleteTask, currentUser, t, lang, teamMembers }) { const [sel, setSel] = useState({}); const tog = (tid, mid) => { setSel(p => { const c = p[tid] || []; return { ...p, [tid]: c.includes(mid) ? c.filter(x => x !== mid) : [...c, mid] }; }); }; if (!tasks.length) return <div className="max-w-3xl mx-auto text-center py-16"><CheckCircle size={48} className="mx-auto mb-4" style={{ color: '#16a34a', opacity: 0.4 }} /><p style={{ color: '#6b7280' }}>{t.noPending}</p></div>; return <div className="max-w-3xl mx-auto space-y-4">{tasks.map(task => { const mk = MARKETS.find(m => m.id === task.market); const as = sel[task.id] || task.assignees || []; return <div key={task.id} className="bg-white rounded-xl p-5 border" style={{ borderColor: '#e5e7eb' }}>{task.isExternal && <div className="flex items-center gap-2 mb-3 pb-3 border-b flex-wrap" style={{ borderColor: '#e5e7eb' }}><ExternalLink size={14} style={{ color: '#f59e0b' }} /><span className="text-xs font-medium" style={{ color: '#b45309' }}>{t.external}</span>{task.language === 'en' && <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: '#eff6ff', color: '#2563eb' }}>🇬🇧</span>}<span className="text-xs" style={{ color: '#9ca3af' }}>{t.from} {task.submittedBy}</span></div>}<div className="flex items-start gap-3 mb-4"><span className="text-xl">{mk?.icon}</span><div className="flex-1"><div className="flex items-center gap-2 flex-wrap"><h3 className="font-medium text-lg" style={{ color: '#111827' }}>{task.title}</h3><TranslateButton task={task} /><PriorityBadge priority={task.priority} lang={lang} /></div>{task.description && <div className="mt-2"><RichTextDisplay html={task.description} /></div>}{task.links && <div className="mt-3 p-3 rounded-lg" style={{ background: '#f9fafb' }}><ClickableLinks text={task.links} /></div>}<AttachmentList attachments={task.attachments} showRemove={false} /></div></div><div className="mb-4"><p className="text-xs font-medium mb-2" style={{ color: '#6b7280' }}>{t.assignTo}</p><div className="flex flex-wrap gap-2">{teamMembers.filter(m => m.isActive !== false).map(m => <button key={m.id} onClick={() => tog(task.id, m.id)} className="flex items-center gap-2 px-3 py-2 rounded-full border text-sm" style={{ borderColor: as.includes(m.id) ? '#2563eb' : '#d1d5db', background: as.includes(m.id) ? '#eff6ff' : 'white', color: as.includes(m.id) ? '#2563eb' : '#111827' }}><div className="w-5 h-5 rounded-full flex items-center justify-center text-white text-xs font-medium" style={{ background: m.color }}>{getInitials(m.name)}</div><span>{m.name.split(' ')[0]}</span>{as.includes(m.id) && <Check size={14} />}</button>)}</div></div><div className="flex gap-2 pt-4 border-t" style={{ borderColor: '#e5e7eb' }}><button onClick={() => approveTask(task, as)} disabled={!as.length} className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg font-medium disabled:opacity-50" style={{ background: as.length ? '#2563eb' : '#f3f4f6', color: as.length ? 'white' : '#9ca3af' }}><Check size={18} /> {t.approve}</button><button onClick={() => deleteTask(task.id)} className="px-4 py-2.5 rounded-lg hover:bg-red-50" style={{ color: '#ef4444', border: '1px solid #f5c6cb' }}><X size={18} /></button></div></div>; })}</div>; }
+function PendingView({ tasks, approveTask, deleteTask, currentUser, t, lang, teamMembers }) { const [sel, setSel] = useState({}); const tog = (tid, mid) => { setSel(p => { const c = p[tid] || []; return { ...p, [tid]: c.includes(mid) ? c.filter(x => x !== mid) : [...c, mid] }; }); }; if (!tasks.length) return <div className="max-w-3xl mx-auto text-center py-16"><CheckCircle size={48} className="mx-auto mb-4" style={{ color: '#16a34a', opacity: 0.4 }} /><p style={{ color: '#6b7280' }}>{t.noPending}</p></div>; return <div className="max-w-3xl mx-auto space-y-4">{tasks.map(task => { const mk = MARKETS.find(m => m.id === task.market); const as = sel[task.id] || task.assignees || []; return <div key={task.id} className="bg-white rounded-xl p-5 border" style={{ borderColor: '#e5e7eb' }}>{task.isExternal && <div className="flex items-center gap-2 mb-3 pb-3 border-b flex-wrap" style={{ borderColor: '#e5e7eb' }}><ExternalLink size={14} style={{ color: '#f59e0b' }} /><span className="text-xs font-medium" style={{ color: '#b45309' }}>{t.external}</span>{task.language === 'en' && <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: '#eff6ff', color: '#2563eb' }}>🇬🇧</span>}<span className="text-xs" style={{ color: '#9ca3af' }}>{t.from} {task.submittedBy}</span></div>}<div className="flex items-start gap-3 mb-4"><span className="text-xl">{mk?.icon}</span><div className="flex-1"><div className="flex items-center gap-2 flex-wrap"><h3 className="font-medium text-lg" style={{ color: '#111827' }}>{task.title}</h3><TranslateButton task={task} /><PriorityBadge priority={task.priority} lang={lang} /></div>{task.description && <div className="mt-2"><RichTextDisplay html={task.description} /></div>}{task.links && <div className="mt-3 p-3 rounded-lg" style={{ background: '#f8f9fa' }}><ClickableLinks text={task.links} /></div>}<AttachmentList attachments={task.attachments} showRemove={false} /></div></div><div className="mb-4"><p className="text-xs font-medium mb-2" style={{ color: '#6b7280' }}>{t.assignTo}</p><div className="flex flex-wrap gap-2">{teamMembers.filter(m => m.isActive !== false).map(m => <button key={m.id} onClick={() => tog(task.id, m.id)} className="flex items-center gap-2 px-3 py-2 rounded-full border text-sm" style={{ borderColor: as.includes(m.id) ? '#2563eb' : '#d1d5db', background: as.includes(m.id) ? '#eff6ff' : 'white', color: as.includes(m.id) ? '#2563eb' : '#111827' }}><div className="w-5 h-5 rounded-full flex items-center justify-center text-white text-xs font-medium" style={{ background: m.color }}>{getInitials(m.name)}</div><span>{m.name.split(' ')[0]}</span>{as.includes(m.id) && <Check size={14} />}</button>)}</div></div><div className="flex gap-2 pt-4 border-t" style={{ borderColor: '#e5e7eb' }}><button onClick={() => approveTask(task, as)} disabled={!as.length} className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg font-medium disabled:opacity-50" style={{ background: as.length ? '#2563eb' : '#f3f4f6', color: as.length ? 'white' : '#9ca3af' }}><Check size={18} /> {t.approve}</button><button onClick={() => deleteTask(task.id)} className="px-4 py-2.5 rounded-lg hover:bg-red-50" style={{ color: '#ef4444', border: '1px solid #f5c6cb' }}><X size={18} /></button></div></div>; })}</div>; }
 
 // === TASK ITEM ===
 function TaskItem({ task, isSelected, onClick, onStatusChange, currentUser, readTimestamps, seenTaskIds, lang, t, teamMembers, customTags }) {
@@ -420,7 +238,7 @@ function TaskItem({ task, isSelected, onClick, onStatusChange, currentUser, read
   const isNew = task.assignees?.includes(currentUser) && task.createdBy !== currentUser && !seenTaskIds.includes(task.id);
   const hasEP = task.isExternal && task.submitterEmail && task.status === 'closed' && !(task.emailHistory || []).some(e => e.type === 'completed' && e.success);
   const tTags = (task.tags || []).map(tid => (customTags || []).find(ct => ct.id === tid)).filter(Boolean);
-  return <div onClick={onClick} className="bg-white rounded-lg px-3 py-2.5 cursor-pointer hover:shadow-sm border" style={{ borderColor: isSelected ? '#2563eb' : isNew ? '#bfdbfe' : '#e5e7eb', background: isNew ? '#f8fbff' : 'white' }}><div className="flex items-center gap-2">
+  return <div onClick={onClick} className="bg-white rounded-lg px-3 py-2 cursor-pointer border transition-all duration-100" style={{ borderWidth: '0.5px', borderColor: isSelected ? '#3b82f6' : isNew ? '#bfdbfe' : '#e5e7eb', background: isNew ? '#f8faff' : 'white', boxShadow: isSelected ? '0 0 0 1px rgba(59,130,246,0.15)' : 'none' }} onMouseEnter={e => { if (!isSelected) e.currentTarget.style.borderColor = '#d1d5db'; e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.04)'; }} onMouseLeave={e => { if (!isSelected) e.currentTarget.style.borderColor = isNew ? '#bfdbfe' : '#e5e7eb'; if (!isSelected) e.currentTarget.style.boxShadow = 'none'; }}><div className="flex items-center gap-2">
     <button onClick={cycle} className="hover:scale-110 flex-shrink-0"><Icon size={18} style={{ color: st?.color }} className={task.status === 'closed' ? 'fill-current' : ''} /></button>
     <span className="flex-shrink-0">{mk?.icon}</span>
     <h4 className="font-medium text-sm flex-1 min-w-0 truncate" style={{ color: task.status === 'closed' ? '#9ca3af' : '#111827', textDecoration: task.status === 'closed' ? 'line-through' : 'none' }}>{task.title}</h4>
@@ -480,11 +298,11 @@ function TaskDetail({ task, updateTask, deleteTask, onClose, currentUser, isMana
       {publicLink && <div className="px-3 py-1.5 border-b flex items-center gap-2" style={{ background: '#eff6ff', borderColor: '#bfdbfe' }}><Link2 size={12} style={{ color: '#2563eb' }} /><code className="flex-1 text-xs truncate" style={{ color: '#2563eb' }}>{publicLink}</code><button onClick={copyPublicLink} className="text-xs px-2 py-0.5 rounded hover:bg-blue-100" style={{ color: '#2563eb' }}>{linkCopied ? '✓' : t.copyLink}</button></div>}
       
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {task.isExternal && <div className="p-2 rounded-lg text-sm" style={{ background: '#fefce8', border: '1px solid #feefc3', color: '#b45309' }}>📨 {t.from}: <strong>{task.submittedBy}</strong> {task.submitterEmail && `(${task.submitterEmail})`}</div>}
+        {task.isExternal && <div className="p-2 rounded-lg text-sm" style={{ background: '#fefce8', border: '1px solid #fef3c7', color: '#b45309' }}>📨 {t.from}: <strong>{task.submittedBy}</strong> {task.submitterEmail && `(${task.submitterEmail})`}</div>}
         
         {editing ? <div className="space-y-3"><input type="text" value={form.title} onChange={e => setForm({...form, title: e.target.value})} className="w-full px-3 py-2 border rounded-lg text-lg font-medium" style={{ borderColor: '#d1d5db', color: '#111827' }} /><RichTextEditor value={form.description} onChange={v => setForm({...form, description: v})} placeholder={t.taskDetails} minHeight="150px" /><div className="flex gap-2"><button onClick={save} className="flex-1 py-2 rounded-lg font-medium text-sm" style={{ background: '#2563eb', color: 'white' }}>{t.save}</button><button onClick={() => setEditing(false)} className="flex-1 py-2 rounded-lg text-sm" style={{ background: '#f3f4f6', color: '#6b7280' }}>{t.cancel}</button></div></div> : <div><div className="flex items-center gap-2 flex-wrap mb-2"><h3 className="font-medium text-lg" style={{ color: '#111827' }}>{task.title}</h3><PriorityBadge priority={task.priority} lang={lang} /><DeadlineBadge deadline={task.deadline} lang={lang} t={t} /></div><RichTextDisplay html={task.description} /></div>}
 
-        <div className="flex flex-wrap gap-2 items-center p-3 rounded-lg" style={{ background: '#f9fafb', border: '1px solid #e5e7eb' }}>
+        <div className="flex flex-wrap gap-2 items-center p-3 rounded-lg" style={{ background: '#f8f9fa', border: '1px solid #e5e7eb' }}>
           <select value={task.market} onChange={e => updateTask(task.id, { market: e.target.value, subcategory: e.target.value === 'pl' ? task.subcategory : null })} className="text-xs px-2 py-1.5 border rounded-lg font-medium" style={{ borderColor: '#d1d5db', color: '#6b7280' }}>
             {MARKETS.map(m => <option key={m.id} value={m.id}>{m.icon} {lang === 'en' ? m.nameEn : m.name}</option>)}
           </select>
@@ -514,7 +332,7 @@ function TaskDetail({ task, updateTask, deleteTask, onClose, currentUser, isMana
           {showTagManager && isManager && <div className="mt-2 p-3 rounded-lg border" style={{ borderColor: '#2563eb', background: '#f8fbff' }}><div className="flex items-center gap-2 mb-2"><input type="text" value={newTagName} onChange={e => setNewTagName(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleCreateTag()} placeholder={t.tagName} className="flex-1 px-2 py-1.5 border rounded-lg text-sm" style={{ borderColor: '#d1d5db' }} /><div className="flex gap-1">{TAG_COLORS.slice(0,6).map(c => <button key={c} type="button" onClick={() => setNewTagColor(c)} className="w-5 h-5 rounded-full" style={{ background: c, border: newTagColor === c ? '2px solid #111827' : '2px solid transparent' }} />)}</div><button onClick={handleCreateTag} className="px-3 py-1.5 rounded-lg text-xs font-medium" style={{ background: '#2563eb', color: 'white' }}>{t.add}</button></div>{(customTags||[]).length > 0 && <div className="space-y-1 pt-2 border-t" style={{ borderColor: '#e5e7eb' }}>{customTags.map(tag => <div key={tag.id} className="flex items-center justify-between py-1"><span className="flex items-center gap-1.5 text-xs"><span className="w-3 h-3 rounded-full" style={{ background: tag.color }} />{tag.name}</span><button onClick={() => handleDeleteTag(tag.id)} className="p-0.5 rounded hover:bg-red-50" style={{ color: '#ef4444' }}><X size={12} /></button></div>)}</div>}</div>}
         </div>
 
-        {task.links && <div><label className="block mb-1 text-xs font-medium" style={{ color: '#6b7280' }}>{t.links}</label><div className="rounded-lg border p-1" style={{ background: '#f9fafb', borderColor: '#e5e7eb' }}><ClickableLinks text={task.links} /></div></div>}
+        {task.links && <div><label className="block mb-1 text-xs font-medium" style={{ color: '#6b7280' }}>{t.links}</label><div className="rounded-lg border p-1" style={{ background: '#f8f9fa', borderColor: '#e5e7eb' }}><ClickableLinks text={task.links} /></div></div>}
         
         <div><div className="flex items-center justify-between mb-1"><div className="flex items-center gap-2"><Paperclip size={14} style={{ color: '#6b7280' }} /><label className="text-xs font-medium" style={{ color: '#6b7280' }}>{t.attachments} ({task.attachments?.length || 0})</label></div>{canContribute && <AttachmentUploader onUpload={handleTaskAttachmentUpload} uploading={uploading} />}</div><AttachmentList attachments={task.attachments} onRemove={canContribute ? handleRemoveTaskAttachment : undefined} showRemove={canContribute} /></div>
         
@@ -567,7 +385,7 @@ export default function TaskApp() {
   const handleMarkUnread = useCallback((taskId) => { if (currentUser) { setTaskUnread(taskId, currentUser); setReadTimestamps(prev => { const n = {...prev}; delete n[taskId]; return n; }); } }, [currentUser]);
   const reloadTeamMembers = async () => { const m = await getTeamMembers(); if (m.length > 0) setTeamMembers(m); };
 
-  if (checkingAuth || loadingTeam) return <div className="min-h-screen flex items-center justify-center" style={{ background: '#f9fafb' }}><Loader2 className="animate-spin" size={32} style={{ color: '#2563eb' }} /></div>;
+  if (checkingAuth || loadingTeam) return <div className="min-h-screen flex items-center justify-center" style={{ background: '#f8f9fa' }}><Loader2 className="animate-spin" size={32} style={{ color: '#2563eb' }} /></div>;
   if (!currentUser) return <LoginScreen onLogin={setCurrentUser} teamMembers={teamMembers} />;
 
   const pendingTasks = tasks.filter(t => t.status === 'pending' && (!restrictedMarket || t.market === restrictedMarket));
@@ -595,26 +413,26 @@ export default function TaskApp() {
 
   const formUrl = typeof window !== 'undefined' ? `${window.location.origin}/request` : '/request';
   const copyLink = () => { navigator.clipboard.writeText(formUrl); setCopied(true); setTimeout(() => setCopied(false), 2000); };
-  if (loading) return <div className="min-h-screen flex items-center justify-center" style={{ background: '#f9fafb', color: '#6b7280' }}>{t.loading}</div>;
+  if (loading) return <div className="min-h-screen flex items-center justify-center" style={{ background: '#f8f9fa', color: '#6b7280' }}>{t.loading}</div>;
 
   return (
     <div className="min-h-screen flex" style={{ background: '#f9fafb' }}>
       {sidebarOpen && <div className="fixed inset-0 bg-black/50 z-30 lg:hidden" onClick={() => setSidebarOpen(false)} />}
-      <aside className={`w-56 flex flex-col min-h-screen flex-shrink-0 border-r bg-white fixed lg:static z-30 transition-transform lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`} style={{ borderColor: '#e5e7eb' }}>
-        <div className="p-4 border-b flex items-center justify-between" style={{ borderColor: '#e5e7eb' }}><div><img src="https://angloville.com/wp-content/themes/angloville/assets/images/logo.svg" alt="Angloville" className="h-7" /><p className="mt-1 text-xs" style={{ color: '#6b7280' }}>{t.marketingTasks}</p></div><button onClick={() => setSidebarOpen(false)} className="p-1 rounded hover:bg-gray-100 lg:hidden" style={{ color: '#6b7280' }}><X size={18} /></button></div>
-        <div className="p-3 border-b space-y-2" style={{ borderColor: '#e5e7eb' }}>{!restrictedMarket && <select value={filterMarket} onChange={e => setFilterMarket(e.target.value)} className="w-full rounded-lg px-3 py-2 text-sm border" style={{ borderColor: '#d1d5db', color: '#111827' }}><option value="all">{t.allMarkets}</option>{MARKETS.map(m => <option key={m.id} value={m.id}>{m.icon} {lang === 'en' ? m.nameEn : m.name}</option>)}</select>}{!seeOnlyAssigned && <select value={filterPerson} onChange={e => setFilterPerson(e.target.value)} className="w-full rounded-lg px-3 py-2 text-sm border" style={{ borderColor: '#d1d5db', color: '#111827' }}><option value="all">{t.everyone}</option>{teamMembers.filter(m => m.isActive !== false).map(m => <option key={m.id} value={m.id}>{m.name}</option>)}</select>}</div>
+      <aside className={`w-52 flex flex-col min-h-screen flex-shrink-0 bg-white fixed lg:static z-30 transition-transform lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`} style={{ borderRight: '0.5px solid #e5e7eb' }}>
+        <div className="px-4 py-3.5 flex items-center justify-between" style={{ borderBottom: '0.5px solid #e5e7eb' }}><div><img src="https://angloville.com/wp-content/themes/angloville/assets/images/logo.svg" alt="Angloville" className="h-6" /><p className="mt-0.5 text-xs" style={{ color: '#9ca3af', letterSpacing: '0.02em' }}>{t.marketingTasks}</p></div><button onClick={() => setSidebarOpen(false)} className="p-1 rounded hover:bg-gray-100 lg:hidden" style={{ color: '#9ca3af' }}><X size={16} /></button></div>
+        <div className="px-3 py-2.5 space-y-1.5" style={{ borderBottom: '0.5px solid #e5e7eb' }}>{!restrictedMarket && <select value={filterMarket} onChange={e => setFilterMarket(e.target.value)} className="w-full rounded-md px-2.5 py-1.5 text-xs border" style={{ borderColor: '#e5e7eb', color: '#374151', borderWidth: '0.5px' }}><option value="all">{t.allMarkets}</option>{MARKETS.map(m => <option key={m.id} value={m.id}>{m.icon} {lang === 'en' ? m.nameEn : m.name}</option>)}</select>}{!seeOnlyAssigned && <select value={filterPerson} onChange={e => setFilterPerson(e.target.value)} className="w-full rounded-md px-2.5 py-1.5 text-xs border" style={{ borderColor: '#e5e7eb', color: '#374151', borderWidth: '0.5px' }}><option value="all">{t.everyone}</option>{teamMembers.filter(m => m.isActive !== false).map(m => <option key={m.id} value={m.id}>{m.name}</option>)}</select>}</div>
         <div className="p-2 flex-1 overflow-y-auto"><div className="space-y-0.5">
           {[
             ...(pendingTasks.length > 0 ? [{ key: 'pending', label: t.pending, icon: AlertCircle, color: '#f59e0b', bg: '#fefce8', count: pendingTasks.length, pl: 0 }] : []),
             { key: 'active', label: t.active, icon: Filter, color: '#2563eb', bg: '#eff6ff', count: openTasks.length + longtermTasks.length, pl: 0 },
-            { key: 'open', label: t.open, icon: Circle, color: '#4285f4', bg: '#eff6ff', count: openTasks.length, pl: 2 },
+            { key: 'open', label: t.open, icon: Circle, color: '#3b82f6', bg: '#eff6ff', count: openTasks.length, pl: 2 },
             { key: 'longterm', label: t.longterm, icon: Clock, color: '#7c3aed', bg: '#f5f3ff', count: longtermTasks.length, pl: 2 },
             { key: 'paused', label: t.paused, icon: Pause, color: '#ea580c', bg: '#fff7ed', count: pausedTasks.length, pl: 2 },
             { key: 'monitoring', label: t.monitoring, icon: Eye, color: '#0891b2', bg: '#ecfeff', count: monitoringTasks.length, pl: 2 },
             { key: 'approval', label: t.approval, icon: ClipboardCheck, color: '#0d9488', bg: '#f0fdfa', count: approvalTasks.length, pl: 2 },
             { key: 'ideas', label: t.ideas, icon: Lightbulb, color: '#ca8a04', bg: '#fefce8', count: ideasTasks.length, pl: 2 },
             { key: 'closed', label: t.closed, icon: CheckCircle, color: '#16a34a', bg: '#f0fdf4', count: closedTasks.length, pl: 2 },
-          ].map(item => { const I = item.icon; const isActive = (item.key === 'pending' ? activeTab === 'pending' : activeTab === 'tasks' && filterStatus === item.key) && !showUsersPanel && !showDashboard && !filterDeadline; return <button key={item.key} onClick={() => { if (item.key === 'pending') { setActiveTab('pending'); } else { setActiveTab('tasks'); setFilterStatus(item.key); } setFilterDeadline(false); setShowUsersPanel(false); setShowDashboard(false); setSidebarOpen(false); }} className="w-full flex items-center justify-between px-3 py-1.5 rounded-full text-sm" style={{ background: isActive ? item.bg : 'transparent', color: isActive ? item.color : '#111827' }}><div className={`flex items-center gap-2 ${item.pl ? 'pl-2' : ''}`}><I size={item.pl ? 14 : 16} style={{ color: item.color }} /><span>{item.label}</span></div><span className="text-xs" style={{ color: item.key === 'pending' ? '#f59e0b' : '#6b7280', fontWeight: item.key === 'pending' ? 600 : 400 }}>{item.count}</span></button>; })}
+          ].map(item => { const I = item.icon; const isActive = (item.key === 'pending' ? activeTab === 'pending' : activeTab === 'tasks' && filterStatus === item.key) && !showUsersPanel && !showDashboard && !filterDeadline; return <button key={item.key} onClick={() => { if (item.key === 'pending') { setActiveTab('pending'); } else { setActiveTab('tasks'); setFilterStatus(item.key); } setFilterDeadline(false); setShowUsersPanel(false); setShowDashboard(false); setSidebarOpen(false); }} className="w-full flex items-center justify-between px-2.5 py-1 rounded-md text-xs" style={{ background: isActive ? item.bg : 'transparent', color: isActive ? item.color : '#374151', fontWeight: isActive ? 500 : 400 }}><div className={`flex items-center gap-1.5 ${item.pl ? 'pl-1.5' : ''}`}>{item.pl ? <div style={{ width: 5, height: 5, borderRadius: '50%', background: item.color, flexShrink: 0, opacity: isActive ? 1 : 0.5 }} /> : <I size={13} style={{ color: item.color }} />}<span>{item.label}</span></div><span className="text-xs tabular-nums" style={{ color: isActive ? item.color : '#9ca3af', fontWeight: item.key === 'pending' ? 600 : 400, fontSize: '11px' }}>{item.count}</span></button>; })}
           
           {withDeadlineCount > 0 && <button onClick={() => { setActiveTab('tasks'); setFilterStatus('active'); setFilterDeadline(!filterDeadline); setShowUsersPanel(false); setShowDashboard(false); setSidebarOpen(false); }} className="w-full flex items-center justify-between px-3 py-1.5 rounded-full text-sm mt-1" style={{ background: filterDeadline ? '#fef2f2' : 'transparent', color: filterDeadline ? '#ef4444' : '#111827' }}><div className="flex items-center gap-2 pl-2"><CalendarClock size={14} style={{ color: '#ef4444' }} /><span>{t.withDeadline}</span></div><span style={{ color: '#ef4444' }}>{withDeadlineCount}</span></button>}
         </div>
@@ -622,12 +440,12 @@ export default function TaskApp() {
           <div className="mt-4 mx-2 p-3 rounded-lg text-xs hidden lg:block" style={{ background: '#f3f4f6' }}><p className="mb-1.5" style={{ color: '#6b7280' }}>{t.formEn}</p><button onClick={copyLink} className="w-full flex items-center gap-2 px-2 py-1.5 rounded hover:bg-gray-200"><code className="flex-1 text-xs truncate" style={{ color: '#2563eb' }}>/request</code>{copied ? <Check size={14} style={{ color: '#16a34a' }} /> : <Copy size={14} style={{ color: '#6b7280' }} />}</button></div>
           <QuickLinksSection currentUser={currentUser} t={t} />
         </div>
-        <div className="p-3 border-t" style={{ borderColor: '#e5e7eb' }}><div className="flex items-center gap-2"><div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-medium" style={{ background: currentMember?.color }}>{getInitials(currentMember?.name || '')}</div><div className="flex-1 min-w-0"><div className="text-sm font-medium truncate" style={{ color: '#111827' }}>{currentMember?.name?.split(' ')[0]}</div>{isManager && <div className="text-xs" style={{ color: '#6b7280' }}>{t.manager}</div>}</div><button onClick={handleLogout} className="p-1.5 rounded-full hover:bg-gray-100" style={{ color: '#6b7280' }}><LogOut size={18} /></button></div></div>
+        <div className="px-3 py-2.5" style={{ borderTop: '0.5px solid #e5e7eb' }}><div className="flex items-center gap-2"><div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-medium" style={{ background: currentMember?.color, fontSize: '9px' }}>{getInitials(currentMember?.name || '')}</div><div className="flex-1 min-w-0"><div className="text-xs font-medium truncate" style={{ color: '#374151' }}>{currentMember?.name?.split(' ')[0]}</div>{isManager && <div style={{ fontSize: '10px', color: '#9ca3af' }}>{t.manager}</div>}</div><button onClick={handleLogout} className="p-1 rounded-full hover:bg-gray-100" style={{ color: '#9ca3af' }}><LogOut size={15} /></button></div></div>
       </aside>
 
       <main className="flex-1 flex flex-col overflow-hidden min-w-0">
-        <header className="bg-white border-b px-4 lg:px-6 py-3 flex items-center justify-between gap-2" style={{ borderColor: '#e5e7eb' }}>
-          <div className="flex items-center gap-2 min-w-0"><button onClick={() => setSidebarOpen(true)} className="p-2 rounded-full hover:bg-gray-100 lg:hidden flex-shrink-0" style={{ color: '#6b7280' }}><Menu size={22} /></button><div className="min-w-0"><h2 className="text-base lg:text-lg font-medium truncate" style={{ color: '#111827' }}>{showDashboard ? t.dashboardTitle : showUsersPanel ? t.usersPanel : activeTab === 'pending' ? t.pendingApproval : filterDeadline ? t.withDeadlineTasks : filterStatus === 'active' ? t.activeTasks : filterStatus === 'open' ? t.openTasks : filterStatus === 'longterm' ? t.longtermTasks : filterStatus === 'paused' ? t.pausedTasks : filterStatus === 'monitoring' ? t.monitoringTasks : filterStatus === 'approval' ? t.approvalTasks : filterStatus === 'ideas' ? t.ideasTasks : t.closedTasks}</h2>{filterPerson !== 'all' && !showUsersPanel && !showDashboard && <p className="text-xs" style={{ color: '#6b7280' }}>{t.filter}: {teamMembers.find(m => m.id === filterPerson)?.name}</p>}</div></div>
+        <header className="bg-white px-4 lg:px-6 py-2.5 flex items-center justify-between gap-2" style={{ borderBottom: '0.5px solid #e5e7eb' }}>
+          <div className="flex items-center gap-2 min-w-0"><button onClick={() => setSidebarOpen(true)} className="p-2 rounded-full hover:bg-gray-100 lg:hidden flex-shrink-0" style={{ color: '#9ca3af' }}><Menu size={20} /></button><div className="min-w-0"><h2 className="text-sm lg:text-base font-medium truncate" style={{ color: '#111827' }}>{showDashboard ? t.dashboardTitle : showUsersPanel ? t.usersPanel : activeTab === 'pending' ? t.pendingApproval : filterDeadline ? t.withDeadlineTasks : filterStatus === 'active' ? t.activeTasks : filterStatus === 'open' ? t.openTasks : filterStatus === 'longterm' ? t.longtermTasks : filterStatus === 'paused' ? t.pausedTasks : filterStatus === 'monitoring' ? t.monitoringTasks : filterStatus === 'approval' ? t.approvalTasks : filterStatus === 'ideas' ? t.ideasTasks : t.closedTasks}</h2>{filterPerson !== 'all' && !showUsersPanel && !showDashboard && <p style={{ fontSize: '11px', color: '#9ca3af' }}>{t.filter}: {teamMembers.find(m => m.id === filterPerson)?.name}</p>}</div></div>
           <div className="flex items-center gap-2 flex-shrink-0">
             <NotificationBell tasks={tasks} currentUser={currentUser} readTimestamps={readTimestamps} teamMembers={teamMembers} onSelectTask={handleSelectTask} t={t} lang={lang} />
             {!showUsersPanel && !showDashboard && activeTab === 'tasks' && (
@@ -641,7 +459,7 @@ export default function TaskApp() {
               />
             )}
             {!showUsersPanel && !showDashboard && activeTab === 'tasks' && <SortDropdown value={sortBy} onChange={setSortBy} t={t} />}
-            {!showUsersPanel && !showDashboard && <><button onClick={loadTasks} className="p-2 rounded-full hover:bg-gray-100" style={{ color: '#6b7280' }}><Loader2 size={18} className={loading ? 'animate-spin' : ''} /></button>{activeTab === 'tasks' && <button onClick={() => setShowNewTask(true)} className="flex items-center gap-2 px-3 lg:px-4 py-2 rounded-lg font-medium text-sm" style={{ background: '#2563eb', color: 'white' }}><Plus size={18} /> <span className="hidden sm:inline">{t.newTask}</span></button>}</>}
+            {!showUsersPanel && !showDashboard && <><button onClick={loadTasks} className="p-2 rounded-full hover:bg-gray-100" style={{ color: '#6b7280' }}><Loader2 size={18} className={loading ? 'animate-spin' : ''} /></button>{activeTab === 'tasks' && <button onClick={() => setShowNewTask(true)} className="flex items-center gap-1.5 px-3 lg:px-3.5 py-1.5 rounded-lg font-medium text-xs" style={{ background: '#2563eb', color: 'white' }}><Plus size={15} /> <span className="hidden sm:inline">{t.newTask}</span></button>}</>}
           </div>
         </header>
 
@@ -660,7 +478,7 @@ export default function TaskApp() {
 
         <div className="flex-1 overflow-y-auto p-3 lg:p-4">
           {showDashboard || showUsersPanel ? null : activeTab === 'pending' && isManager ? <PendingView tasks={pendingTasks} approveTask={approveTask} deleteTask={deleteTask} currentUser={currentUser} t={t} lang={lang} teamMembers={teamMembers} /> : (
-            <div className="max-w-4xl mx-auto">{filteredTasks.length === 0 ? <div className="text-center py-16"><CheckCircle size={48} className="mx-auto mb-4" style={{ color: '#16a34a', opacity: 0.4 }} /><p style={{ color: '#6b7280' }}>{t.noTasksToShow}</p></div> : <div className="space-y-1">{filteredTasks.map(task => <TaskItem key={task.id} task={task} isSelected={selectedTask?.id === task.id} onClick={() => handleSelectTask(task)} onStatusChange={s => updateTask(task.id, { status: s })} currentUser={currentUser} readTimestamps={readTimestamps} seenTaskIds={seenTaskIds} lang={lang} t={t} teamMembers={teamMembers} customTags={customTags} />)}</div>}</div>
+            <div className="max-w-4xl mx-auto">{filteredTasks.length === 0 ? <div className="text-center py-16"><CheckCircle size={48} className="mx-auto mb-4" style={{ color: '#16a34a', opacity: 0.4 }} /><p style={{ color: '#6b7280' }}>{t.noTasksToShow}</p></div> : <div className="space-y-0.5">{filteredTasks.map(task => <TaskItem key={task.id} task={task} isSelected={selectedTask?.id === task.id} onClick={() => handleSelectTask(task)} onStatusChange={s => updateTask(task.id, { status: s })} currentUser={currentUser} readTimestamps={readTimestamps} seenTaskIds={seenTaskIds} lang={lang} t={t} teamMembers={teamMembers} customTags={customTags} />)}</div>}</div>
           )}
         </div>
       </main>
