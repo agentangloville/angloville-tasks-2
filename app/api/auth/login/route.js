@@ -1,5 +1,4 @@
 import { createClient } from '@supabase/supabase-js';
-import bcrypt from 'bcryptjs';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -25,8 +24,7 @@ export async function POST(request) {
       return Response.json({ error: 'User not found' }, { status: 401 });
     }
 
-    const isValid = await bcrypt.compare(pin, data.pin);
-    if (!isValid) {
+    if (data.pin !== pin) {
       return Response.json({ error: 'Invalid PIN' }, { status: 401 });
     }
 
