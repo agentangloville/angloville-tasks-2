@@ -5,10 +5,10 @@ import { BarChart3, Calendar, X, Loader2 } from 'lucide-react';
 import { getTasks, getTeamMembers } from '../../lib/supabase';
 
 const MARKETS = [
-  { id: 'pl', name: 'Polska', icon: '🇵🇱' },
-  { id: 'ns', name: 'NS', icon: '🇬🇧' },
-  { id: 'it', name: 'Włochy', icon: '🇮🇹' },
-  { id: 'exchange', name: 'Wymiana', icon: '🎓' },
+  { id: 'pl', name: 'Polska', nameEn: 'Poland', icon: '🇵🇱' },
+  { id: 'ns', name: 'Native Speakers', nameEn: 'Native Speakers', icon: '🇬🇧' },
+  { id: 'it', name: 'Włochy', nameEn: 'Italy', icon: '🇮🇹' },
+  { id: 'exchange', name: 'Wymiana', nameEn: 'Exchange', icon: '🎓' },
   { id: 'tefl', name: 'TEFL in Asia', nameEn: 'TEFL in Asia', icon: '🌏' },
   { id: 'brazil', name: 'Brazylia', nameEn: 'Brazil', icon: '🇧🇷' },
 ];
