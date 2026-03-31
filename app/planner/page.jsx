@@ -404,7 +404,7 @@ function SendDetail({ send, onUpdate, onDelete, onEdit, onClose, onSelectSend, a
     const idx = seriesSiblings.findIndex(s => s.id === send.id);
     if (idx === -1) return seriesSiblings.slice(0, 9);
     const start = Math.max(0, idx - 3);
-    const end = Math.min(seriesSiblings.length, idx + 6);
+    const end = Math.min(seriesSiblings.length, idx + 13);
     return seriesSiblings.slice(start, end);
   }, [seriesSiblings, send.id]);
 
