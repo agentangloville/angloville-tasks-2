@@ -901,7 +901,7 @@ export default function PlannerPage() {
             {view==='list' && <h2 className="text-sm lg:text-base font-semibold" style={{ color: '#111827' }}>{t.planner}</h2>}
           </div>
           <div className="flex items-center gap-2">
-            <div className="flex rounded-lg overflow-hidden border" style={{ borderColor: '#d1d5db' }}>
+            <div className="hidden lg:flex rounded-lg overflow-hidden border" style={{ borderColor: '#d1d5db' }}>
               <button onClick={() => setView('calendar')} className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium" style={{ background: view==='calendar'?'#2563eb':'white', color: view==='calendar'?'white':'#6b7280' }}><Calendar size={14} /><span className="hidden sm:inline">{t.calendar}</span></button>
               <button onClick={() => setView('list')} className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium" style={{ background: view==='list'?'#2563eb':'white', color: view==='list'?'white':'#6b7280', borderLeft: '1px solid #d1d5db' }}><List size={14} /><span className="hidden sm:inline">{t.list}</span></button>
             </div>
@@ -911,10 +911,17 @@ export default function PlannerPage() {
         </header>
 
         <div className="flex-1 overflow-y-auto p-3 lg:p-4">
-          {view==='calendar'
-            ? <CalendarView sends={calendarSends} year={calYear} month={calMonth} onSelectDay={d => {setSelectedDate(d);setSelectedSend(null);}} onAddSend={d => {setEditSend({ _prefillDate: d });setShowForm(true);}} onSelectSend={setSelectedSend} selectedDate={selectedDate} lang={lang} />
-            : <div className="max-w-4xl mx-auto"><ListView sends={filteredSends} onSelectSend={setSelectedSend} selectedId={selectedSend?.id} teamMembers={teamMembers} t={t} lang={lang} /></div>
-          }
+          {/* Mobile: always list */}
+          <div className="lg:hidden">
+            <div className="max-w-4xl mx-auto"><ListView sends={filteredSends} onSelectSend={setSelectedSend} selectedId={selectedSend?.id} teamMembers={teamMembers} t={t} lang={lang} /></div>
+          </div>
+          {/* Desktop: calendar/list toggle */}
+          <div className="hidden lg:block">
+            {view==='calendar'
+              ? <CalendarView sends={calendarSends} year={calYear} month={calMonth} onSelectDay={d => {setSelectedDate(d);setSelectedSend(null);}} onAddSend={d => {setEditSend({ _prefillDate: d });setShowForm(true);}} onSelectSend={setSelectedSend} selectedDate={selectedDate} lang={lang} />
+              : <div className="max-w-4xl mx-auto"><ListView sends={filteredSends} onSelectSend={setSelectedSend} selectedId={selectedSend?.id} teamMembers={teamMembers} t={t} lang={lang} /></div>
+            }
+          </div>
         </div>
       </main>
 
