@@ -737,18 +737,41 @@ function TableView({ sends, onUpdate, t, lang }) {
 
   const Cell = ({ send, field, mono }) => {
     const val = send[field] || '';
+    const isSms = send.channel === 'sms';
+    const showCounter = isSms && (field === 'notes' || field === 'subjectLine');
+    const charLimit = 160;
+
     if (isEd(send.id, field)) {
-      return field === 'notes' ? (
-        <textarea value={editValue} onChange={e => setEditValue(e.target.value)} onKeyDown={handleKey} onBlur={saveEdit}
-          className="w-full px-2 py-1 border rounded text-xs resize-none" style={{ borderColor: '#2563eb', minHeight: 56 }} autoFocus />
-      ) : (
-        <input type={field === 'sendDate' ? 'date' : field === 'sendTime' ? 'time' : 'text'} value={editValue}
-          onChange={e => setEditValue(e.target.value)} onKeyDown={handleKey} onBlur={saveEdit}
-          className="w-full px-2 py-1 border rounded text-xs" style={{ borderColor: '#2563eb' }} autoFocus />
+      const over = showCounter && editValue.length > charLimit;
+      return (
+        <div>
+          {field === 'notes' ? (
+            <textarea value={editValue} onChange={e => setEditValue(e.target.value)} onKeyDown={handleKey} onBlur={saveEdit}
+              className="w-full px-2 py-1 border rounded text-xs resize-none" style={{ borderColor: over ? '#ef4444' : '#2563eb', minHeight: 56 }} autoFocus />
+          ) : (
+            <input type={field === 'sendDate' ? 'date' : field === 'sendTime' ? 'time' : 'text'} value={editValue}
+              onChange={e => setEditValue(e.target.value)} onKeyDown={handleKey} onBlur={saveEdit}
+              className="w-full px-2 py-1 border rounded text-xs" style={{ borderColor: over ? '#ef4444' : '#2563eb' }} autoFocus />
+          )}
+          {showCounter && (
+            <div className="flex justify-end mt-0.5">
+              <span className="text-xs font-medium" style={{ color: over ? '#ef4444' : editValue.length > 140 ? '#f59e0b' : '#9ca3af' }}>
+                {editValue.length}/{charLimit}
+              </span>
+            </div>
+          )}
+        </div>
       );
     }
-    return <div onClick={() => startEdit(send, field)} className="px-2 py-1.5 rounded cursor-pointer hover:bg-blue-50 text-xs truncate"
-      style={{ color: val ? '#111827' : '#d1d5db', fontFamily: mono ? 'monospace' : 'inherit', minHeight: 28 }} title={val || t.clickToEdit}>{val || '—'}</div>;
+
+    const over = showCounter && val.length > charLimit;
+    return (
+      <div onClick={() => startEdit(send, field)} className="px-2 py-1.5 rounded cursor-pointer hover:bg-blue-50 text-xs truncate"
+        style={{ color: val ? (over ? '#ef4444' : '#111827') : '#d1d5db', fontFamily: mono ? 'monospace' : 'inherit', minHeight: 28 }} title={val || t.clickToEdit}>
+        {val || '—'}
+        {over && <span className="ml-1 text-xs font-bold" style={{ color: '#ef4444' }}>({val.length}/{charLimit})</span>}
+      </div>
+    );
   };
 
   const StatusCell = ({ send }) => {
