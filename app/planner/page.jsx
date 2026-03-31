@@ -1058,7 +1058,10 @@ export default function PlannerPage() {
           {STATUSES.map(s => <SideBtn key={s.id} active={filterStatus===s.id&&filterChannel==='all'} color={s.color} bg={s.bg} onClick={() => {setFilterStatus(s.id);setFilterChannel('all');setSidebarOpen(false);}} label={lang==='en'?s.nameEn:s.name} count={counts[s.id]||0} dot />)}
           <div className="mt-3 mb-1 px-2.5"><span className="text-xs font-medium" style={{ color: '#9ca3af' }}>{t.channel}</span></div>
           {CHANNELS.map(ch => { const I = ch.icon; return <SideBtn key={ch.id} active={filterChannel===ch.id} color={ch.color} bg={ch.bg} onClick={() => {setFilterChannel(ch.id);setFilterStatus('all');setSidebarOpen(false);}} label={ch.name} count={counts[ch.id]||0} icon={<I size={12} style={{ color: ch.color }} />} />; })}
-          <div className="mt-6 mx-2"><a href="/" className="text-xs px-2.5 py-1.5 rounded-md hover:bg-gray-100 block" style={{ color: '#2563eb' }}>{t.backToTasks}</a></div>
+          <div className="mt-6 mx-2 space-y-1">
+            <a href="https://mailingi2.vercel.app/" target="_blank" rel="noopener noreferrer" className="text-xs px-2.5 py-1.5 rounded-md hover:bg-gray-100 flex items-center gap-1.5" style={{ color: '#7c3aed' }}><Mail size={12} />{lang==='en'?'Mail Generator':'Generator maili'}<ExternalLink size={9} style={{ color: '#9ca3af' }} /></a>
+            <a href="/" className="text-xs px-2.5 py-1.5 rounded-md hover:bg-gray-100 block" style={{ color: '#2563eb' }}>{t.backToTasks}</a>
+          </div>
         </div>
 
         <div className="px-3 py-2.5" style={{ borderTop: '0.5px solid #e5e7eb' }}>
