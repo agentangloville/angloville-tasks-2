@@ -17,8 +17,11 @@ import { getCollabs, createCollab, updateCollab, deleteCollab } from '../../lib/
 
 const MARKETS = [
   { id: 'pl', name: 'Polska', nameEn: 'Poland', icon: '🇵🇱' },
-  { id: 'it', name: 'Włochy', nameEn: 'Italy', icon: '🇮🇹' },
   { id: 'ns', name: 'Native Speakers', nameEn: 'Native Speakers', icon: '🇬🇧' },
+  { id: 'it', name: 'Włochy', nameEn: 'Italy', icon: '🇮🇹' },
+  { id: 'exchange', name: 'Wymiana', nameEn: 'Exchange', icon: '🎓' },
+  { id: 'tefl', name: 'TEFL in Asia', nameEn: 'TEFL in Asia', icon: '🌏' },
+  { id: 'brazil', name: 'Brazylia', nameEn: 'Brazil', icon: '🇧🇷' },
 ];
 
 const STATUSES = [
@@ -149,7 +152,7 @@ function LoginScreen({ onLogin, teamMembers }) {
     } catch { setErr('Błąd połączenia'); }
     setLd(false);
   };
-  return <div className="min-h-screen flex items-center justify-center p-4" style={{ background: '#f8f9fa' }}><div className="bg-white rounded-xl p-8 w-full max-w-sm" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}><div className="text-center mb-6"><h1 className="text-xl font-semibold" style={{ color: '#111827' }}>🤝 Influencer Collabs</h1><p className="text-sm mt-1" style={{ color: '#6b7280' }}>Panel współprac z influencerami</p></div><form onSubmit={hl} className="space-y-4">{err && <div className="p-3 rounded-lg text-sm text-center" style={{ background: '#fef2f2', color: '#dc2626' }}>{err}</div>}<div><label className="block text-sm font-medium mb-1.5" style={{ color: '#111827' }}>Osoba</label><select value={su} onChange={e => { setSu(e.target.value); setErr(''); }} className="w-full px-4 py-3 border rounded-lg text-sm" style={{ borderColor: '#d1d5db' }}><option value="">Wybierz...</option>{am.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}</select></div><div><label className="block text-sm font-medium mb-1.5" style={{ color: '#111827' }}>PIN</label><input type="password" value={pin} onChange={e => { setPin(e.target.value.replace(/\D/g, '').slice(0, 4)); setErr(''); }} className="w-full px-4 py-3 border rounded-lg text-sm text-center tracking-widest" style={{ borderColor: '#d1d5db' }} placeholder="••••" maxLength={4} inputMode="numeric" /></div><button type="submit" disabled={ld} className="w-full py-3 rounded-lg font-medium flex items-center justify-center gap-2 disabled:opacity-70" style={{ background: '#2563eb', color: 'white' }}>{ld ? <Loader2 size={18} className="animate-spin" /> : <Lock size={18} />}{ld ? '...' : 'Zaloguj się'}</button></form></div></div>;
+  return <div className="min-h-screen flex items-center justify-center p-4" style={{ background: '#f8f9fa' }}><div className="bg-white rounded-xl p-8 w-full max-w-sm" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}><div className="text-center mb-6"><h1 className="text-xl font-semibold" style={{ color: '#111827' }}>📣 Influencer Collabs</h1><p className="text-sm mt-1" style={{ color: '#6b7280' }}>Panel współprac z influencerami</p></div><form onSubmit={hl} className="space-y-4">{err && <div className="p-3 rounded-lg text-sm text-center" style={{ background: '#fef2f2', color: '#dc2626' }}>{err}</div>}<div><label className="block text-sm font-medium mb-1.5" style={{ color: '#111827' }}>Osoba</label><select value={su} onChange={e => { setSu(e.target.value); setErr(''); }} className="w-full px-4 py-3 border rounded-lg text-sm" style={{ borderColor: '#d1d5db' }}><option value="">Wybierz...</option>{am.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}</select></div><div><label className="block text-sm font-medium mb-1.5" style={{ color: '#111827' }}>PIN</label><input type="password" value={pin} onChange={e => { setPin(e.target.value.replace(/\D/g, '').slice(0, 4)); setErr(''); }} className="w-full px-4 py-3 border rounded-lg text-sm text-center tracking-widest" style={{ borderColor: '#d1d5db' }} placeholder="••••" maxLength={4} inputMode="numeric" /></div><button type="submit" disabled={ld} className="w-full py-3 rounded-lg font-medium flex items-center justify-center gap-2 disabled:opacity-70" style={{ background: '#2563eb', color: 'white' }}>{ld ? <Loader2 size={18} className="animate-spin" /> : <Lock size={18} />}{ld ? '...' : 'Zaloguj się'}</button></form></div></div>;
 }
 
 // ── Deliverables Editor ──────────────────────────────
@@ -282,7 +285,7 @@ function CollabFormModal({ collab, onSave, onClose, currentUser, teamMembers, t,
       <div className="bg-white rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto" style={{ boxShadow: '0 24px 38px 3px rgba(0,0,0,.14)' }} onClick={e => e.stopPropagation()}>
         <div className="p-5 border-b flex items-center justify-between" style={{ borderColor: '#e5e7eb' }}>
           <div className="flex items-center gap-2">
-            <span style={{ fontSize: '20px' }}>🤝</span>
+            <span style={{ fontSize: '20px' }}>📣</span>
             <h3 className="text-lg font-medium" style={{ color: '#111827' }}>{isEdit ? t.edit : t.newCollab}</h3>
           </div>
           <button onClick={onClose} style={{ color: '#6b7280' }}><X size={20} /></button>
@@ -829,7 +832,7 @@ export default function CollabsPage() {
       {sidebarOpen && <div className="fixed inset-0 bg-black/50 z-30 lg:hidden" onClick={() => setSidebarOpen(false)} />}
       <aside className={`w-52 flex flex-col min-h-screen flex-shrink-0 bg-white fixed lg:static z-30 transition-transform lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`} style={{ borderRight: '0.5px solid #e5e7eb' }}>
         <div className="p-3 border-b" style={{ borderColor: '#e5e7eb' }}>
-          <h1 className="text-sm font-semibold" style={{ color: '#111827' }}>🤝 {t.collabs}</h1>
+          <h1 className="text-sm font-semibold" style={{ color: '#111827' }}>📣 {t.collabs}</h1>
         </div>
 
         <div className="flex-1 overflow-y-auto px-2 py-1.5 space-y-0.5">
