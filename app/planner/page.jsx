@@ -1136,7 +1136,7 @@ export default function PlannerPage() {
 
         <div className="px-3 py-2" style={{ borderTop: '0.5px solid #e5e7eb' }}>
           <div className="space-y-1">
-            <a href="/planner/generator" className="text-xs px-2.5 py-1.5 rounded-md hover:bg-gray-100 flex items-center gap-1.5" style={{ color: '#6b7280' }}>✉ {lang==='en'?'Mail Generator':'Generator maili'}<ExternalLink size={9} style={{ color: '#9ca3af' }} /></a>
+            <a href="https://mailingi2.vercel.app/" className="text-xs px-2.5 py-1.5 rounded-md hover:bg-gray-100 flex items-center gap-1.5" style={{ color: '#6b7280' }}>✉ {lang==='en'?'Mail Generator':'Generator maili'}<ExternalLink size={9} style={{ color: '#9ca3af' }} /></a>
             <a href="/" className="text-xs px-2.5 py-1.5 rounded-md hover:bg-gray-100 block" style={{ color: '#2563eb' }}>{t.backToTasks}</a>
           </div>
         </div>
