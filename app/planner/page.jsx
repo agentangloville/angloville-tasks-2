@@ -683,8 +683,20 @@ function CalendarView({ sends, year, month, onSelectDay, onAddSend, onSelectSend
   const dayNames = lang==='en' ? DAYS_EN : DAYS_PL;
   const todayStr = fmt(new Date());
   const byDate = useMemo(() => { const m = {}; sends.forEach(s => { (m[s.sendDate]||(m[s.sendDate]=[])).push(s); }); return m; }, [sends]);
+  const [popupDate, setPopupDate] = useState(null);
+  const popupRef = useRef(null);
+
+  useEffect(() => {
+    if (!popupDate) return;
+    const h = (e) => { if (popupRef.current && !popupRef.current.contains(e.target)) setPopupDate(null); };
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, [popupDate]);
+
+  const popupSends = popupDate ? (byDate[popupDate] || []) : [];
 
   return (
+    <div className="relative">
     <div className="bg-white rounded-xl border" style={{ borderColor: '#e5e7eb' }}>
       <div className="grid grid-cols-7 border-b" style={{ borderColor: '#e5e7eb' }}>
         {dayNames.map(d => <div key={d} className="text-center py-2.5 text-xs font-medium" style={{ color: '#6b7280' }}>{d}</div>)}
@@ -716,12 +728,58 @@ function CalendarView({ sends, year, month, onSelectDay, onAddSend, onSelectSend
                     </div>
                   );
                 })}
-                {ss.length > 3 && <span style={{ fontSize: '10px', color: '#6b7280' }}>+{ss.length-3}</span>}
+                {ss.length > 3 && <button onClick={e => {e.stopPropagation(); setPopupDate(ds);}} className="px-1 py-0.5 rounded hover:bg-blue-100 cursor-pointer" style={{ fontSize: '10px', color: '#2563eb', fontWeight: 500 }}>+{ss.length-3} {lang==='en'?'more':'więcej'}</button>}
               </div>
             </div>
           );
         })}
       </div>
+    </div>
+
+    {/* Day popup */}
+    {popupDate && popupSends.length > 0 && (
+      <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50" onClick={() => setPopupDate(null)}>
+        <div ref={popupRef} className="bg-white rounded-xl w-full max-w-md max-h-[70vh] overflow-hidden" style={{ boxShadow: '0 24px 38px 3px rgba(0,0,0,.14)' }} onClick={e => e.stopPropagation()}>
+          <div className="px-4 py-3 border-b flex items-center justify-between" style={{ borderColor: '#e5e7eb', background: '#f8f9fa' }}>
+            <div className="flex items-center gap-2">
+              <Calendar size={16} style={{ color: '#2563eb' }} />
+              <span className="text-sm font-semibold" style={{ color: '#111827' }}>{fmtDisp(popupDate, lang)}</span>
+              <span className="text-xs px-1.5 py-0.5 rounded-full" style={{ background: '#eff6ff', color: '#2563eb' }}>{popupSends.length}</span>
+            </div>
+            <button onClick={() => setPopupDate(null)} className="p-1 rounded-full hover:bg-gray-200" style={{ color: '#6b7280' }}><X size={16} /></button>
+          </div>
+          <div className="overflow-y-auto p-2" style={{ maxHeight: '60vh' }}>
+            {popupSends.map(s => {
+              const ch = CHANNELS.find(c => c.id === s.channel);
+              const st = STATUSES.find(x => x.id === s.status);
+              const StI = st?.icon || Circle;
+              const ChI = ch?.icon || Mail;
+              const mk = MARKETS.find(m => m.id === s.market);
+              const tools = (s.tools||[]).map(id => TOOLS.find(t=>t.id===id)).filter(Boolean);
+              return (
+                <button key={s.id} onClick={() => { onSelectSend(s); setPopupDate(null); }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg hover:bg-gray-50 text-left"
+                  style={{ opacity: s.status==='cancelled'?0.5:1 }}>
+                  <StI size={15} style={{ color: st?.color }} className={s.status==='sent'?'fill-current':''} />
+                  <div className="w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0" style={{ background: ch?.bg }}>
+                    <ChI size={12} style={{ color: ch?.color }} />
+                  </div>
+                  <span className="text-sm flex-shrink-0">{mk?.icon}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate" style={{ color: s.status==='cancelled'?'#9ca3af':'#111827', textDecoration: s.status==='cancelled'?'line-through':'none' }}>{s.title}</p>
+                    {s.subjectLine && <p className="text-xs truncate" style={{ color: '#9ca3af' }}>✉ {s.subjectLine}</p>}
+                  </div>
+                  <div className="flex items-center gap-1 flex-shrink-0">
+                    {tools.slice(0,1).map(tl => <span key={tl.id} className="text-xs px-1.5 py-0.5 rounded-full font-medium" style={{ background: tl.color+'18', color: tl.color }}>{tl.name}</span>)}
+                    <span className="text-xs" style={{ color: '#9ca3af' }}>{fmtTime(s.sendTime)}</span>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    )}
     </div>
   );
 }
