@@ -400,7 +400,7 @@ function SendFormModal({ send, onSave, onClose, currentUser, teamMembers, t, lan
           </div>
 
           {/* Checkbox: Utwórz task w Taskerze */}
-          {!isEdit && !f.linkedTaskId && (
+          {!f.linkedTaskId && (
             <label className="flex items-center gap-2.5 cursor-pointer p-3 rounded-lg hover:bg-gray-50" style={{ border: '1px solid #e5e7eb' }}>
               <input type="checkbox" checked={f.createTask} onChange={e => sF({...f, createTask: e.target.checked})} className="w-4 h-4 rounded" style={{ accentColor: '#2563eb' }} />
               <div>
