@@ -963,6 +963,7 @@ export default function PlannerPage() {
   const [calMonth, setCalMonth] = useState(now.getMonth());
   const [filterMarket, setFilterMarket] = useState('all');
   const [filterChannel, setFilterChannel] = useState('all');
+  const [filterTool, setFilterTool] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
 
   useEffect(() => { (async () => { setLoadingTeam(true); const m = await getTeamMembers(); if (m.length > 0) setTeamMembers(m); setLoadingTeam(false); })(); }, []);
@@ -987,10 +988,11 @@ export default function PlannerPage() {
       if (seeOnlyAssigned && !(s.assignees || []).includes(currentUser)) return false;
       if (filterMarket !== 'all' && s.market !== filterMarket) return false;
       if (filterChannel !== 'all' && s.channel !== filterChannel) return false;
+      if (filterTool !== 'all' && !(s.tools || []).includes(filterTool)) return false;
       if (filterStatus !== 'all' && s.status !== filterStatus) return false;
       return true;
     });
-  }, [sends, filterMarket, filterChannel, filterStatus, restrictedMarket, seeOnlyAssigned, currentUser]);
+  }, [sends, filterMarket, filterChannel, filterTool, filterStatus, restrictedMarket, seeOnlyAssigned, currentUser]);
 
   const calendarSends = useMemo(() => {
     const s = new Date(calYear, calMonth - 1, 20); const e = new Date(calYear, calMonth + 1, 10);
@@ -1102,6 +1104,8 @@ export default function PlannerPage() {
   CHANNELS.forEach(c => { channelCounts[c.id] = sends.filter(s => s.channel === c.id).length; });
   const statusCounts = {};
   STATUSES.forEach(s => { statusCounts[s.id] = sends.filter(x => x.status === s.id).length; });
+  const toolCounts = {};
+  TOOLS.forEach(tl => { toolCounts[tl.id] = sends.filter(s => (s.tools || []).includes(tl.id)).length; });
 
   return (
     <div className="min-h-screen flex" style={{ background: '#f9fafb' }}>
@@ -1122,8 +1126,15 @@ export default function PlannerPage() {
           {/* Channels */}
           <div>
             <p className="text-xs font-medium px-2 mb-1" style={{ color: '#9ca3af' }}>{t.channel}</p>
-            <SideBtn active={filterChannel==='all'} color="#2563eb" bg="#eff6ff" onClick={() => setFilterChannel('all')} label={lang==='en'?'All channels':'Wszystkie'} count={sends.length} />
-            {CHANNELS.map(c => <SideBtn key={c.id} active={filterChannel===c.id} color={c.color} bg={c.bg} onClick={() => setFilterChannel(c.id)} label={c.name} count={channelCounts[c.id]||0} dot />)}
+            <SideBtn active={filterChannel==='all'} color="#2563eb" bg="#eff6ff" onClick={() => { setFilterChannel('all'); setFilterTool('all'); }} label={lang==='en'?'All channels':'Wszystkie'} count={sends.length} />
+            {CHANNELS.map(c => <SideBtn key={c.id} active={filterChannel===c.id} color={c.color} bg={c.bg} onClick={() => { setFilterChannel(c.id); setFilterTool('all'); }} label={c.name} count={channelCounts[c.id]||0} dot />)}
+          </div>
+
+          {/* Tools */}
+          <div>
+            <p className="text-xs font-medium px-2 mb-1" style={{ color: '#9ca3af' }}>{t.tools}</p>
+            <SideBtn active={filterTool==='all'} color="#2563eb" bg="#eff6ff" onClick={() => setFilterTool('all')} label={lang==='en'?'All tools':'Wszystkie'} count={sends.length} />
+            {TOOLS.filter(tl => filterChannel === 'all' || tl.channel === filterChannel).map(tl => <SideBtn key={tl.id} active={filterTool===tl.id} color={tl.color} bg={tl.color+'18'} onClick={() => setFilterTool(tl.id)} label={tl.name} count={toolCounts[tl.id]||0} dot />)}
           </div>
 
           {/* Statuses */}
