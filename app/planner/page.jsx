@@ -36,12 +36,9 @@ const TOOLS = [
   { id: 'mailchimp', name: 'Mailchimp', channel: 'email', color: '#ffe01b' },
   { id: 'mailshake', name: 'Mailshake', channel: 'email', color: '#6c5ce7' },
   { id: 'sms_api', name: 'SMS', channel: 'sms', color: '#16a34a' },
-  { id: 'whatsapp_pl', name: 'WhatsApp PL', channel: 'whatsapp', color: '#25d366' },
-  { id: 'whatsapp_uk', name: 'WhatsApp UK', channel: 'whatsapp', color: '#25d366' },
-  { id: 'whatsapp_it', name: 'WhatsApp IT', channel: 'whatsapp', color: '#25d366' },
+  { id: 'whatsapp', name: 'WhatsApp', channel: 'whatsapp', color: '#25d366' },
   { id: 'zoom', name: 'Zoom', channel: 'infomeeting', color: '#2d8cff' },
   { id: 'onsite', name: 'Stacjonarnie', channel: 'infomeeting', color: '#f59e0b' },
-  { id: 'teams', name: 'Teams', channel: 'infomeeting', color: '#6264a7' },
 ];
 
 const STATUSES = [
