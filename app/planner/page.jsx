@@ -16,12 +16,12 @@ import {
 // ── Constants ────────────────────────────────────────
 
 const MARKETS = [
-  { id: 'pl', name: 'Polska', icon: '🇵🇱' },
-  { id: 'ns', name: 'Native Speakers', icon: '🇬🇧' },
-  { id: 'it', name: 'Włochy', icon: '🇮🇹' },
-  { id: 'exchange', name: 'Wymiana', icon: '🎓' },
-  { id: 'tefl', name: 'TEFL in Asia', icon: '🌏' },
-  { id: 'brazil', name: 'Brazylia', icon: '🇧🇷' },
+  { id: 'pl', name: 'Polska', nameEn: 'Poland', icon: '🇵🇱' },
+  { id: 'ns', name: 'Native Speakers', nameEn: 'Native Speakers', icon: '🇬🇧' },
+  { id: 'it', name: 'Włochy', nameEn: 'Italy', icon: '🇮🇹' },
+  { id: 'exchange', name: 'Wymiana', nameEn: 'Exchange', icon: '🎓' },
+  { id: 'tefl', name: 'TEFL in Asia', nameEn: 'TEFL in Asia', icon: '🌏' },
+  { id: 'brazil', name: 'Brazylia', nameEn: 'Brazil', icon: '🇧🇷' },
 ];
 
 const CHANNELS = [
@@ -299,7 +299,7 @@ function SendFormModal({ send, onSave, onClose, currentUser, teamMembers, t, lan
             <div>
               <label className="text-sm font-medium block mb-1.5" style={{ color: '#111827' }}>{t.market}</label>
               <select value={f.market} onChange={e => sF({...f, market: e.target.value})} className="w-full px-3 py-2 border rounded-lg text-sm" style={{ borderColor: '#d1d5db' }}>
-                {MARKETS.map(m => <option key={m.id} value={m.id}>{m.icon} {m.name}</option>)}
+                {MARKETS.map(m => <option key={m.id} value={m.id}>{m.icon} {lang==='en'?m.nameEn:m.name}</option>)}
               </select>
             </div>
             <div>
@@ -457,7 +457,7 @@ function SendDetail({ send, onUpdate, onDelete, onEdit, onClose, onSelectSend, a
         {/* Info */}
         <div className="space-y-3 p-3 rounded-lg" style={{ background: '#f8f9fa', border: '1px solid #e5e7eb' }}>
           <Row label={t.sendDate}><span className="text-sm font-medium" style={{ color: isToday(send.sendDate)?'#2563eb':isPast(send.sendDate)?'#9ca3af':'#111827' }}>{fmtDisp(send.sendDate,lang)} · {fmtTime(send.sendTime)}</span></Row>
-          <Row label={t.market}><span className="text-sm">{mk?.icon} {mk?.name}</span></Row>
+          <Row label={t.market}><span className="text-sm">{mk?.icon} {lang==='en'?mk?.nameEn:mk?.name}</span></Row>
           <Row label={t.tools}>
             <div className="flex flex-wrap gap-1 justify-end">
               {tools.map(tl => <span key={tl.id} className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: tl.color+'18', color: tl.color }}>{tl.name}</span>)}
@@ -1052,7 +1052,7 @@ export default function PlannerPage() {
         <div className="px-3 py-2.5" style={{ borderBottom: '0.5px solid #e5e7eb' }}>
           <select value={filterMarket} onChange={e => setFilterMarket(e.target.value)} className="w-full rounded-md px-2.5 py-1.5 text-xs border" style={{ borderColor: '#e5e7eb', color: '#374151' }}>
             <option value="all">{t.allMarkets}</option>
-            {MARKETS.map(m => <option key={m.id} value={m.id}>{m.icon} {m.name}</option>)}
+            {MARKETS.map(m => <option key={m.id} value={m.id}>{m.icon} {lang==='en'?m.nameEn:m.name}</option>)}
           </select>
         </div>
 
