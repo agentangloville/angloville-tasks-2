@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   Plus, X, Check, Edit3, Trash2, ChevronLeft, ChevronRight,
   Calendar, List, Mail, MessageSquare, Phone, Clock,
