@@ -1008,7 +1008,15 @@ export default function PlannerPage() {
         setSelectedSend(null);
       } else {
         const up = await updateScheduledSend(editSend.id, data);
-        if (up) { setSends(p => p.map(s => s.id === up.id ? up : s)); setSelectedSend(p => p?.id === up.id ? up : p); }
+        if (up) {
+          // 2-way link: if task was just created during edit, update it with send id
+          if (up.linkedTaskId && !editSend.linkedTaskId) {
+            try {
+              await updateTaskDb(up.linkedTaskId, { linkedSendId: up.id });
+            } catch (e) { console.error('Failed to update task with send link:', e); }
+          }
+          setSends(p => p.map(s => s.id === up.id ? up : s)); setSelectedSend(p => p?.id === up.id ? up : p);
+        }
       }
     } else {
       const cr = await createScheduledSend(data);
