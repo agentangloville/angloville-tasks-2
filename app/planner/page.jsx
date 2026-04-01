@@ -275,11 +275,12 @@ function SendFormModal({ send, onSave, onClose, currentUser, teamMembers, t, lan
 
     // Jeśli checkbox zaznaczony i jeszcze nie ma powiązanego taska — utwórz go
     if (f.createTask && !linkedTaskId) {
-      const newTask = await createTask({
+const newTask = await createTask({
         title: f.title,
         description: f.notes || '',
         market: f.market,
         status: 'open',
+        deadline: f.sendDate || null,
         assignees: f.assignees || [],
         createdBy: f.createdBy || currentUser,
         language: 'pl',
@@ -1009,9 +1010,14 @@ export default function PlannerPage() {
         const up = await updateScheduledSend(editSend.id, data);
         if (up) { setSends(p => p.map(s => s.id === up.id ? up : s)); setSelectedSend(p => p?.id === up.id ? up : p); }
       }
-    } else {
+} else {
       const cr = await createScheduledSend(data);
       if (cr) {
+        // Jeśli utworzono powiązany task, zaktualizuj go z linked_send_id
+        if (cr.linkedTaskId) {
+          const { updateTask: updateTaskDb } = await import('../../lib/supabase');
+          await updateTaskDb(cr.linkedTaskId, { linkedSendId: cr.id });
+        }
         setSends(p => [...p, cr]);
         if (cr.recurrence) {
           const occ = await generateRecurrences(cr);
