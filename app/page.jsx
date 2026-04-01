@@ -243,8 +243,7 @@ function TaskItem({ task, isSelected, onClick, onStatusChange, currentUser, read
       <PriorityBadge priority={task.priority} size="small" lang={lang} />
       <DeadlineBadge deadline={task.deadline} size="small" lang={lang} t={t} />
       {tTags.map(tg => <span key={tg.id} className="text-xs px-1.5 py-0.5 rounded-full font-medium" style={{ background: tg.color + '20', color: tg.color }}>{tg.name}</span>)}
-      {tTags.map(tg => <span key={tg.id} className="text-xs px-1.5 py-0.5 rounded-full font-medium" style={{ background: tg.color + '20', color: tg.color }}>{tg.name}</span>)}
-      {task.linkedSendId && <span className="text-xs px-1.5 py-0.5 rounded-full font-medium" style={{ background: '#f5f3ff', color: '#7c3aed' }}>📬 Wysyłka</span>}
+      {task.linkedSendId && <span className="text-xs px-1.5 py-0.5 rounded-full font-medium" style={{ background: '#f5f3ff', color: '#7c3aed' }}>📬</span>}
       {isNew && <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs font-medium" style={{ background: '#2563eb', color: 'white' }}><Sparkles size={10} />{t.new}</span>}
       {mc > 0 && <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs font-medium" style={{ background: '#ef4444', color: 'white' }}><AtSign size={10} />{mc}</span>}
       {uc > 0 && mc === 0 && <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs font-medium" style={{ background: '#f59e0b', color: 'white' }}><MessageSquare size={10} />{uc}</span>}
