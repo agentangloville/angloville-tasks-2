@@ -7,7 +7,7 @@ import {
   Filter, Loader2, LogOut, Lock, Menu, Repeat,
   CheckCircle, Circle, XCircle, ExternalLink, Users, Download
 } from 'lucide-react';
-import { getTeamMembers } from '../../lib/supabase';
+import { getTeamMembers, createTask } from '../../lib/supabase';
 import {
   getScheduledSends, createScheduledSend, updateScheduledSend,
   deleteScheduledSend, generateRecurrences, updateSeries, deleteSeries
@@ -79,6 +79,9 @@ const T = {
     editRecurring: 'Edytuj cykliczną', deleteRecurring: 'Usuń cykliczną',
     noEndDefault: 'Brak = rok do przodu',
     optional: 'opcjonalnie',
+    createLinkedTask: 'Utwórz task w Taskerze',
+    linkedTask: 'Powiązany task',
+    openLinkedTask: 'Otwórz w Taskerze',
   },
   en: {
     planner: 'Send Planner', calendar: 'Calendar', list: 'List', newSend: 'New send',
@@ -100,6 +103,9 @@ const T = {
     editRecurring: 'Edit recurring', deleteRecurring: 'Delete recurring',
     noEndDefault: 'None = 1 year ahead',
     optional: 'optional',
+    createLinkedTask: 'Create task in Tasker',
+    linkedTask: 'Linked task',
+    openLinkedTask: 'Open in Tasker',
   },
 };
 
@@ -253,6 +259,8 @@ function SendFormModal({ send, onSave, onClose, currentUser, teamMembers, t, lan
     notes: send?.notes || '', links: send?.links || [],
     taskLink: send?.taskLink || '',
     assignees: send?.assignees || [currentUser],
+    createTask: false,
+    linkedTaskId: send?.linkedTaskId || null,
   });
 
   const chChange = (ch) => {
@@ -261,9 +269,35 @@ function SendFormModal({ send, onSave, onClose, currentUser, teamMembers, t, lan
     sF({ ...f, channel: ch, tools: valid.length ? valid : (avail[0] ? [avail[0].id] : []) });
   };
 
-  const save = () => {
+  const save = async () => {
     if (!f.title.trim() || !f.sendDate) return;
-    onSave({ ...f, sendTime: f.sendTime || '10:00', recurrence: f.recurrence || null, recurrenceEndDate: f.recurrenceEndDate || null, links: f.links.filter(l => l.url.trim()), createdBy: send?.createdBy || currentUser });
+    let linkedTaskId = f.linkedTaskId;
+
+    // Jeśli checkbox zaznaczony i jeszcze nie ma powiązanego taska — utwórz go
+    if (f.createTask && !linkedTaskId) {
+      const newTask = await createTask({
+        title: f.title,
+        description: f.notes || '',
+        market: f.market,
+        status: 'open',
+        assignees: f.assignees || [],
+        createdBy: f.createdBy || currentUser,
+        language: 'pl',
+      });
+      if (newTask) {
+        linkedTaskId = newTask.id;
+      }
+    }
+
+    onSave({
+      ...f,
+      linkedTaskId,
+      sendTime: f.sendTime || '10:00',
+      recurrence: f.recurrence || null,
+      recurrenceEndDate: f.recurrenceEndDate || null,
+      links: f.links.filter(l => l.url.trim()),
+      createdBy: send?.createdBy || currentUser,
+    });
   };
 
   return (
@@ -299,7 +333,7 @@ function SendFormModal({ send, onSave, onClose, currentUser, teamMembers, t, lan
             <div>
               <label className="text-sm font-medium block mb-1.5" style={{ color: '#111827' }}>{t.market}</label>
               <select value={f.market} onChange={e => sF({...f, market: e.target.value})} className="w-full px-3 py-2 border rounded-lg text-sm" style={{ borderColor: '#d1d5db' }}>
-                {MARKETS.map(m => <option key={m.id} value={m.id}>{m.icon} {lang==='en'?m.nameEn:m.name}</option>)}
+                {MARKETS.map(m => <option key={m.id} value={m.id}>{m.icon} {lang==='en' ? m.nameEn : m.name}</option>)}
               </select>
             </div>
             <div>
@@ -308,12 +342,10 @@ function SendFormModal({ send, onSave, onClose, currentUser, teamMembers, t, lan
             </div>
           </div>
 
-          {f.channel === 'email' && (
-            <div>
-              <label className="text-sm font-medium block mb-1.5" style={{ color: '#111827' }}>{t.subjectLine}</label>
-              <input type="text" value={f.subjectLine} onChange={e => sF({...f, subjectLine: e.target.value})} className="w-full px-3 py-2 border rounded-lg text-sm" style={{ borderColor: '#d1d5db' }} placeholder={t.subjectPlaceholder} />
-            </div>
-          )}
+          <div>
+            <label className="text-sm font-medium block mb-1.5" style={{ color: '#111827' }}>{t.subjectLine}</label>
+            <input type="text" value={f.subjectLine} onChange={e => sF({...f, subjectLine: e.target.value})} className="w-full px-3 py-2 border rounded-lg text-sm" style={{ borderColor: '#d1d5db' }} placeholder={t.subjectPlaceholder} />
+          </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -361,10 +393,31 @@ function SendFormModal({ send, onSave, onClose, currentUser, teamMembers, t, lan
           </div>
 
           <AssigneeSelector assignees={f.assignees} teamMembers={teamMembers} onChange={a => sF({...f, assignees: a})} t={t} />
+
           <div>
             <label className="text-sm font-medium block mb-1.5" style={{ color: '#111827' }}>{t.taskLink}</label>
             <input type="url" value={f.taskLink} onChange={e => sF({...f, taskLink: e.target.value})} className="w-full px-3 py-2 border rounded-lg text-sm" style={{ borderColor: '#d1d5db' }} placeholder={t.taskLinkPlaceholder} />
           </div>
+
+          {/* Checkbox: Utwórz task w Taskerze */}
+          {!isEdit && !f.linkedTaskId && (
+            <label className="flex items-center gap-2.5 cursor-pointer p-3 rounded-lg hover:bg-gray-50" style={{ border: '1px solid #e5e7eb' }}>
+              <input type="checkbox" checked={f.createTask} onChange={e => sF({...f, createTask: e.target.checked})} className="w-4 h-4 rounded" style={{ accentColor: '#2563eb' }} />
+              <div>
+                <span className="text-sm font-medium" style={{ color: '#111827' }}>{t.createLinkedTask}</span>
+                <p className="text-xs mt-0.5" style={{ color: '#9ca3af' }}>{lang === 'en' ? 'Auto-creates a task with same title, market & assignees' : 'Automatycznie utworzy task z tym samym tytułem, rynkiem i przypisanymi'}</p>
+              </div>
+            </label>
+          )}
+
+          {/* Pokaż info o powiązanym tasku przy edycji */}
+          {f.linkedTaskId && (
+            <div className="flex items-center gap-2 p-3 rounded-lg" style={{ background: '#eff6ff', border: '1px solid #bfdbfe' }}>
+              <CheckCircle size={14} style={{ color: '#2563eb' }} />
+              <span className="text-sm" style={{ color: '#2563eb' }}>{t.linkedTask}</span>
+              <a href={`/?task=${f.linkedTaskId}`} target="_blank" rel="noopener noreferrer" className="ml-auto text-xs font-medium hover:underline" style={{ color: '#2563eb' }}>{t.openLinkedTask} →</a>
+            </div>
+          )}
 
           <LinksEditor links={f.links} onChange={links => sF({...f, links})} t={t} />
 
@@ -407,7 +460,7 @@ function SendDetail({ send, onUpdate, onDelete, onEdit, onClose, onSelectSend, a
   const assigned = (send.assignees||[]).map(id => teamMembers.find(m => m.id === id)).filter(Boolean);
   const ChIcon = ch?.icon || Mail;
 
-  // Series siblings: all sends with same title + market (not just parentId)
+  // Series siblings: all sends with same title + market
   const seriesSiblings = useMemo(() => {
     const siblings = allSends
       .filter(s => s.title === send.title && s.market === send.market)
@@ -484,6 +537,18 @@ function SendDetail({ send, onUpdate, onDelete, onEdit, onClose, onSelectSend, a
         {send.subjectLine && <div><label className="text-xs font-medium block mb-1" style={{ color: '#6b7280' }}>{t.subjectLine}</label><div className="px-3 py-2 rounded-lg text-sm" style={{ background: '#f3f4f6' }}>{send.subjectLine}</div></div>}
         <LinksDisplay links={send.links} />
         {send.taskLink && <div><label className="text-xs font-medium block mb-1" style={{ color: '#6b7280' }}>{t.taskLink}</label><a href={send.taskLink} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-blue-50 text-sm" style={{ color: '#2563eb' }}><ExternalLink size={13} /><span className="hover:underline">{lang==='en'?'Open task':'Otwórz task'}</span></a></div>}
+
+        {/* Linked Task */}
+        {send.linkedTaskId && (
+          <div>
+            <label className="text-xs font-medium block mb-1" style={{ color: '#6b7280' }}>{t.linkedTask}</label>
+            <a href={`/?task=${send.linkedTaskId}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-blue-50 text-sm" style={{ color: '#2563eb', background: '#eff6ff', border: '1px solid #bfdbfe' }}>
+              <CheckCircle size={13} />
+              <span className="hover:underline">{lang==='en'?'Open linked task':'Otwórz powiązany task'}</span>
+            </a>
+          </div>
+        )}
+
         {send.notes && <div>
           <div className="flex items-center justify-between mb-1">
             <label className="text-xs font-medium" style={{ color: '#6b7280' }}>{t.notes}</label>
@@ -634,29 +699,20 @@ function CalendarView({ sends, year, month, onSelectDay, onAddSend, onSelectSend
               style={{ borderColor: '#f3f4f6', background: iSel?'#eff6ff':it?'#fefce8':!day.cur?'#fafafa':'white' }}>
               <div className="flex items-center justify-between px-1 mb-0.5">
                 <span className={`text-xs font-medium ${it?'w-5 h-5 rounded-full flex items-center justify-center':''}`}
-                  style={{ color: !day.cur?'#d1d5db':it?'white':'#111827', background: it?'#2563eb':'transparent', fontSize: '11px' }}>
+                  style={{ color: !day.cur?'#d1d5db':it?'white':'#111827', background: it?'#2563eb':'transparent' }}>
                   {day.date.getDate()}
                 </span>
-                <div className="flex items-center gap-1">
-                  {ss.length > 0 && <span className="text-xs px-1 rounded" style={{ background: '#e5e7eb', color: '#6b7280', fontSize: '10px' }}>{ss.length}</span>}
-                  <button onClick={e => { e.stopPropagation(); onAddSend(ds); }}
-                    className="w-5 h-5 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-blue-100"
-                    style={{ color: '#2563eb' }}>
-                    <Plus size={12} />
-                  </button>
-                </div>
+                <button onClick={e => {e.stopPropagation();onAddSend(ds);}} className="w-5 h-5 rounded-full items-center justify-center text-white hidden group-hover:flex" style={{ background: '#2563eb', fontSize: '14px' }}>+</button>
               </div>
               <div className="space-y-0.5">
                 {ss.slice(0,3).map(s => {
-                  const ch = CHANNELS.find(c => c.id === s.channel);
+                  const c = CHANNELS.find(ch => ch.id === s.channel);
+                  const st = STATUSES.find(x => x.id === s.status);
                   return (
-                    <div key={s.id} onClick={e => { e.stopPropagation(); onSelectSend(s); }}
-                      className="flex items-center gap-1 px-1 py-0.5 rounded text-xs truncate hover:opacity-80"
-                      style={{ background: ch?.bg, color: ch?.color, opacity: s.status==='cancelled'?0.4:s.status==='sent'?0.6:1 }}>
-                      {s.status==='sent' && <CheckCircle size={9} />}
-                      {s.status==='cancelled' && <XCircle size={9} />}
-                      {(s.parentId||s.recurrence) && <Repeat size={8} />}
-                      <span className="truncate" style={{ fontSize: '10px', fontWeight: 500, textDecoration: s.status==='cancelled'?'line-through':'none' }}>
+                    <div key={s.id} onClick={e => {e.stopPropagation();onSelectSend(s);}}
+                      className="flex items-center gap-1 px-1 py-0.5 rounded text-xs truncate cursor-pointer hover:bg-blue-50"
+                      style={{ color: s.status==='cancelled'?'#9ca3af':st?.color }}>
+                      <span style={{ fontSize: '10px', textDecoration: s.status==='cancelled'?'line-through':'none' }}>
                         {MARKETS.find(m=>m.id===s.market)?.icon} {s.title}
                       </span>
                     </div>
@@ -702,17 +758,16 @@ function ListView({ sends, onSelectSend, selectedId, teamMembers, t, lang }) {
                   <span className="text-sm">{mk?.icon}</span>
                   <div className="flex-1 min-w-0">
                     <h4 className="text-sm font-medium truncate" style={{ color: s.status==='cancelled'?'#9ca3af':'#111827', textDecoration: s.status==='cancelled'?'line-through':'none' }}>{s.title}</h4>
-                    {s.segment && <p className="text-xs truncate" style={{ color: '#9ca3af' }}>{s.segment}</p>}
+                    {s.subjectLine && <p className="text-xs truncate" style={{ color: '#9ca3af' }}>✉ {s.subjectLine}</p>}
                   </div>
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    {tools.slice(0,2).map(tl => <span key={tl.id} className="text-xs font-medium" style={{ color: tl.color }}>{tl.name}</span>)}
-                    <span className="text-xs" style={{ color: '#9ca3af' }}>{fmtTime(s.sendTime)}</span>
-                    {(s.recurrence||s.parentId) && <Repeat size={12} style={{ color: '#7c3aed' }} />}
-                    <div className="flex -space-x-1">
-                      {assigned.slice(0,3).map(m => <div key={m.id} className="w-5 h-5 rounded-full flex items-center justify-center text-white border border-white" style={{ background: m.color, fontSize: '8px', fontWeight: 600 }}>{getInitials(m.name)}</div>)}
-                    </div>
-                    <ChevronRight size={14} style={{ color: '#d1d5db' }} />
+                  <div className="flex items-center gap-1">
+                    {tools.slice(0,2).map(tl => <span key={tl.id} className="text-xs px-1.5 py-0.5 rounded-full font-medium hidden sm:inline" style={{ background: tl.color+'18', color: tl.color }}>{tl.name}</span>)}
                   </div>
+                  <div className="flex -space-x-1">
+                    {assigned.slice(0,2).map(m => <div key={m.id} className="w-5 h-5 rounded-full flex items-center justify-center text-white border border-white" style={{ background: m.color, fontSize: '8px', fontWeight: 600 }}>{getInitials(m.name)}</div>)}
+                  </div>
+                  <span className="text-xs whitespace-nowrap" style={{ color: '#9ca3af' }}>{fmtTime(s.sendTime)}</span>
+                  {isPartOfSeries(s) && <Repeat size={12} style={{ color: '#7c3aed' }} />}
                 </div>
               );
             })}
@@ -723,13 +778,22 @@ function ListView({ sends, onSelectSend, selectedId, teamMembers, t, lang }) {
   );
 }
 
-// ── Login ────────────────────────────────────────────
+// ── Login Screen ─────────────────────────────────────
 
 function LoginScreen({ onLogin, teamMembers }) {
   const [su, setSu] = useState(''); const [pin, setPin] = useState(''); const [err, setErr] = useState(''); const [ld, setLd] = useState(false);
   const am = teamMembers.filter(m => m.isActive !== false);
-  const hl = async (e) => { e.preventDefault(); if (!su){setErr('Select a person');return;} if (!pin||pin.length<4){setErr('Enter PIN');return;} setLd(true);setErr(''); try{const r=await fetch('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({userId:su,pin})});const d=await r.json();if(d.success){localStorage.setItem('av_tasks_user',su);onLogin(su);}else{setErr('Incorrect PIN');setPin('');}}catch{setErr('Connection error');} setLd(false); };
-  return <div className="min-h-screen flex items-center justify-center p-4" style={{ background: '#f8f9fa' }}><div className="bg-white rounded-2xl p-8 w-full max-w-sm" style={{ boxShadow: '0 1px 3px 0 rgba(60,64,67,.3), 0 4px 8px 3px rgba(60,64,67,.15)' }}><div className="text-center mb-8"><img src="https://angloville.com/wp-content/themes/angloville/assets/images/logo.svg" alt="Angloville" className="h-10 mx-auto mb-4" /><h1 className="text-xl font-semibold" style={{ color: '#111827' }}>Send Planner</h1><p className="text-sm mt-1" style={{ color: '#6b7280' }}>Email · SMS · WhatsApp · Infomeetings</p></div><form onSubmit={hl} className="space-y-4">{err&&<div className="p-3 rounded-lg text-sm text-center" style={{ background: '#fef2f2', color: '#dc2626' }}>{err}</div>}<div><label className="block text-sm font-medium mb-1.5" style={{ color: '#111827' }}>Person</label><select value={su} onChange={e=>{setSu(e.target.value);setErr('');}} className="w-full px-4 py-3 border rounded-lg text-sm" style={{ borderColor: '#d1d5db' }}><option value="">Select...</option>{am.map(m=><option key={m.id} value={m.id}>{m.name}</option>)}</select></div><div><label className="block text-sm font-medium mb-1.5" style={{ color: '#111827' }}>PIN</label><input type="password" value={pin} onChange={e=>{setPin(e.target.value.replace(/\D/g,'').slice(0,4));setErr('');}} className="w-full px-4 py-3 border rounded-lg text-sm text-center tracking-widest" style={{ borderColor: '#d1d5db' }} placeholder="••••" maxLength={4} inputMode="numeric" /></div><button type="submit" disabled={ld} className="w-full py-3 rounded-lg font-medium flex items-center justify-center gap-2 disabled:opacity-70" style={{ background: '#2563eb', color: 'white' }}>{ld?<Loader2 size={18} className="animate-spin" />:<Lock size={18} />}{ld?'...':'Log in'}</button></form></div></div>;
+  const hl = async (e) => {
+    e.preventDefault(); if (!su) { setErr('Select person'); return; }
+    setLd(true);
+    try {
+      const r = await fetch('/api/auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: su, pin }) });
+      const d = await r.json();
+      if (d.success) { localStorage.setItem('av_tasks_user', su); onLogin(su); } else setErr(d.error || 'Incorrect PIN');
+    } catch { setErr('Connection error'); }
+    setLd(false);
+  };
+  return <div className="min-h-screen flex items-center justify-center p-4" style={{ background: '#f8f9fa' }}><div className="bg-white rounded-xl p-8 w-full max-w-sm" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}><div className="text-center mb-6"><h1 className="text-xl font-semibold" style={{ color: '#111827' }}>Send Planner</h1><p className="text-sm mt-1" style={{ color: '#6b7280' }}>Email · SMS · WhatsApp · Infomeetings</p></div><form onSubmit={hl} className="space-y-4">{err&&<div className="p-3 rounded-lg text-sm text-center" style={{ background: '#fef2f2', color: '#dc2626' }}>{err}</div>}<div><label className="block text-sm font-medium mb-1.5" style={{ color: '#111827' }}>Person</label><select value={su} onChange={e=>{setSu(e.target.value);setErr('');}} className="w-full px-4 py-3 border rounded-lg text-sm" style={{ borderColor: '#d1d5db' }}><option value="">Select...</option>{am.map(m=><option key={m.id} value={m.id}>{m.name}</option>)}</select></div><div><label className="block text-sm font-medium mb-1.5" style={{ color: '#111827' }}>PIN</label><input type="password" value={pin} onChange={e=>{setPin(e.target.value.replace(/\D/g,'').slice(0,4));setErr('');}} className="w-full px-4 py-3 border rounded-lg text-sm text-center tracking-widest" style={{ borderColor: '#d1d5db' }} placeholder="••••" maxLength={4} inputMode="numeric" /></div><button type="submit" disabled={ld} className="w-full py-3 rounded-lg font-medium flex items-center justify-center gap-2 disabled:opacity-70" style={{ background: '#2563eb', color: 'white' }}>{ld?<Loader2 size={18} className="animate-spin" />:<Lock size={18} />}{ld?'...':'Log in'}</button></form></div></div>;
 }
 
 
@@ -770,24 +834,19 @@ function ExportModal({ sends, onClose, t, lang }) {
         s.sendDate,
         (s.sendTime || '').substring(0, 5),
         s.title,
-        mk ? (lang === 'en' ? mk.name : mk.name) : s.market,
+        mk ? (lang === 'en' ? mk.nameEn : mk.name) : '',
         s.channel,
         tools,
-        lang === 'en' ? (st?.nameEn || s.status) : (st?.name || s.status),
+        st ? (lang === 'en' ? st.nameEn : st.name) : '',
         s.segment || '',
-        (s.subjectLine || '').replace(/"/g, '""'),
-        (s.notes || '').replace(/"/g, '""').replace(/\n/g, ' '),
+        s.subjectLine || '',
+        s.notes || '',
       ];
     });
-
-    const csv = [headers, ...rows].map(r => r.map(c => `"${c}"`).join(',')).join('\n');
-    const BOM = '\uFEFF';
-    const blob = new Blob([BOM + csv], { type: 'text/csv;charset=utf-8;' });
+    const csv = [headers, ...rows].map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `angloville-planner-${new Date().toISOString().split('T')[0]}.csv`;
-    a.click();
+    const a = document.createElement('a'); a.href = url; a.download = `send-planner-export-${fmt(new Date())}.csv`; a.click();
     URL.revokeObjectURL(url);
   };
 
@@ -795,62 +854,33 @@ function ExportModal({ sends, onClose, t, lang }) {
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div className="bg-white rounded-xl w-full max-w-md max-h-[90vh] overflow-y-auto" style={{ boxShadow: '0 24px 38px 3px rgba(0,0,0,.14)' }} onClick={e => e.stopPropagation()}>
         <div className="p-5 border-b flex items-center justify-between" style={{ borderColor: '#e5e7eb' }}>
-          <div className="flex items-center gap-2">
-            <Download size={20} style={{ color: '#2563eb' }} />
-            <h3 className="text-lg font-medium" style={{ color: '#111827' }}>{t.exportTitle}</h3>
-          </div>
+          <h3 className="text-lg font-medium" style={{ color: '#111827' }}>{t.exportTitle}</h3>
           <button onClick={onClose} style={{ color: '#6b7280' }}><X size={20} /></button>
         </div>
-
-        <div className="p-5 space-y-5">
-          {/* Markets — multi-select */}
+        <div className="p-5 space-y-4">
+          {/* Markets */}
           <div>
             <div className="flex items-center justify-between mb-2">
               <label className="text-sm font-medium" style={{ color: '#111827' }}>{t.exportMarkets}</label>
-              <button onClick={() => toggleAll(selMarkets, setSelMarkets, MARKETS.map(m => m.id))} className="text-xs" style={{ color: '#2563eb' }}>
-                {selMarkets.length === MARKETS.length ? t.cancel : t.exportAll}
-              </button>
+              <button onClick={() => toggleAll(selMarkets, setSelMarkets, MARKETS.map(m => m.id))} className="text-xs" style={{ color: '#2563eb' }}>{t.exportAll}</button>
             </div>
             <div className="flex flex-wrap gap-1.5">
-              {MARKETS.map(mk => {
-                const on = selMarkets.includes(mk.id);
-                return <button key={mk.id} type="button" onClick={() => toggleArr(selMarkets, setSelMarkets, mk.id)}
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium border"
+              {MARKETS.map(m => {
+                const on = selMarkets.includes(m.id);
+                return <button key={m.id} type="button" onClick={() => toggleArr(selMarkets, setSelMarkets, m.id)}
+                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-full text-xs font-medium border"
                   style={{ borderColor: on ? '#2563eb' : '#d1d5db', background: on ? '#eff6ff' : 'white', color: on ? '#2563eb' : '#6b7280' }}>
-                  {mk.icon} {mk.name} {on && <Check size={12} />}
+                  {m.icon} {lang === 'en' ? m.nameEn : m.name} {on && <Check size={12} />}
                 </button>;
               })}
             </div>
           </div>
 
-          {/* Channels — multi-select */}
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="text-sm font-medium" style={{ color: '#111827' }}>{t.exportChannels}</label>
-              <button onClick={() => toggleAll(selChannels, setSelChannels, CHANNELS.map(c => c.id))} className="text-xs" style={{ color: '#2563eb' }}>
-                {selChannels.length === CHANNELS.length ? t.cancel : t.exportAll}
-              </button>
-            </div>
-            <div className="flex flex-wrap gap-1.5">
-              {CHANNELS.map(ch => {
-                const on = selChannels.includes(ch.id);
-                const I = ch.icon;
-                return <button key={ch.id} type="button" onClick={() => toggleArr(selChannels, setSelChannels, ch.id)}
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium border"
-                  style={{ borderColor: on ? ch.color : '#d1d5db', background: on ? ch.bg : 'white', color: on ? ch.color : '#6b7280' }}>
-                  <I size={12} /> {ch.name} {on && <Check size={12} />}
-                </button>;
-              })}
-            </div>
-          </div>
-
-          {/* Statuses — multi-select */}
+          {/* Statuses */}
           <div>
             <div className="flex items-center justify-between mb-2">
               <label className="text-sm font-medium" style={{ color: '#111827' }}>{t.exportStatuses}</label>
-              <button onClick={() => toggleAll(selStatuses, setSelStatuses, STATUSES.map(s => s.id))} className="text-xs" style={{ color: '#2563eb' }}>
-                {selStatuses.length === STATUSES.length ? t.cancel : t.exportAll}
-              </button>
+              <button onClick={() => toggleAll(selStatuses, setSelStatuses, STATUSES.map(s => s.id))} className="text-xs" style={{ color: '#2563eb' }}>{t.exportAll}</button>
             </div>
             <div className="flex flex-wrap gap-1.5">
               {STATUSES.map(st => {
@@ -859,6 +889,24 @@ function ExportModal({ sends, onClose, t, lang }) {
                   className="flex items-center gap-1 px-2.5 py-1.5 rounded-full text-xs font-medium border"
                   style={{ borderColor: on ? st.color : '#d1d5db', background: on ? st.bg : 'white', color: on ? st.color : '#6b7280' }}>
                   {lang === 'en' ? st.nameEn : st.name} {on && <Check size={12} />}
+                </button>;
+              })}
+            </div>
+          </div>
+
+          {/* Channels */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-sm font-medium" style={{ color: '#111827' }}>{t.exportChannels}</label>
+              <button onClick={() => toggleAll(selChannels, setSelChannels, CHANNELS.map(c => c.id))} className="text-xs" style={{ color: '#2563eb' }}>{t.exportAll}</button>
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {CHANNELS.map(ch => {
+                const on = selChannels.includes(ch.id);
+                return <button key={ch.id} type="button" onClick={() => toggleArr(selChannels, setSelChannels, ch.id)}
+                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-full text-xs font-medium border"
+                  style={{ borderColor: on ? ch.color : '#d1d5db', background: on ? ch.bg : 'white', color: on ? ch.color : '#6b7280' }}>
+                  {ch.name} {on && <Check size={12} />}
                 </button>;
               })}
             </div>
@@ -907,7 +955,7 @@ export default function PlannerPage() {
   const [selectedSend, setSelectedSend] = useState(null);
   const [selectedDate, setSelectedDate] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [seriesModal, setSeriesModal] = useState(null); // { type: 'edit'|'delete', send }
+  const [seriesModal, setSeriesModal] = useState(null);
   const [showExport, setShowExport] = useState(false);
   const now = new Date();
   const [calYear, setCalYear] = useState(now.getFullYear());
@@ -1029,41 +1077,51 @@ export default function PlannerPage() {
   const goToday = () => { setCalYear(now.getFullYear()); setCalMonth(now.getMonth()); };
   const months = lang==='en' ? MONTHS_EN : MONTHS_PL;
 
-  const counts = useMemo(() => {
-    const f = sends.filter(s => filterMarket==='all' || s.market===filterMarket);
-    return { all: f.length, todo: f.filter(s=>s.status==='todo').length, scheduled: f.filter(s=>s.status==='scheduled').length, sent: f.filter(s=>s.status==='sent').length, cancelled: f.filter(s=>s.status==='cancelled').length, email: f.filter(s=>s.channel==='email').length, sms: f.filter(s=>s.channel==='sms').length, whatsapp: f.filter(s=>s.channel==='whatsapp').length, infomeeting: f.filter(s=>s.channel==='infomeeting').length };
-  }, [sends, filterMarket]);
-
-  if (checkingAuth||loadingTeam) return <div className="min-h-screen flex items-center justify-center" style={{ background: '#f8f9fa' }}><Loader2 className="animate-spin" size={32} style={{ color: '#2563eb' }} /></div>;
+  if (checkingAuth || loadingTeam) return <div className="min-h-screen flex items-center justify-center" style={{ background: '#f8f9fa' }}><Loader2 size={32} className="animate-spin" style={{ color: '#2563eb' }} /></div>;
   if (!currentUser) return <LoginScreen onLogin={setCurrentUser} teamMembers={teamMembers} />;
   if (loading) return <div className="min-h-screen flex items-center justify-center" style={{ background: '#f8f9fa', color: '#6b7280' }}>{t.loading}</div>;
 
+  const marketCounts = {};
+  MARKETS.forEach(m => { marketCounts[m.id] = sends.filter(s => s.market === m.id).length; });
+  const channelCounts = {};
+  CHANNELS.forEach(c => { channelCounts[c.id] = sends.filter(s => s.channel === c.id).length; });
+  const statusCounts = {};
+  STATUSES.forEach(s => { statusCounts[s.id] = sends.filter(x => x.status === s.id).length; });
+
   return (
-    <div className="min-h-screen flex" style={{ background: '#f9fafb', fontFamily: "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}>
+    <div className="min-h-screen flex" style={{ background: '#f9fafb' }}>
       {sidebarOpen && <div className="fixed inset-0 bg-black/50 z-30 lg:hidden" onClick={() => setSidebarOpen(false)} />}
-
-      {/* Sidebar */}
-      <aside className={`w-52 flex flex-col min-h-screen flex-shrink-0 bg-white fixed lg:static z-30 transition-transform lg:translate-x-0 ${sidebarOpen?'translate-x-0':'-translate-x-full'}`} style={{ borderRight: '0.5px solid #e5e7eb' }}>
-        <div className="px-4 py-3.5" style={{ borderBottom: '0.5px solid #e5e7eb' }}>
-          <img src="https://angloville.com/wp-content/themes/angloville/assets/images/logo.svg" alt="Angloville" className="h-6" />
-          <p className="mt-0.5 text-xs" style={{ color: '#9ca3af' }}>{t.planner}</p>
+      <aside className={`w-52 flex flex-col min-h-screen flex-shrink-0 bg-white fixed lg:static z-30 transition-transform lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`} style={{ borderRight: '0.5px solid #e5e7eb' }}>
+        <div className="p-3 border-b" style={{ borderColor: '#e5e7eb' }}>
+          <h1 className="text-sm font-semibold" style={{ color: '#111827' }}>📬 {t.planner}</h1>
         </div>
 
-        <div className="px-3 py-2.5" style={{ borderBottom: '0.5px solid #e5e7eb' }}>
-          <select value={filterMarket} onChange={e => setFilterMarket(e.target.value)} className="w-full rounded-md px-2.5 py-1.5 text-xs border" style={{ borderColor: '#e5e7eb', color: '#374151' }}>
-            <option value="all">{t.allMarkets}</option>
-            {MARKETS.map(m => <option key={m.id} value={m.id}>{m.icon} {lang==='en'?m.nameEn:m.name}</option>)}
-          </select>
+        <div className="flex-1 overflow-y-auto px-2 py-2 space-y-3">
+          {/* Markets */}
+          <div>
+            <p className="text-xs font-medium px-2 mb-1" style={{ color: '#9ca3af' }}>{t.market}</p>
+            <SideBtn active={filterMarket==='all'} color="#2563eb" bg="#eff6ff" onClick={() => setFilterMarket('all')} label={t.allMarkets} count={sends.length} />
+            {MARKETS.map(m => <SideBtn key={m.id} active={filterMarket===m.id} color="#2563eb" bg="#eff6ff" onClick={() => setFilterMarket(m.id)} label={`${m.icon} ${lang==='en'?m.nameEn:m.name}`} count={marketCounts[m.id]||0} dot />)}
+          </div>
+
+          {/* Channels */}
+          <div>
+            <p className="text-xs font-medium px-2 mb-1" style={{ color: '#9ca3af' }}>{t.channel}</p>
+            <SideBtn active={filterChannel==='all'} color="#2563eb" bg="#eff6ff" onClick={() => setFilterChannel('all')} label={lang==='en'?'All channels':'Wszystkie'} count={sends.length} />
+            {CHANNELS.map(c => <SideBtn key={c.id} active={filterChannel===c.id} color={c.color} bg={c.bg} onClick={() => setFilterChannel(c.id)} label={c.name} count={channelCounts[c.id]||0} dot />)}
+          </div>
+
+          {/* Statuses */}
+          <div>
+            <p className="text-xs font-medium px-2 mb-1" style={{ color: '#9ca3af' }}>{t.status}</p>
+            <SideBtn active={filterStatus==='all'} color="#2563eb" bg="#eff6ff" onClick={() => setFilterStatus('all')} label={lang==='en'?'All':'Wszystkie'} count={sends.length} />
+            {STATUSES.map(s => <SideBtn key={s.id} active={filterStatus===s.id} color={s.color} bg={s.bg} onClick={() => setFilterStatus(s.id)} label={lang==='en'?s.nameEn:s.name} count={statusCounts[s.id]||0} dot />)}
+          </div>
         </div>
 
-        <div className="p-2 flex-1 overflow-y-auto">
-          <SideBtn active={filterStatus==='all'&&filterChannel==='all'} color="#2563eb" bg="#eff6ff" onClick={() => {setFilterStatus('all');setFilterChannel('all');setSidebarOpen(false);}} label={lang==='en'?'All':'Wszystkie'} count={counts.all} icon={<Filter size={13} style={{ color: '#2563eb' }} />} />
-          <div className="mt-2 mb-1 px-2.5"><span className="text-xs font-medium" style={{ color: '#9ca3af' }}>{t.status}</span></div>
-          {STATUSES.map(s => <SideBtn key={s.id} active={filterStatus===s.id&&filterChannel==='all'} color={s.color} bg={s.bg} onClick={() => {setFilterStatus(s.id);setFilterChannel('all');setSidebarOpen(false);}} label={lang==='en'?s.nameEn:s.name} count={counts[s.id]||0} dot />)}
-          <div className="mt-3 mb-1 px-2.5"><span className="text-xs font-medium" style={{ color: '#9ca3af' }}>{t.channel}</span></div>
-          {CHANNELS.map(ch => { const I = ch.icon; return <SideBtn key={ch.id} active={filterChannel===ch.id} color={ch.color} bg={ch.bg} onClick={() => {setFilterChannel(ch.id);setFilterStatus('all');setSidebarOpen(false);}} label={ch.name} count={counts[ch.id]||0} icon={<I size={12} style={{ color: ch.color }} />} />; })}
-          <div className="mt-6 mx-2 space-y-1">
-            <a href="https://mailingi2.vercel.app/" target="_blank" rel="noopener noreferrer" className="text-xs px-2.5 py-1.5 rounded-md hover:bg-gray-100 flex items-center gap-1.5" style={{ color: '#7c3aed' }}><Mail size={12} />{lang==='en'?'Mail Generator':'Generator maili'}<ExternalLink size={9} style={{ color: '#9ca3af' }} /></a>
+        <div className="px-3 py-2" style={{ borderTop: '0.5px solid #e5e7eb' }}>
+          <div className="space-y-1">
+            <a href="/planner/generator" className="text-xs px-2.5 py-1.5 rounded-md hover:bg-gray-100 flex items-center gap-1.5" style={{ color: '#6b7280' }}>✉ {lang==='en'?'Mail Generator':'Generator maili'}<ExternalLink size={9} style={{ color: '#9ca3af' }} /></a>
             <a href="/" className="text-xs px-2.5 py-1.5 rounded-md hover:bg-gray-100 block" style={{ color: '#2563eb' }}>{t.backToTasks}</a>
           </div>
         </div>
