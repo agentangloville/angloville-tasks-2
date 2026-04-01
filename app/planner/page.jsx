@@ -7,7 +7,7 @@ import {
   Filter, Loader2, LogOut, Lock, Menu, Repeat,
   CheckCircle, Circle, XCircle, ExternalLink, Users, Download
 } from 'lucide-react';
-import { getTeamMembers, createTask } from '../../lib/supabase';
+import { getTeamMembers, createTask, updateTask as updateTaskDb } from '../../lib/supabase';
 import {
   getScheduledSends, createScheduledSend, updateScheduledSend,
   deleteScheduledSend, generateRecurrences, updateSeries, deleteSeries
@@ -275,7 +275,7 @@ function SendFormModal({ send, onSave, onClose, currentUser, teamMembers, t, lan
 
     // Jeśli checkbox zaznaczony i jeszcze nie ma powiązanego taska — utwórz go
     if (f.createTask && !linkedTaskId) {
-const newTask = await createTask({
+      const newTask = await createTask({
         title: f.title,
         description: f.notes || '',
         market: f.market,
@@ -401,7 +401,7 @@ const newTask = await createTask({
           </div>
 
           {/* Checkbox: Utwórz task w Taskerze */}
-          {!f.linkedTaskId && (
+          {!isEdit && !f.linkedTaskId && (
             <label className="flex items-center gap-2.5 cursor-pointer p-3 rounded-lg hover:bg-gray-50" style={{ border: '1px solid #e5e7eb' }}>
               <input type="checkbox" checked={f.createTask} onChange={e => sF({...f, createTask: e.target.checked})} className="w-4 h-4 rounded" style={{ accentColor: '#2563eb' }} />
               <div>
@@ -703,7 +703,7 @@ function CalendarView({ sends, year, month, onSelectDay, onAddSend, onSelectSend
                   style={{ color: !day.cur?'#d1d5db':it?'white':'#111827', background: it?'#2563eb':'transparent' }}>
                   {day.date.getDate()}
                 </span>
-                <button onClick={e => {e.stopPropagation();onAddSend(ds);}} className="w-4 h-4 rounded-full items-center justify-center hidden group-hover:flex" style={{ background: 'transparent', border: '1.5px solid #d1d5db', color: '#9ca3af', fontSize: '12px', lineHeight: '12px' }}>+</button>
+                <button onClick={e => {e.stopPropagation();onAddSend(ds);}} className="w-5 h-5 rounded-full items-center justify-center text-white hidden group-hover:flex" style={{ background: '#2563eb', fontSize: '14px' }}>+</button>
               </div>
               <div className="space-y-0.5">
                 {ss.slice(0,3).map(s => {
@@ -1010,13 +1010,14 @@ export default function PlannerPage() {
         const up = await updateScheduledSend(editSend.id, data);
         if (up) { setSends(p => p.map(s => s.id === up.id ? up : s)); setSelectedSend(p => p?.id === up.id ? up : p); }
       }
-} else {
+    } else {
       const cr = await createScheduledSend(data);
       if (cr) {
-        // Jeśli utworzono powiązany task, zaktualizuj go z linked_send_id
+        // 2-way link: update task with linked_send_id
         if (cr.linkedTaskId) {
-          const { updateTask: updateTaskDb } = await import('../../lib/supabase');
-          await updateTaskDb(cr.linkedTaskId, { linkedSendId: cr.id });
+          try {
+            await updateTaskDb(cr.linkedTaskId, { linkedSendId: cr.id });
+          } catch (e) { console.error('Failed to update task with send link:', e); }
         }
         setSends(p => [...p, cr]);
         if (cr.recurrence) {
