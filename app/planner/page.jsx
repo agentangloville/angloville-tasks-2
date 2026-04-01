@@ -929,15 +929,19 @@ export default function PlannerPage() {
 
   const handleLogout = () => { localStorage.removeItem('av_tasks_user'); setCurrentUser(null); setSends([]); };
 
-  // NO assignment-based filtering — everyone sees everything
+  const seeOnlyAssigned = cm?.seeOnlyAssigned || false;
+  const restrictedMarket = cm?.restrictedToMarket || null;
+
   const filteredSends = useMemo(() => {
     return sends.filter(s => {
+      if (restrictedMarket && s.market !== restrictedMarket) return false;
+      if (seeOnlyAssigned && !(s.assignees || []).includes(currentUser)) return false;
       if (filterMarket !== 'all' && s.market !== filterMarket) return false;
       if (filterChannel !== 'all' && s.channel !== filterChannel) return false;
       if (filterStatus !== 'all' && s.status !== filterStatus) return false;
       return true;
     });
-  }, [sends, filterMarket, filterChannel, filterStatus]);
+  }, [sends, filterMarket, filterChannel, filterStatus, restrictedMarket, seeOnlyAssigned, currentUser]);
 
   const calendarSends = useMemo(() => {
     const s = new Date(calYear, calMonth - 1, 20); const e = new Date(calYear, calMonth + 1, 10);
