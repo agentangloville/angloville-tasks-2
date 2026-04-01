@@ -703,7 +703,7 @@ function CalendarView({ sends, year, month, onSelectDay, onAddSend, onSelectSend
                   style={{ color: !day.cur?'#d1d5db':it?'white':'#111827', background: it?'#2563eb':'transparent' }}>
                   {day.date.getDate()}
                 </span>
-                <button onClick={e => {e.stopPropagation();onAddSend(ds);}} className="w-5 h-5 rounded-full items-center justify-center text-white hidden group-hover:flex" style={{ background: '#2563eb', fontSize: '14px' }}>+</button>
+                <button onClick={e => {e.stopPropagation();onAddSend(ds);}} className="w-4 h-4 rounded-full items-center justify-center hidden group-hover:flex" style={{ background: 'transparent', border: '1.5px solid #d1d5db', color: '#9ca3af', fontSize: '12px', lineHeight: '12px' }}>+</button>
               </div>
               <div className="space-y-0.5">
                 {ss.slice(0,3).map(s => {
