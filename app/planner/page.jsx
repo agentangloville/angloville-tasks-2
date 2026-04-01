@@ -1112,31 +1112,42 @@ export default function PlannerPage() {
           <h1 className="text-sm font-semibold" style={{ color: '#111827' }}>📬 {t.planner}</h1>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-2 py-2 space-y-3">
-          {/* Markets */}
+        <div className="flex-1 overflow-y-auto px-2 py-1.5 space-y-0.5">
+          {/* Markets — always visible, compact */}
           <div>
-            <p className="text-xs font-medium px-2 mb-1" style={{ color: '#9ca3af' }}>{t.market}</p>
+            <p className="text-xs font-medium px-2 mb-0.5 mt-1" style={{ color: '#9ca3af' }}>{t.market}</p>
             <SideBtn active={filterMarket==='all'} color="#2563eb" bg="#eff6ff" onClick={() => setFilterMarket('all')} label={t.allMarkets} count={sends.length} />
             {MARKETS.map(m => <SideBtn key={m.id} active={filterMarket===m.id} color="#2563eb" bg="#eff6ff" onClick={() => setFilterMarket(m.id)} label={`${m.icon} ${lang==='en'?m.nameEn:m.name}`} count={marketCounts[m.id]||0} dot />)}
           </div>
 
-          {/* Channels */}
+          <div style={{ height: '0.5px', background: '#e5e7eb', margin: '4px 8px' }} />
+
+          {/* Channel + Tool combined */}
           <div>
-            <p className="text-xs font-medium px-2 mb-1" style={{ color: '#9ca3af' }}>{t.channel}</p>
-            <SideBtn active={filterChannel==='all'} color="#2563eb" bg="#eff6ff" onClick={() => { setFilterChannel('all'); setFilterTool('all'); }} label={lang==='en'?'All channels':'Wszystkie'} count={sends.length} />
-            {CHANNELS.map(c => <SideBtn key={c.id} active={filterChannel===c.id} color={c.color} bg={c.bg} onClick={() => { setFilterChannel(c.id); setFilterTool('all'); }} label={c.name} count={channelCounts[c.id]||0} dot />)}
+            <p className="text-xs font-medium px-2 mb-0.5" style={{ color: '#9ca3af' }}>{t.channel}</p>
+            <SideBtn active={filterChannel==='all' && filterTool==='all'} color="#2563eb" bg="#eff6ff" onClick={() => { setFilterChannel('all'); setFilterTool('all'); }} label={lang==='en'?'All':'Wszystkie'} count={sends.length} />
+            {CHANNELS.map(c => {
+              const isChActive = filterChannel === c.id;
+              const chTools = TOOLS.filter(tl => tl.channel === c.id);
+              return <div key={c.id}>
+                <SideBtn active={isChActive && filterTool==='all'} color={c.color} bg={c.bg} onClick={() => { setFilterChannel(c.id); setFilterTool('all'); }} label={c.name} count={channelCounts[c.id]||0} dot />
+                {isChActive && chTools.length > 1 && chTools.map(tl => 
+                  <button key={tl.id} onClick={() => setFilterTool(tl.id)}
+                    className="w-full flex items-center justify-between pl-7 pr-2.5 py-0.5 rounded-md text-xs"
+                    style={{ background: filterTool===tl.id ? tl.color+'18' : 'transparent', color: filterTool===tl.id ? tl.color : '#9ca3af', fontWeight: filterTool===tl.id ? 500 : 400 }}>
+                    <span>{tl.name}</span>
+                    <span style={{ fontSize: '10px' }}>{toolCounts[tl.id]||0}</span>
+                  </button>
+                )}
+              </div>;
+            })}
           </div>
 
-          {/* Tools */}
-          <div>
-            <p className="text-xs font-medium px-2 mb-1" style={{ color: '#9ca3af' }}>{t.tools}</p>
-            <SideBtn active={filterTool==='all'} color="#2563eb" bg="#eff6ff" onClick={() => setFilterTool('all')} label={lang==='en'?'All tools':'Wszystkie'} count={sends.length} />
-            {TOOLS.filter(tl => filterChannel === 'all' || tl.channel === filterChannel).map(tl => <SideBtn key={tl.id} active={filterTool===tl.id} color={tl.color} bg={tl.color+'18'} onClick={() => setFilterTool(tl.id)} label={tl.name} count={toolCounts[tl.id]||0} dot />)}
-          </div>
+          <div style={{ height: '0.5px', background: '#e5e7eb', margin: '4px 8px' }} />
 
-          {/* Statuses */}
+          {/* Status — compact pills */}
           <div>
-            <p className="text-xs font-medium px-2 mb-1" style={{ color: '#9ca3af' }}>{t.status}</p>
+            <p className="text-xs font-medium px-2 mb-0.5" style={{ color: '#9ca3af' }}>{t.status}</p>
             <SideBtn active={filterStatus==='all'} color="#2563eb" bg="#eff6ff" onClick={() => setFilterStatus('all')} label={lang==='en'?'All':'Wszystkie'} count={sends.length} />
             {STATUSES.map(s => <SideBtn key={s.id} active={filterStatus===s.id} color={s.color} bg={s.bg} onClick={() => setFilterStatus(s.id)} label={lang==='en'?s.nameEn:s.name} count={statusCounts[s.id]||0} dot />)}
           </div>
