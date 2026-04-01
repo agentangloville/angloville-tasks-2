@@ -35,7 +35,7 @@ const TOOLS = [
   { id: 'hubspot', name: 'HubSpot', channel: 'email', color: '#ff7a59' },
   { id: 'mailchimp', name: 'Mailchimp', channel: 'email', color: '#ffe01b' },
   { id: 'mailshake', name: 'Mailshake', channel: 'email', color: '#6c5ce7' },
-  { id: 'sms_api', name: 'SMS API', channel: 'sms', color: '#16a34a' },
+  { id: 'sms_api', name: 'SMS', channel: 'sms', color: '#16a34a' },
   { id: 'whatsapp_pl', name: 'WhatsApp PL', channel: 'whatsapp', color: '#25d366' },
   { id: 'whatsapp_uk', name: 'WhatsApp UK', channel: 'whatsapp', color: '#25d366' },
   { id: 'whatsapp_it', name: 'WhatsApp IT', channel: 'whatsapp', color: '#25d366' },
