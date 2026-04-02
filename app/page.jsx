@@ -318,8 +318,6 @@ function WeeklySendsAccordion({ sends, tasks, isOpen, onToggle, onSelectTask, on
         </div>
       );
     }
-    const ch = SEND_CHANNELS.find(c => c.id === send.channel);
-    const ChIcon = ch?.icon || Mail;
     const mk = MARKETS.find(m => m.id === send.market);
     const assigned = (send.assignees||[]).map(id => teamMembers.find(m => m.id === id)).filter(Boolean);
     return (
