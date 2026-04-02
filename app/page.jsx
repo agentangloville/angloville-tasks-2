@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { Plus, Check, X, Edit3, Trash2, CheckCircle, Circle, Send, MessageSquare, ChevronDown, ChevronRight, Clock, AlertCircle, ExternalLink, Copy, Languages, Loader2, ListTodo, Square, CheckSquare, Bold, Italic, List, ListOrdered, LogOut, Lock, Filter, Underline, Link2, Undo, Redo, Inbox, Sparkles, Mail, MailCheck, MailX, RefreshCw, Paperclip, File, FileText, Image, FileSpreadsheet, Download, Flag, Users, UserPlus, Globe, EyeOff, ArrowUpDown, ArrowDown, ArrowUp, Activity, Bell, AtSign, Volume2, Pause, Eye, Menu, ThumbsUp, BarChart3, TrendingUp, TrendingDown, Calendar, ChevronUp, Tag, Lightbulb, CalendarClock, ClipboardCheck } from 'lucide-react';
+import { Plus, Check, X, Edit3, Trash2, CheckCircle, Circle, Send, MessageSquare, ChevronDown, ChevronRight, Clock, AlertCircle, ExternalLink, Copy, Languages, Loader2, ListTodo, Square, CheckSquare, Bold, Italic, List, ListOrdered, LogOut, Lock, Filter, Underline, Link2, Undo, Redo, Inbox, Sparkles, Mail, MailCheck, MailX, RefreshCw, Paperclip, File, FileText, Image, FileSpreadsheet, Download, Flag, Users, UserPlus, Globe, EyeOff, ArrowUpDown, ArrowDown, ArrowUp, Activity, Bell, AtSign, Volume2, Pause, Eye, Menu, ThumbsUp, BarChart3, TrendingUp, TrendingDown, Calendar, ChevronUp, Tag, Lightbulb, CalendarClock, ClipboardCheck, Phone } from 'lucide-react';
 import { getTasks, createTask, updateTask as updateTaskDb, deleteTask as deleteTaskDb, getQuickLinks, createQuickLink, deleteQuickLink, uploadFile, getTeamMembers, getAllTeamMembers, createTeamMember, updateTeamMember, getCustomTags, createCustomTag, updateCustomTag, deleteCustomTag as deleteCustomTagDb } from '../lib/supabase';
+import { getScheduledSends, updateScheduledSend } from '../lib/supabase-planner';
 
 const FALLBACK_TEAM = [
   { id: 'edyta', name: 'Edyta Kędzior', email: 'e.kedzior@angloville.pl', isManager: true, color: '#3b82f6', language: 'pl', restrictedToMarket: null, seeOnlyAssigned: false },
@@ -262,6 +263,87 @@ function TaskItem({ task, isSelected, onClick, onStatusChange, currentUser, read
   </div></div>;
 }
 
+// === WEEKLY SENDS ACCORDION ===
+const SEND_CHANNELS = [
+  { id: 'email', name: 'Email', icon: Mail, color: '#2563eb' },
+  { id: 'sms', name: 'SMS', icon: Phone, color: '#16a34a' },
+  { id: 'whatsapp', name: 'WhatsApp', icon: MessageSquare, color: '#25d366' },
+  { id: 'infomeeting', name: 'Infomeeting', icon: Users, color: '#7c3aed' },
+];
+const SEND_STATUSES = {
+  todo: { name: 'Do przygotowania', nameEn: 'To prepare', color: '#9ca3af', icon: Circle },
+  scheduled: { name: 'Zaplanowane', nameEn: 'Scheduled', color: '#2563eb', icon: Clock },
+  sent: { name: 'Wysłane', nameEn: 'Sent', color: '#16a34a', icon: CheckCircle },
+};
+
+function WeeklySendsAccordion({ sends, isOpen, onToggle, lang, teamMembers }) {
+  if (!sends.length) return null;
+  const todoCount = sends.filter(s => s.status === 'todo').length;
+  const fmtD = (ds) => new Date(ds+'T00:00:00').toLocaleDateString(lang==='en'?'en-US':'pl-PL',{weekday:'short',day:'numeric',month:'short'});
+  const fmtTime = (ts) => ts ? ts.substring(0,5) : '';
+
+  return (
+    <div className="max-w-4xl mx-auto mb-3">
+      <button onClick={onToggle}
+        className="w-full flex items-center justify-between px-4 py-2.5 rounded-t-xl text-sm font-medium transition-colors"
+        style={{ background: '#f3f0ff', color: '#7c3aed', borderBottom: isOpen ? '1px solid #e9e5f5' : 'none', borderRadius: isOpen ? '12px 12px 0 0' : '12px' }}>
+        <div className="flex items-center gap-2">
+          <CalendarClock size={16} />
+          <span>{lang === 'en' ? 'Sends this week' : 'Wysyłki ten tydzień'}</span>
+          <span className="text-xs px-2 py-0.5 rounded-full font-semibold" style={{ background: '#7c3aed', color: 'white' }}>{sends.length}</span>
+          {todoCount > 0 && <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: '#fef3c7', color: '#b45309' }}>
+            {todoCount} {lang === 'en' ? 'to do' : 'do zrobienia'}
+          </span>}
+        </div>
+        {isOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+      </button>
+      {isOpen && (
+        <div className="rounded-b-xl overflow-hidden" style={{ background: '#faf8ff', border: '1px solid #e9e5f5', borderTop: 'none' }}>
+          <div className="divide-y" style={{ borderColor: '#ede9f6' }}>
+            {sends.map(s => {
+              const ch = SEND_CHANNELS.find(c => c.id === s.channel);
+              const st = SEND_STATUSES[s.status] || SEND_STATUSES.todo;
+              const StIcon = st.icon;
+              const ChIcon = ch?.icon || Mail;
+              const mk = MARKETS.find(m => m.id === s.market);
+              const assigned = (s.assignees||[]).map(id => teamMembers.find(m => m.id === id)).filter(Boolean);
+              return (
+                <div key={s.id} className="flex items-center gap-2.5 px-4 py-2 hover:bg-purple-50/50 transition-colors">
+                  <StIcon size={15} style={{ color: st.color }} className={s.status === 'sent' ? 'fill-current' : ''} />
+                  <div className="w-5 h-5 rounded flex items-center justify-center flex-shrink-0" style={{ background: ch?.color + '15' }}>
+                    <ChIcon size={11} style={{ color: ch?.color }} />
+                  </div>
+                  <span className="text-sm flex-shrink-0">{mk?.icon}</span>
+                  <div className="flex-1 min-w-0">
+                    <span className="text-sm font-medium truncate block" style={{ color: '#111827' }}>{s.title}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 flex-shrink-0">
+                    <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: st.color + '15', color: st.color }}>{lang === 'en' ? st.nameEn : st.name}</span>
+                    <div className="flex -space-x-1">
+                      {assigned.slice(0,2).map(m => <div key={m.id} className="w-4 h-4 rounded-full flex items-center justify-center text-white border border-white" style={{ background: m.color, fontSize: '7px', fontWeight: 600 }}>{getInitials(m.name)}</div>)}
+                    </div>
+                    <span className="text-xs whitespace-nowrap" style={{ color: '#9ca3af' }}>{fmtD(s.sendDate)}</span>
+                    {s.sendTime && <span className="text-xs" style={{ color: '#b8b0d0' }}>{fmtTime(s.sendTime)}</span>}
+                    <a href="/planner" target="_blank" rel="noopener noreferrer" className="p-0.5 rounded hover:bg-purple-100" style={{ color: '#7c3aed' }} onClick={e => e.stopPropagation()}>
+                      <ExternalLink size={11} />
+                    </a>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <a href="/planner" target="_blank" rel="noopener noreferrer"
+            className="flex items-center justify-center gap-1.5 px-4 py-2 text-xs font-medium hover:bg-purple-50 transition-colors"
+            style={{ color: '#7c3aed', borderTop: '1px solid #ede9f6' }}>
+            <CalendarClock size={12} />
+            {lang === 'en' ? 'Open Planner' : 'Otwórz Planner'} →
+          </a>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // === TASK DETAIL ===
 function TaskDetail({ task, updateTask, deleteTask, onClose, currentUser, isManager, onMarkUnread, readTimestamps, t, lang, teamMembers, customTags, onRefreshTags }) {
   const [comment, setComment] = useState(''); const [editing, setEditing] = useState(false); const [form, setForm] = useState({ title: '', description: '' }); const [newSubtask, setNewSubtask] = useState(''); const [subtaskAssignee, setSubtaskAssignee] = useState(''); const [showSubtaskForm, setShowSubtaskForm] = useState(false); const [linkCopied, setLinkCopied] = useState(false); const [uploading, setUploading] = useState(false); const [commentAttachments, setCommentAttachments] = useState([]); const [uploadingComment, setUploadingComment] = useState(false); const [editingCommentId, setEditingCommentId] = useState(null); const [editingCommentText, setEditingCommentText] = useState(''); const [showTagManager, setShowTagManager] = useState(false); const [newTagName, setNewTagName] = useState(''); const [newTagColor, setNewTagColor] = useState(TAG_COLORS[0]);
@@ -375,6 +457,8 @@ function NewTaskModal({ onClose, onSave, currentUser, restrictedMarket, t, lang,
 export default function TaskApp() {
   const [currentUser, setCurrentUser] = useState(null); const [teamMembers, setTeamMembers] = useState(FALLBACK_TEAM); const [tasks, setTasks] = useState([]); const [loading, setLoading] = useState(true); const [loadingTeam, setLoadingTeam] = useState(true); const [selectedTask, setSelectedTask] = useState(null); const [showNewTask, setShowNewTask] = useState(false); const [showUsersPanel, setShowUsersPanel] = useState(false); const [filterMarket, setFilterMarket] = useState('all'); const [filterPerson, setFilterPerson] = useState('all'); const [filterStatus, setFilterStatus] = useState('active'); const [filterDeadline, setFilterDeadline] = useState(false);
   const [filterLinkedPlanner, setFilterLinkedPlanner] = useState(false);
+  const [weeklySends, setWeeklySends] = useState([]);
+  const [weekSendsOpen, setWeekSendsOpen] = useState(false);
   const [filterDateFrom, setFilterDateFrom] = useState('');
   const [filterDateTo, setFilterDateTo] = useState('');
   const [sortBy, setSortBy] = useState('newest'); const [activeTab, setActiveTab] = useState('tasks'); const [copied, setCopied] = useState(false); const [checkingAuth, setCheckingAuth] = useState(true); const [readTimestamps, setReadTimestamps] = useState({}); const [seenTaskIds, setSeenTaskIds] = useState([]); const [sidebarOpen, setSidebarOpen] = useState(false); const [customTags, setCustomTags] = useState([]); const filtersInitialized = useRef(false);
@@ -389,8 +473,23 @@ export default function TaskApp() {
   useEffect(() => { if (currentUser) localStorage.setItem(`av_filter_person_${currentUser}`, filterPerson); }, [filterPerson, currentUser]);
   const loadTasks = async () => { const d = await getTasks(); setTasks(d); setLoading(false); };
   const loadCustomTags = async () => { setCustomTags(await getCustomTags()); };
-  useEffect(() => { if (currentUser) { loadTasks(); loadCustomTags(); } }, [currentUser]);
-  useEffect(() => { if (!currentUser) return; const iv = setInterval(loadTasks, 30000); return () => clearInterval(iv); }, [currentUser]);
+  const loadWeeklySends = async () => {
+    try {
+      const all = await getScheduledSends();
+      const now = new Date();
+      const day = now.getDay(); // 0=Sun, 1=Mon...
+      const diffMon = day === 0 ? -6 : 1 - day;
+      const monday = new Date(now); monday.setDate(now.getDate() + diffMon); monday.setHours(0,0,0,0);
+      const sunday = new Date(monday); sunday.setDate(monday.getDate() + 6); sunday.setHours(23,59,59,999);
+      const monStr = monday.toISOString().split('T')[0];
+      const sunStr = sunday.toISOString().split('T')[0];
+      const week = all.filter(s => s.sendDate >= monStr && s.sendDate <= sunStr && s.status !== 'cancelled');
+      week.sort((a, b) => a.sendDate.localeCompare(b.sendDate) || (a.sendTime||'').localeCompare(b.sendTime||''));
+      setWeeklySends(week);
+    } catch (e) { console.error('Failed to load weekly sends:', e); }
+  };
+  useEffect(() => { if (currentUser) { loadTasks(); loadCustomTags(); loadWeeklySends(); } }, [currentUser]);
+  useEffect(() => { if (!currentUser) return; const iv = setInterval(() => { loadTasks(); loadWeeklySends(); }, 30000); return () => clearInterval(iv); }, [currentUser]);
   const handleLogout = () => { localStorage.removeItem('av_tasks_user'); setCurrentUser(null); setTasks([]); setSelectedTask(null); setShowUsersPanel(false); filtersInitialized.current = false; };
   const handleSelectTask = useCallback((task) => { setSelectedTask(task); setShowUsersPanel(false); setSidebarOpen(false); if (currentUser && task) { setTaskRead(task.id, currentUser); setReadTimestamps(prev => ({...prev, [task.id]: new Date().toISOString()})); markTaskAsSeen(task.id, currentUser); setSeenTaskIds(prev => prev.includes(task.id) ? prev : [...prev, task.id]); } }, [currentUser]);
   const handleMarkUnread = useCallback((taskId) => { if (currentUser) { setTaskUnread(taskId, currentUser); setReadTimestamps(prev => { const n = {...prev}; delete n[taskId]; return n; }); } }, [currentUser]);
@@ -418,7 +517,22 @@ export default function TaskApp() {
   const withDeadlineCount = visibleTasks.filter(t => !!t.deadline && t.status !== 'closed').length;
   const hasDateFilter = !!(filterDateFrom || filterDateTo);
 
-  const updateTask = async (id, updates, options = {}) => { const old = tasks.find(t => t.id === id); const nt = {...old, ...updates}; setTasks(prev => prev.map(t => t.id === id ? nt : t)); if (selectedTask?.id === id) setSelectedTask(nt); if (updates.status === 'closed' && old?.status !== 'closed' && old?.isExternal && old?.submitterEmail && !options.skipEmail) { const r = await sendCompletedEmail(old, currentMember?.name); const ee = { id: generateId(), type: 'completed', sentAt: new Date().toISOString(), sentBy: currentUser, sentTo: old.submitterEmail, success: r.sent }; updates.emailHistory = [...(old.emailHistory||[]), ee]; nt.emailHistory = updates.emailHistory; setTasks(prev => prev.map(t => t.id === id ? nt : t)); if (selectedTask?.id === id) setSelectedTask(nt); } await updateTaskDb(id, updates); };
+  const updateTask = async (id, updates, options = {}) => { const old = tasks.find(t => t.id === id); const nt = {...old, ...updates}; setTasks(prev => prev.map(t => t.id === id ? nt : t)); if (selectedTask?.id === id) setSelectedTask(nt); if (updates.status === 'closed' && old?.status !== 'closed' && old?.isExternal && old?.submitterEmail && !options.skipEmail) { const r = await sendCompletedEmail(old, currentMember?.name); const ee = { id: generateId(), type: 'completed', sentAt: new Date().toISOString(), sentBy: currentUser, sentTo: old.submitterEmail, success: r.sent }; updates.emailHistory = [...(old.emailHistory||[]), ee]; nt.emailHistory = updates.emailHistory; setTasks(prev => prev.map(t => t.id === id ? nt : t)); if (selectedTask?.id === id) setSelectedTask(nt); }
+    // Sync: when closing a task linked to a planner send, update send status to 'scheduled'
+    if (updates.status === 'closed' && old?.linkedSendId) {
+      try {
+        await updateScheduledSend(old.linkedSendId, { status: 'scheduled' });
+        loadWeeklySends();
+      } catch (e) { console.error('Sync send status failed:', e); }
+    }
+    // Sync: when reopening a task linked to a planner send, revert send status to 'todo'
+    if (old?.status === 'closed' && updates.status && updates.status !== 'closed' && old?.linkedSendId) {
+      try {
+        await updateScheduledSend(old.linkedSendId, { status: 'todo' });
+        loadWeeklySends();
+      } catch (e) { console.error('Sync send status failed:', e); }
+    }
+    await updateTaskDb(id, updates); };
   const deleteTask = async (id) => { if (confirm(t.deleteTask)) { setTasks(prev => prev.filter(t => t.id !== id)); setSelectedTask(null); await deleteTaskDb(id); } };
   const approveTask = async (task, assignees) => { await updateTask(task.id, { status: 'open', assignees, approvedAt: new Date().toISOString(), approvedBy: currentUser }); for (const aId of assignees) { const m = teamMembers.find(x => x.id === aId); if (m) await sendEmailNotification(m.email, m.name, task.title, currentMember?.name); } setActiveTab('tasks'); };
   const addTask = async (task) => { const nt = {...task, createdAt: new Date().toISOString(), createdBy: currentUser, isExternal: false, subtasks: []}; const c = await createTask(nt); if (c) await loadTasks(); setShowNewTask(false); for (const aId of task.assignees||[]) { const m = teamMembers.find(x => x.id === aId); if (m && m.id !== currentUser) await sendEmailNotification(m.email, m.name, task.title, currentMember?.name); } };
@@ -504,7 +618,10 @@ export default function TaskApp() {
 
         <div className="flex-1 overflow-y-auto p-3 lg:p-4">
           {showUsersPanel ? null : activeTab === 'pending' && isManager ? <PendingView tasks={pendingTasks} approveTask={approveTask} deleteTask={deleteTask} currentUser={currentUser} t={t} lang={lang} teamMembers={teamMembers} /> : (
-            <div className="max-w-4xl mx-auto">{filteredTasks.length === 0 ? <div className="text-center py-16"><CheckCircle size={48} className="mx-auto mb-4" style={{ color: '#16a34a', opacity: 0.4 }} /><p style={{ color: '#6b7280' }}>{t.noTasksToShow}</p></div> : <div className="space-y-0.5">{filteredTasks.map(task => <TaskItem key={task.id} task={task} isSelected={selectedTask?.id === task.id} onClick={() => handleSelectTask(task)} onStatusChange={s => updateTask(task.id, { status: s })} currentUser={currentUser} readTimestamps={readTimestamps} seenTaskIds={seenTaskIds} lang={lang} t={t} teamMembers={teamMembers} customTags={customTags} />)}</div>}</div>
+            <>{(filterStatus === 'active' || filterStatus === 'open') && weeklySends.length > 0 && !filterLinkedPlanner && !filterDeadline && !hasDateFilter && (
+              <WeeklySendsAccordion sends={weeklySends} isOpen={weekSendsOpen} onToggle={() => setWeekSendsOpen(o => !o)} lang={lang} teamMembers={teamMembers} />
+            )}
+            <div className="max-w-4xl mx-auto">{filteredTasks.length === 0 ? <div className="text-center py-16"><CheckCircle size={48} className="mx-auto mb-4" style={{ color: '#16a34a', opacity: 0.4 }} /><p style={{ color: '#6b7280' }}>{t.noTasksToShow}</p></div> : <div className="space-y-0.5">{filteredTasks.map(task => <TaskItem key={task.id} task={task} isSelected={selectedTask?.id === task.id} onClick={() => handleSelectTask(task)} onStatusChange={s => updateTask(task.id, { status: s })} currentUser={currentUser} readTimestamps={readTimestamps} seenTaskIds={seenTaskIds} lang={lang} t={t} teamMembers={teamMembers} customTags={customTags} />)}</div>}</div></>
           )}
         </div>
       </main>
