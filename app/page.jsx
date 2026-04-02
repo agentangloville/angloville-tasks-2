@@ -424,21 +424,11 @@ function TaskDetail({ task, updateTask, deleteTask, onClose, currentUser, isMana
 
         {task.assignees?.length > 0 && <div className="flex flex-wrap gap-1.5">{task.assignees.map(aId => { const m = teamMembers.find(x => x.id === aId); return m && <div key={aId} className="flex items-center gap-1.5 rounded-full px-2.5 py-1" style={{ background: '#f3f4f6' }}><div className="w-5 h-5 rounded-full flex items-center justify-center text-white text-xs font-medium" style={{ background: m.color }}>{getInitials(m.name)}</div><span className="text-xs" style={{ color: '#111827' }}>{m.name.split(' ')[0]}</span>{canEdit && <button onClick={() => updateTask(task.id, { assignees: task.assignees.filter(a => a !== aId) })} style={{ color: '#9ca3af' }}><X size={12} /></button>}</div>; })}</div>}
 
-        <div>
-          <div className="flex items-center justify-between mb-2"><div className="flex items-center gap-2"><Tag size={14} style={{ color: '#6b7280' }} /><label className="text-xs font-medium" style={{ color: '#6b7280' }}>{t.tags}</label></div>{isManager && <button onClick={() => setShowTagManager(!showTagManager)} className="text-xs px-2 py-0.5 rounded hover:bg-gray-100" style={{ color: '#2563eb' }}>{showTagManager ? t.cancel : t.manageTags}</button>}</div>
-          <div className="flex flex-wrap gap-1.5">{(customTags||[]).map(tag => { const isA = (task.tags||[]).includes(tag.id); return <button key={tag.id} onClick={() => toggleTag(tag.id)} className="text-xs px-2.5 py-1 rounded-full font-medium flex items-center gap-1" style={{ background: isA ? tag.color+'25' : '#f3f4f6', color: isA ? tag.color : '#9ca3af', border: isA ? `1.5px solid ${tag.color}` : '1.5px solid transparent' }}><Tag size={10} />{tag.name}{isA && <Check size={10} />}</button>; })}{(customTags||[]).length === 0 && !showTagManager && <span className="text-xs" style={{ color: '#9ca3af' }}>{t.noTags}</span>}</div>
-          {showTagManager && isManager && <div className="mt-2 p-3 rounded-lg border" style={{ borderColor: '#2563eb', background: '#f8fbff' }}><div className="flex items-center gap-2 mb-2"><input type="text" value={newTagName} onChange={e => setNewTagName(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleCreateTag()} placeholder={t.tagName} className="flex-1 px-2 py-1.5 border rounded-lg text-sm" style={{ borderColor: '#d1d5db' }} /><div className="flex gap-1">{TAG_COLORS.slice(0,6).map(c => <button key={c} type="button" onClick={() => setNewTagColor(c)} className="w-5 h-5 rounded-full" style={{ background: c, border: newTagColor === c ? '2px solid #111827' : '2px solid transparent' }} />)}</div><button onClick={handleCreateTag} className="px-3 py-1.5 rounded-lg text-xs font-medium" style={{ background: '#2563eb', color: 'white' }}>{t.add}</button></div>{(customTags||[]).length > 0 && <div className="space-y-1 pt-2 border-t" style={{ borderColor: '#e5e7eb' }}>{customTags.map(tag => <div key={tag.id} className="flex items-center justify-between py-1"><span className="flex items-center gap-1.5 text-xs"><span className="w-3 h-3 rounded-full" style={{ background: tag.color }} />{tag.name}</span><button onClick={() => handleDeleteTag(tag.id)} className="p-0.5 rounded hover:bg-red-50" style={{ color: '#ef4444' }}><X size={12} /></button></div>)}</div>}</div>}
-        </div>
-{task.linkedSendId && (
-          <div className="flex items-center gap-2 p-3 rounded-lg" style={{ background: '#f5f3ff', border: '1px solid #ddd6fe' }}>
-            <span style={{ fontSize: '16px' }}>📬</span>
-            <div className="flex-1">
-              <span className="text-sm font-medium" style={{ color: '#7c3aed' }}>{lang === 'en' ? 'Linked to Send Planner' : 'Powiązane z Plannerem wysyłek'}</span>
-            </div>
-            <a href={`/planner`} target="_blank" rel="noopener noreferrer" className="text-xs font-medium px-2.5 py-1 rounded-lg hover:bg-purple-100" style={{ color: '#7c3aed' }}>
-              {lang === 'en' ? 'Open Planner →' : 'Otwórz Planner →'}
-            </a>
-          </div>
+        {task.linkedSendId && (
+          <a href="/planner" target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-xs hover:underline" style={{ color: '#7c3aed' }}>
+            <CalendarClock size={12} />
+            {lang === 'en' ? 'Open Planner →' : 'Otwórz Planner →'}
+          </a>
         )}
         {task.links && <div><label className="block mb-1 text-xs font-medium" style={{ color: '#6b7280' }}>{t.links}</label><div className="rounded-lg border p-1" style={{ background: '#f8f9fa', borderColor: '#e5e7eb' }}><ClickableLinks text={task.links} /></div></div>}
         
