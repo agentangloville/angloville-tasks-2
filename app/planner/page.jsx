@@ -253,7 +253,7 @@ function SendFormModal({ send, onSave, onClose, currentUser, teamMembers, t, lan
     sendTime: send?.sendTime ? fmtTime(send.sendTime) : '19:00',
     recurrence: send?.recurrence || null, recurrenceEndDate: send?.recurrenceEndDate || '',
     status: send?.status || 'todo', subjectLine: send?.subjectLine || '',
-    notes: send?.notes || '', links: send?.links || [],
+    links: send?.links || [],
     taskLink: send?.taskLink || '',
     assignees: send?.assignees || [currentUser],
     linkedTaskId: send?.linkedTaskId || null,
@@ -273,7 +273,7 @@ function SendFormModal({ send, onSave, onClose, currentUser, teamMembers, t, lan
     if (!linkedTaskId) {
       const newTask = await createTask({
         title: f.title,
-        description: f.notes || '',
+        description: f.description || '',
         market: f.market,
         status: 'open',
         deadline: f.sendDate || null,
@@ -411,18 +411,18 @@ function SendFormModal({ send, onSave, onClose, currentUser, teamMembers, t, lan
             <div className="flex items-center justify-between mb-1.5">
               <label className="text-sm font-medium" style={{ color: '#111827' }}>{t.notes}</label>
               {f.channel === 'sms' && (
-                <span className="text-xs font-medium" style={{ color: f.notes.length > 160 ? '#ef4444' : f.notes.length > 140 ? '#f59e0b' : '#9ca3af' }}>
-                  {f.notes.length}/160
+                <span className="text-xs font-medium" style={{ color: f.description.length > 160 ? '#ef4444' : f.description.length > 140 ? '#f59e0b' : '#9ca3af' }}>
+                  {f.description.length}/160
                 </span>
               )}
             </div>
-            <textarea value={f.notes} onChange={e => sF({...f, notes: e.target.value})}
+            <textarea value={f.description} onChange={e => sF({...f, description: e.target.value})}
               className="w-full px-3 py-2 border rounded-lg text-sm resize-none"
-              style={{ borderColor: f.channel === 'sms' && f.notes.length > 160 ? '#ef4444' : '#d1d5db' }}
+              style={{ borderColor: f.channel === 'sms' && f.description.length > 160 ? '#ef4444' : '#d1d5db' }}
               rows={3} placeholder={f.channel === 'sms' ? (lang === 'en' ? 'SMS text (max 160 chars, no Polish chars)...' : 'Treść SMS (max 160 znaków, bez polskich znaków)...') : t.notesPlaceholder} />
-            {f.channel === 'sms' && f.notes.length > 160 && (
+            {f.channel === 'sms' && f.description.length > 160 && (
               <p className="text-xs mt-1" style={{ color: '#ef4444' }}>
-                {lang === 'en' ? `⚠ ${f.notes.length - 160} characters over limit — will be sent as 2 SMS` : `⚠ ${f.notes.length - 160} znaków ponad limit — zostanie wysłany jako 2 SMS`}
+                {lang === 'en' ? `⚠ ${f.description.length - 160} characters over limit — will be sent as 2 SMS` : `⚠ ${f.description.length - 160} znaków ponad limit — zostanie wysłany jako 2 SMS`}
               </p>
             )}
           </div>
@@ -535,13 +535,13 @@ function SendDetail({ send, onUpdate, onDelete, onEdit, onClose, onSelectSend, a
           </div>
         )}
 
-        {send.notes && <div>
+        {send.description && <div>
           <div className="flex items-center justify-between mb-1">
             <label className="text-xs font-medium" style={{ color: '#6b7280' }}>{t.notes}</label>
-            {send.channel === 'sms' && <span className="text-xs font-medium" style={{ color: send.notes.length > 160 ? '#ef4444' : send.notes.length > 140 ? '#f59e0b' : '#9ca3af' }}>{send.notes.length}/160</span>}
+            {send.channel === 'sms' && <span className="text-xs font-medium" style={{ color: send.description.length > 160 ? '#ef4444' : send.description.length > 140 ? '#f59e0b' : '#9ca3af' }}>{send.description.length}/160</span>}
           </div>
-          <div className="px-3 py-2 rounded-lg text-sm whitespace-pre-wrap" style={{ background: send.channel === 'sms' && send.notes.length > 160 ? '#fef2f2' : '#f3f4f6', color: send.channel === 'sms' && send.notes.length > 160 ? '#ef4444' : '#374151' }}>{send.notes}</div>
-          {send.channel === 'sms' && send.notes.length > 160 && <p className="text-xs mt-1" style={{ color: '#ef4444' }}>⚠ {send.notes.length - 160} {lang==='en' ? 'chars over limit' : 'znaków ponad limit'}</p>}
+          <div className="px-3 py-2 rounded-lg text-sm whitespace-pre-wrap" style={{ background: send.channel === 'sms' && send.description.length > 160 ? '#fef2f2' : '#f3f4f6', color: send.channel === 'sms' && send.description.length > 160 ? '#ef4444' : '#374151' }}>{send.description}</div>
+          {send.channel === 'sms' && send.description.length > 160 && <p className="text-xs mt-1" style={{ color: '#ef4444' }}>⚠ {send.description.length - 160} {lang==='en' ? 'chars over limit' : 'znaków ponad limit'}</p>}
         </div>}
 
         {/* Series Timeline */}
@@ -573,12 +573,12 @@ function SeriesTimeline({ items, currentId, totalCount, onSelect, onUpdate, t, l
   const startEdit = (item) => {
     setEditingId(item.id);
     setEditSubject(item.subjectLine || '');
-    setEditNotes(item.notes || '');
+    setEditNotes(item.description || '');
   };
 
   const saveEdit = () => {
     if (editingId) {
-      onUpdate(editingId, { subjectLine: editSubject, notes: editNotes });
+      onUpdate(editingId, { subjectLine: editSubject, description: editNotes });
       setEditingId(null);
     }
   };
@@ -650,10 +650,10 @@ function SeriesTimeline({ items, currentId, totalCount, onSelect, onUpdate, t, l
                     <button onClick={cancelEdit} className="px-3 py-1.5 rounded-lg text-xs" style={{ color: '#6b7280' }}>{t.cancel}</button>
                   </div>
                 </div>
-              ) : (item.subjectLine || item.notes) ? (
+              ) : (item.subjectLine || item.description) ? (
                 <div className="px-3 pb-2 pl-8">
                   {item.subjectLine && <p className="text-xs font-medium truncate" style={{ color: past && !isCurrent ? '#bdc1c6' : '#374151' }}>✉ {item.subjectLine}</p>}
-                  {item.notes && <p className="text-xs truncate mt-0.5" style={{ color: '#9ca3af' }}>{item.notes}</p>}
+                  {item.description && <p className="text-xs truncate mt-0.5" style={{ color: '#9ca3af' }}>{item.description}</p>}
                 </div>
               ) : null}
             </div>
@@ -884,7 +884,7 @@ function ExportModal({ sends, onClose, t, lang }) {
         st ? (lang === 'en' ? st.nameEn : st.name) : '',
         s.segment || '',
         s.subjectLine || '',
-        s.notes || '',
+        s.description || '',
       ];
     });
     const csv = [headers, ...rows].map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
@@ -1060,6 +1060,18 @@ export default function PlannerPage() {
               await updateTaskDb(up.linkedTaskId, { linkedSendId: up.id });
             } catch (e) { console.error('Failed to update task with send link:', e); }
           }
+          // Sync: update linked task with edited send data
+          if (up.linkedTaskId) {
+            const taskUpdates = {};
+            if (data.title) taskUpdates.title = data.title;
+            if (data.description !== undefined) taskUpdates.description = data.description;
+            if (data.sendDate) taskUpdates.deadline = data.sendDate;
+            if (data.assignees) taskUpdates.assignees = data.assignees;
+            if (data.market) taskUpdates.market = data.market;
+            if (Object.keys(taskUpdates).length > 0) {
+              try { await updateTaskDb(up.linkedTaskId, taskUpdates); } catch (e) { console.error('Sync task failed:', e); }
+            }
+          }
           setSends(p => p.map(s => s.id === up.id ? up : s)); setSelectedSend(p => p?.id === up.id ? up : p);
         }
       }
@@ -1090,6 +1102,7 @@ export default function PlannerPage() {
       if (up.linkedTaskId) {
         const taskUpdates = {};
         if (updates.title) taskUpdates.title = updates.title;
+        if (updates.description !== undefined) taskUpdates.description = updates.description;
         if (updates.sendDate) taskUpdates.deadline = updates.sendDate;
         if (updates.assignees) taskUpdates.assignees = updates.assignees;
         if (updates.market) taskUpdates.market = updates.market;
