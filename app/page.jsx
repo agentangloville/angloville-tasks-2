@@ -269,10 +269,10 @@ function WeeklySendsAccordion({ sends, tasks, isOpen, onToggle, onSelectTask, on
 
   const isNext = variant === 'next';
   const isWeek3 = variant === 'week3';
-  const bgHeader = '#f9fafb';
-  const bgContent = '#fcfcfd';
-  const borderColor = '#e5e7eb';
-  const accentColor = '#6b7280';
+  const bgHeader = 'white';
+  const bgContent = 'white';
+  const borderColor = '#ddd6fe';
+  const accentColor = '#7c3aed';
 
   // Build a map: sendId → task (task.linkedSendId = send.id)
   const taskBySendId = useMemo(() => {
@@ -331,20 +331,20 @@ function WeeklySendsAccordion({ sends, tasks, isOpen, onToggle, onSelectTask, on
   return (
     <div className="max-w-4xl mx-auto mb-3">
       <button onClick={onToggle}
-        className="w-full flex items-center justify-between px-4 py-2.5 text-sm font-medium transition-colors"
-        style={{ background: bgHeader, color: accentColor, borderBottom: isOpen ? `1px solid ${borderColor}` : 'none', borderRadius: isOpen ? '12px 12px 0 0' : '12px' }}>
+        className="w-full flex items-center justify-between px-3 py-2 transition-colors"
+        style={{ fontSize: '12px', fontWeight: 500, background: bgHeader, color: accentColor, border: `1px solid ${borderColor}`, borderBottom: isOpen ? `1px solid ${borderColor}` : `1px solid ${borderColor}`, borderRadius: isOpen ? '10px 10px 0 0' : '10px' }}>
         <div className="flex items-center gap-2">
-          <CalendarClock size={16} />
+          <CalendarClock size={14} />
           <span>{label}</span>
-          <span className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: '#e5e7eb', color: '#374151' }}>{sends.length}</span>
-          {todoCount > 0 && <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: '#fef3c7', color: '#b45309' }}>
+          <span className="rounded-full" style={{ fontSize: '10.5px', padding: '1px 7px', background: '#f3f0ff', color: '#7c3aed', fontWeight: 500 }}>{sends.length}</span>
+          {todoCount > 0 && <span className="rounded-full" style={{ fontSize: '10.5px', padding: '1px 7px', background: '#fef3c7', color: '#b45309' }}>
             {todoCount} {lang === 'en' ? 'to do' : 'do zrobienia'}
           </span>}
         </div>
-        {isOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+        {isOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
       </button>
       {isOpen && (
-        <div className="rounded-b-xl overflow-hidden px-2 py-2" style={{ background: bgContent, border: `1px solid ${borderColor}`, borderTop: 'none' }}>
+        <div className="rounded-b-lg overflow-hidden px-2 py-2" style={{ background: bgContent, border: `1px solid ${borderColor}`, borderTop: 'none' }}>
           <div className="space-y-0.5">
             {sends.map(renderSendAsTask)}
           </div>
