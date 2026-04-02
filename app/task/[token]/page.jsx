@@ -54,11 +54,25 @@ const formatTime = (date) => {
 
 function RichTextDisplay({ html }) {
   if (!html) return null;
+  // XSS sanitizer — strips dangerous tags/attributes
+  let clean = html;
+  if (typeof document !== 'undefined') {
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    doc.querySelectorAll('script, iframe, object, embed, form, input, textarea, button, meta, link, base, svg').forEach(el => el.remove());
+    doc.querySelectorAll('*').forEach(el => {
+      for (const attr of [...el.attributes]) {
+        if (attr.name.startsWith('on') || attr.value.trim().toLowerCase().startsWith('javascript:')) {
+          el.removeAttribute(attr.name);
+        }
+      }
+    });
+    clean = doc.body.innerHTML;
+  }
   return (
     <div 
       className="text-sm leading-relaxed"
       style={{ color: '#3c4043' }}
-      dangerouslySetInnerHTML={{ __html: html }} 
+      dangerouslySetInnerHTML={{ __html: clean }} 
     />
   );
 }
