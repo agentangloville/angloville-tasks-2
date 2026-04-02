@@ -263,12 +263,6 @@ function TaskItem({ task, isSelected, onClick, onStatusChange, currentUser, read
 }
 
 // === WEEKLY SENDS ACCORDION ===
-const SEND_CHANNELS = [
-  { id: 'email', name: 'Email', icon: Mail, color: '#2563eb' },
-  { id: 'sms', name: 'SMS', icon: Phone, color: '#16a34a' },
-  { id: 'whatsapp', name: 'WhatsApp', icon: MessageSquare, color: '#25d366' },
-  { id: 'infomeeting', name: 'Infomeeting', icon: Users, color: '#7c3aed' },
-];
 
 function WeeklySendsAccordion({ sends, tasks, isOpen, onToggle, onSelectTask, onStatusChange, onCreateTaskForSend, currentUser, readTimestamps, seenTaskIds, lang, t, teamMembers, customTags, selectedTask, label, variant = 'default' }) {
   if (!sends.length) return null;
@@ -292,32 +286,25 @@ function WeeklySendsAccordion({ sends, tasks, isOpen, onToggle, onSelectTask, on
 
   const renderSendAsTask = (send) => {
     const linkedTask = taskBySendId[send.id];
-    const ch = SEND_CHANNELS.find(c => c.id === send.channel);
-    const ChIcon = ch?.icon || Mail;
     if (linkedTask) {
       return (
-        <div key={`send-${send.id}`} className="flex items-center gap-1.5">
-          <div className="w-5 h-5 rounded flex items-center justify-center flex-shrink-0" style={{ background: ch?.color + '15' }}>
-            <ChIcon size={11} style={{ color: ch?.color }} />
-          </div>
-          <div className="flex-1 min-w-0">
-            <TaskItem
-              task={linkedTask}
-              isSelected={selectedTask?.id === linkedTask.id}
-              onClick={() => onSelectTask(linkedTask)}
-              onStatusChange={s => onStatusChange(linkedTask.id, s)}
-              currentUser={currentUser}
-              readTimestamps={readTimestamps}
-              seenTaskIds={seenTaskIds}
-              lang={lang}
-              t={t}
-              teamMembers={teamMembers}
-              customTags={customTags}
-            />
-          </div>
-        </div>
+        <TaskItem
+          key={`send-${send.id}`}
+          task={linkedTask}
+          isSelected={selectedTask?.id === linkedTask.id}
+          onClick={() => onSelectTask(linkedTask)}
+          onStatusChange={s => onStatusChange(linkedTask.id, s)}
+          currentUser={currentUser}
+          readTimestamps={readTimestamps}
+          seenTaskIds={seenTaskIds}
+          lang={lang}
+          t={t}
+          teamMembers={teamMembers}
+          customTags={customTags}
+        />
       );
     }
+    // Fallback: no linked task — create on click
     const mk = MARKETS.find(m => m.id === send.market);
     const assigned = (send.assignees||[]).map(id => teamMembers.find(m => m.id === id)).filter(Boolean);
     return (
@@ -327,13 +314,9 @@ function WeeklySendsAccordion({ sends, tasks, isOpen, onToggle, onSelectTask, on
         style={{ borderWidth: '0.5px', borderColor: '#e5e7eb' }}>
         <div className="flex items-center gap-2">
           <Circle size={18} style={{ color: '#9ca3af' }} />
-          <div className="w-5 h-5 rounded flex items-center justify-center flex-shrink-0" style={{ background: ch?.color + '15' }}>
-            <ChIcon size={12} style={{ color: ch?.color }} />
-          </div>
           <span className="flex-shrink-0">{mk?.icon}</span>
           <h4 className="font-medium text-sm flex-1 min-w-0 truncate" style={{ color: '#111827' }}>{send.title}</h4>
           <div className="flex items-center gap-1.5 flex-shrink-0">
-            <span className="text-xs px-1.5 py-0.5 rounded-full" style={{ background: '#f5f3ff', color: '#7c3aed' }}>📬</span>
             <span className="text-xs" style={{ color: '#9ca3af' }}>{fmtD(send.sendDate)}</span>
             <div className="flex -space-x-1">
               {assigned.slice(0, 3).map(m => <div key={m.id} className="w-5 h-5 rounded-full flex items-center justify-center text-white text-xs font-medium border border-white" style={{ background: m.color }}>{getInitials(m.name)}</div>)}
