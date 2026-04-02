@@ -243,6 +243,7 @@ function AssigneeSelector({ assignees, teamMembers, onChange, t }) {
 
 // ── Send Form Modal ──────────────────────────────────
 
+
 function SendFormModal({ send, onSave, onClose, currentUser, teamMembers, t, lang }) {
   const isEdit = !!send?.id;
   const [f, sF] = useState({
@@ -269,7 +270,6 @@ function SendFormModal({ send, onSave, onClose, currentUser, teamMembers, t, lan
     if (!f.title.trim() || !f.sendDate) return;
     let linkedTaskId = f.linkedTaskId;
 
-    // Automatycznie twórz task w Taskerze dla nowej wysyłki
     if (!linkedTaskId) {
       const newTask = await createTask({
         title: f.title,
@@ -281,14 +281,11 @@ function SendFormModal({ send, onSave, onClose, currentUser, teamMembers, t, lan
         createdBy: f.createdBy || currentUser,
         language: 'pl',
       });
-      if (newTask) {
-        linkedTaskId = newTask.id;
-      }
+      if (newTask) { linkedTaskId = newTask.id; }
     }
 
     onSave({
-      ...f,
-      linkedTaskId,
+      ...f, linkedTaskId,
       sendTime: f.sendTime || '10:00',
       recurrence: f.recurrence || null,
       recurrenceEndDate: f.recurrenceEndDate || null,
@@ -305,45 +302,45 @@ function SendFormModal({ send, onSave, onClose, currentUser, teamMembers, t, lan
           <button onClick={onClose} style={{ color: '#6b7280' }}><X size={20} /></button>
         </div>
         <div className="p-5 space-y-4">
+          {/* Tytuł */}
           <div>
             <label className="text-sm font-medium block mb-1.5" style={{ color: '#111827' }}>{t.title} *</label>
             <input type="text" value={f.title} onChange={e => sF({...f, title: e.target.value})} className="w-full px-4 py-2.5 border rounded-lg text-sm" style={{ borderColor: '#d1d5db' }} autoFocus />
           </div>
 
+          {/* Notatki — pod tytułem */}
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="text-sm font-medium" style={{ color: '#111827' }}>{t.notes}</label>
+              {f.channel === 'sms' && <span className="text-xs font-medium" style={{ color: f.description.length > 160 ? '#ef4444' : f.description.length > 140 ? '#f59e0b' : '#9ca3af' }}>{f.description.length}/160</span>}
+            </div>
+            <textarea value={f.description} onChange={e => sF({...f, description: e.target.value})}
+              className="w-full px-3 py-2 border rounded-lg text-sm resize-none"
+              style={{ borderColor: f.channel === 'sms' && f.description.length > 160 ? '#ef4444' : '#d1d5db' }}
+              rows={3} placeholder={f.channel === 'sms' ? (lang === 'en' ? 'SMS text (max 160 chars)...' : 'Treść SMS (max 160 znaków)...') : t.notesPlaceholder} />
+            {f.channel === 'sms' && f.description.length > 160 && <p className="text-xs mt-1" style={{ color: '#ef4444' }}>{lang === 'en' ? `⚠ ${f.description.length - 160} chars over` : `⚠ ${f.description.length - 160} znaków ponad limit`}</p>}
+          </div>
+
+          {/* Typ */}
           <div>
             <label className="text-sm font-medium block mb-1.5" style={{ color: '#111827' }}>{t.channel}</label>
             <div className="flex gap-1.5 flex-wrap">
-              {CHANNELS.map(ch => {
-                const I = ch.icon; const on = f.channel === ch.id;
-                return <button key={ch.id} type="button" onClick={() => chChange(ch.id)}
-                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium"
-                  style={{ background: on ? ch.bg : '#f3f4f6', color: on ? ch.color : '#6b7280', border: on ? `1.5px solid ${ch.color}` : '1.5px solid transparent' }}>
-                  <I size={14} />{ch.name}
-                </button>;
-              })}
+              {CHANNELS.map(ch => { const I = ch.icon; const on = f.channel === ch.id; return <button key={ch.id} type="button" onClick={() => chChange(ch.id)} className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium" style={{ background: on ? ch.bg : '#f3f4f6', color: on ? ch.color : '#6b7280', border: on ? `1.5px solid ${ch.color}` : '1.5px solid transparent' }}><I size={14} />{ch.name}</button>; })}
             </div>
           </div>
 
+          {/* Narzędzie */}
           <ToolMultiSelect selected={f.tools} channel={f.channel} onChange={tools => sF({...f, tools})} t={t} />
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="text-sm font-medium block mb-1.5" style={{ color: '#111827' }}>{t.market}</label>
-              <select value={f.market} onChange={e => sF({...f, market: e.target.value})} className="w-full px-3 py-2 border rounded-lg text-sm" style={{ borderColor: '#d1d5db' }}>
-                {MARKETS.map(m => <option key={m.id} value={m.id}>{m.icon} {lang==='en' ? m.nameEn : m.name}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="text-sm font-medium block mb-1.5" style={{ color: '#111827' }}>{t.segment}</label>
-              <input type="text" value={f.segment} onChange={e => sF({...f, segment: e.target.value})} className="w-full px-3 py-2 border rounded-lg text-sm" style={{ borderColor: '#d1d5db' }} placeholder={t.segmentPlaceholder} />
-            </div>
-          </div>
-
+          {/* Rynek */}
           <div>
-            <label className="text-sm font-medium block mb-1.5" style={{ color: '#111827' }}>{t.subjectLine}</label>
-            <input type="text" value={f.subjectLine} onChange={e => sF({...f, subjectLine: e.target.value})} className="w-full px-3 py-2 border rounded-lg text-sm" style={{ borderColor: '#d1d5db' }} placeholder={t.subjectPlaceholder} />
+            <label className="text-sm font-medium block mb-1.5" style={{ color: '#111827' }}>{t.market}</label>
+            <select value={f.market} onChange={e => sF({...f, market: e.target.value})} className="w-full px-3 py-2 border rounded-lg text-sm" style={{ borderColor: '#d1d5db' }}>
+              {MARKETS.map(m => <option key={m.id} value={m.id}>{m.icon} {lang==='en' ? m.nameEn : m.name}</option>)}
+            </select>
           </div>
 
+          {/* Data + Godzina */}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="text-sm font-medium block mb-1.5" style={{ color: '#111827' }}>{t.sendDate} *</label>
@@ -355,6 +352,7 @@ function SendFormModal({ send, onSave, onClose, currentUser, teamMembers, t, lan
             </div>
           </div>
 
+          {/* Powtarzanie */}
           {!isEdit && (
             <div>
               <div className="grid grid-cols-2 gap-4">
@@ -364,68 +362,28 @@ function SendFormModal({ send, onSave, onClose, currentUser, teamMembers, t, lan
                     {RECURRENCE_OPTIONS.map(r => <option key={r.id||'none'} value={r.id||''}>{lang==='en' ? r.nameEn : r.name}</option>)}
                   </select>
                 </div>
-                {f.recurrence && (
-                  <div>
-                    <label className="text-sm font-medium block mb-1.5" style={{ color: '#111827' }}>{t.recurrenceEnd} <span className="font-normal" style={{ color: '#9ca3af' }}>({t.optional})</span></label>
-                    <input type="date" value={f.recurrenceEndDate||''} onChange={e => sF({...f, recurrenceEndDate: e.target.value})} className="w-full px-3 py-2 border rounded-lg text-sm" style={{ borderColor: '#d1d5db' }} />
-                  </div>
-                )}
+                {f.recurrence && <div>
+                  <label className="text-sm font-medium block mb-1.5" style={{ color: '#111827' }}>{t.recurrenceEnd} <span className="font-normal" style={{ color: '#9ca3af' }}>({t.optional})</span></label>
+                  <input type="date" value={f.recurrenceEndDate||''} onChange={e => sF({...f, recurrenceEndDate: e.target.value})} className="w-full px-3 py-2 border rounded-lg text-sm" style={{ borderColor: '#d1d5db' }} />
+                </div>}
               </div>
               {f.recurrence && !f.recurrenceEndDate && <p className="text-xs mt-1.5" style={{ color: '#9ca3af' }}>{t.noEndDefault}</p>}
             </div>
           )}
 
+          {/* Status */}
           <div>
             <label className="text-sm font-medium block mb-1.5" style={{ color: '#111827' }}>{t.status}</label>
             <div className="flex gap-1.5 flex-wrap">
-              {STATUSES.map(s => {
-                const I = s.icon; const on = f.status === s.id;
-                return <button key={s.id} type="button" onClick={() => sF({...f, status: s.id})}
-                  className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium"
-                  style={{ background: on ? s.bg : '#f3f4f6', color: on ? s.color : '#6b7280', border: on ? `1.5px solid ${s.color}` : '1.5px solid transparent' }}>
-                  <I size={12} />{lang==='en' ? s.nameEn : s.name}
-                </button>;
-              })}
+              {STATUSES.map(s => { const I = s.icon; const on = f.status === s.id; return <button key={s.id} type="button" onClick={() => sF({...f, status: s.id})} className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium" style={{ background: on ? s.bg : '#f3f4f6', color: on ? s.color : '#6b7280', border: on ? `1.5px solid ${s.color}` : '1.5px solid transparent' }}><I size={12} />{lang==='en' ? s.nameEn : s.name}</button>; })}
             </div>
           </div>
 
+          {/* Przypisani */}
           <AssigneeSelector assignees={f.assignees} teamMembers={teamMembers} onChange={a => sF({...f, assignees: a})} t={t} />
 
-          <div>
-            <label className="text-sm font-medium block mb-1.5" style={{ color: '#111827' }}>{t.taskLink}</label>
-            <input type="url" value={f.taskLink} onChange={e => sF({...f, taskLink: e.target.value})} className="w-full px-3 py-2 border rounded-lg text-sm" style={{ borderColor: '#d1d5db' }} placeholder={t.taskLinkPlaceholder} />
-          </div>
-
-          {/* Info o powiązanym tasku — tworzony automatycznie */}
-          {f.linkedTaskId && (
-            <div className="flex items-center gap-2 p-3 rounded-lg" style={{ background: '#eff6ff', border: '1px solid #bfdbfe' }}>
-              <CheckCircle size={14} style={{ color: '#2563eb' }} />
-              <span className="text-sm" style={{ color: '#2563eb' }}>{t.linkedTask}</span>
-              <a href={`/?task=${f.linkedTaskId}`} target="_blank" rel="noopener noreferrer" className="ml-auto text-xs font-medium hover:underline" style={{ color: '#2563eb' }}>{t.openLinkedTask} →</a>
-            </div>
-          )}
-
+          {/* Linki */}
           <LinksEditor links={f.links} onChange={links => sF({...f, links})} t={t} />
-
-          <div>
-            <div className="flex items-center justify-between mb-1.5">
-              <label className="text-sm font-medium" style={{ color: '#111827' }}>{t.notes}</label>
-              {f.channel === 'sms' && (
-                <span className="text-xs font-medium" style={{ color: f.description.length > 160 ? '#ef4444' : f.description.length > 140 ? '#f59e0b' : '#9ca3af' }}>
-                  {f.description.length}/160
-                </span>
-              )}
-            </div>
-            <textarea value={f.description} onChange={e => sF({...f, description: e.target.value})}
-              className="w-full px-3 py-2 border rounded-lg text-sm resize-none"
-              style={{ borderColor: f.channel === 'sms' && f.description.length > 160 ? '#ef4444' : '#d1d5db' }}
-              rows={3} placeholder={f.channel === 'sms' ? (lang === 'en' ? 'SMS text (max 160 chars, no Polish chars)...' : 'Treść SMS (max 160 znaków, bez polskich znaków)...') : t.notesPlaceholder} />
-            {f.channel === 'sms' && f.description.length > 160 && (
-              <p className="text-xs mt-1" style={{ color: '#ef4444' }}>
-                {lang === 'en' ? `⚠ ${f.description.length - 160} characters over limit — will be sent as 2 SMS` : `⚠ ${f.description.length - 160} znaków ponad limit — zostanie wysłany jako 2 SMS`}
-              </p>
-            )}
-          </div>
         </div>
         <div className="p-5 border-t flex justify-end gap-3" style={{ borderColor: '#e5e7eb' }}>
           <button onClick={onClose} className="px-5 py-2.5 rounded-lg text-sm font-medium hover:bg-gray-100" style={{ color: '#6b7280' }}>{t.cancel}</button>
