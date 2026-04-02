@@ -59,7 +59,7 @@ const TRANSLATIONS = {
 };
 
 const getInitials = (name) => { const parts = name.split(' '); if (parts.length >= 2) return parts[0][0] + parts[1][0]; return name[0]; };
-function PriorityBadge({ priority, size = 'normal', lang = 'pl' }) { if (!priority) return null; const p = PRIORITIES.find(pr => pr.id === priority); if (!p || !p.id) return null; const isSmall = size === 'small'; return <span className={`inline-flex items-center gap-1 ${isSmall ? 'px-1.5 py-0.5 text-xs' : 'px-2 py-1 text-xs'} rounded-full font-medium`} style={{ background: p.bg, color: p.color }}><Flag size={isSmall ? 10 : 12} />{lang === 'en' ? p.nameEn : p.name}</span>; }
+function PriorityBadge({ priority, size = 'normal', lang = 'pl' }) { if (!priority) return null; const p = PRIORITIES.find(pr => pr.id === priority); if (!p || !p.id) return null; const isSmall = size === 'small'; return <span className="inline-flex items-center gap-0.5 rounded-full" style={{ padding: isSmall ? '1px 7px' : '3px 10px', fontSize: isSmall ? '10.5px' : '12px', fontWeight: 500, background: p.bg, color: p.color }}><Flag size={isSmall ? 9 : 12} />{lang === 'en' ? p.nameEn : p.name}</span>; }
 
 // === DEADLINE HELPERS ===
 function isDeadlineToday(deadline) {
@@ -84,8 +84,8 @@ function DeadlineBadge({ deadline, size = 'normal', lang = 'pl', t }) {
   const isSmall = size === 'small';
   const color = today ? '#ef4444' : past ? '#b91c1c' : '#6b7280';
   const bg = today ? '#fef2f2' : past ? '#fef2f2' : '#f3f4f6';
-  return <span className={`inline-flex items-center gap-1 ${isSmall ? 'px-1.5 py-0.5 text-xs' : 'px-2 py-1 text-xs'} rounded-full font-medium`} style={{ background: bg, color }}>
-    <Calendar size={isSmall ? 10 : 12} />
+  return <span className="inline-flex items-center gap-0.5 rounded-full" style={{ padding: isSmall ? '1px 7px' : '3px 10px', fontSize: isSmall ? '10.5px' : '12px', fontWeight: 500, background: bg, color }}>
+    <Calendar size={isSmall ? 9 : 12} />
     {today ? (t?.deadlineToday || 'Dziś!') : formatDeadline(deadline, lang)}
     {past && !today && '!'}
   </span>;
@@ -238,26 +238,26 @@ function TaskItem({ task, isSelected, onClick, onStatusChange, currentUser, read
   const isNew = task.assignees?.includes(currentUser) && task.createdBy !== currentUser && !seenTaskIds.includes(task.id);
   const hasEP = task.isExternal && task.submitterEmail && task.status === 'closed' && !(task.emailHistory || []).some(e => e.type === 'completed' && e.success);
   const tTags = (task.tags || []).map(tid => (customTags || []).find(ct => ct.id === tid)).filter(Boolean);
-  return <div onClick={onClick} className="bg-white rounded-lg px-3 py-2 cursor-pointer border transition-all duration-100" style={{ borderWidth: '0.5px', borderColor: isSelected ? '#3b82f6' : isNew ? '#bfdbfe' : '#e5e7eb', background: isNew ? '#f8faff' : 'white', boxShadow: isSelected ? '0 0 0 1px rgba(59,130,246,0.15)' : 'none' }} onMouseEnter={e => { if (!isSelected) e.currentTarget.style.borderColor = '#d1d5db'; e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.04)'; }} onMouseLeave={e => { if (!isSelected) e.currentTarget.style.borderColor = isNew ? '#bfdbfe' : '#e5e7eb'; if (!isSelected) e.currentTarget.style.boxShadow = 'none'; }}><div className="flex items-center gap-2">
-    <button onClick={cycle} className="hover:scale-110 flex-shrink-0"><Icon size={18} style={{ color: st?.color }} className={task.status === 'closed' ? 'fill-current' : ''} /></button>
-    <span className="flex-shrink-0">{mk?.icon}</span>
-    <h4 className="font-medium text-sm flex-1 min-w-0 truncate" style={{ color: task.status === 'closed' ? '#9ca3af' : '#111827', textDecoration: task.status === 'closed' ? 'line-through' : 'none' }}>{task.title}</h4>
-    <div className="flex items-center gap-1.5 flex-shrink-0 flex-wrap justify-end">
+  return <div onClick={onClick} className="rounded-lg px-3 py-1.5 cursor-pointer transition-all duration-100" style={{ borderWidth: '0.5px', borderStyle: 'solid', borderColor: isSelected ? '#3b82f6' : isNew ? '#bfdbfe' : '#eef0f2', background: isNew ? '#f8faff' : isSelected ? '#fafbff' : 'white', boxShadow: isSelected ? '0 0 0 1px rgba(59,130,246,0.1)' : 'none' }} onMouseEnter={e => { if (!isSelected) { e.currentTarget.style.borderColor = '#d5d9dd'; e.currentTarget.style.background = '#fafbfc'; }}} onMouseLeave={e => { if (!isSelected) { e.currentTarget.style.borderColor = isNew ? '#bfdbfe' : '#eef0f2'; e.currentTarget.style.background = isNew ? '#f8faff' : 'white'; }}}><div className="flex items-center gap-2">
+    <button onClick={cycle} className="hover:scale-110 flex-shrink-0"><Icon size={16} style={{ color: st?.color }} className={task.status === 'closed' ? 'fill-current' : ''} /></button>
+    <span className="flex-shrink-0 text-sm">{mk?.icon}</span>
+    <h4 className="flex-1 min-w-0 truncate" style={{ fontSize: '13px', fontWeight: 450, letterSpacing: '-0.01em', color: task.status === 'closed' ? '#9ca3af' : '#1a1d21', textDecoration: task.status === 'closed' ? 'line-through' : 'none' }}>{task.title}</h4>
+    <div className="flex items-center gap-1 flex-shrink-0 flex-wrap justify-end">
       <PriorityBadge priority={task.priority} size="small" lang={lang} />
       <DeadlineBadge deadline={task.deadline} size="small" lang={lang} t={t} />
-      {tTags.map(tg => <span key={tg.id} className="text-xs px-1.5 py-0.5 rounded-full font-medium" style={{ background: tg.color + '20', color: tg.color }}>{tg.name}</span>)}
-      {isNew && <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs font-medium" style={{ background: '#2563eb', color: 'white' }}><Sparkles size={10} />{t.new}</span>}
-      {mc > 0 && <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs font-medium" style={{ background: '#ef4444', color: 'white' }}><AtSign size={10} />{mc}</span>}
-      {uc > 0 && mc === 0 && <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs font-medium" style={{ background: '#f59e0b', color: 'white' }}><MessageSquare size={10} />{uc}</span>}
+      {tTags.map(tg => <span key={tg.id} className="rounded-full" style={{ fontSize: '10.5px', padding: '1px 7px', background: tg.color + '15', color: tg.color, fontWeight: 500 }}>{tg.name}</span>)}
+      {isNew && <span className="flex items-center gap-0.5 rounded-full" style={{ fontSize: '10.5px', padding: '1px 7px', background: '#2563eb', color: 'white', fontWeight: 500 }}><Sparkles size={9} />{t.new}</span>}
+      {mc > 0 && <span className="flex items-center gap-0.5 rounded-full" style={{ fontSize: '10.5px', padding: '1px 7px', background: '#ef4444', color: 'white', fontWeight: 500 }}><AtSign size={9} />{mc}</span>}
+      {uc > 0 && mc === 0 && <span className="flex items-center gap-0.5 rounded-full" style={{ fontSize: '10.5px', padding: '1px 7px', background: '#f59e0b', color: 'white', fontWeight: 500 }}><MessageSquare size={9} />{uc}</span>}
       {hasEP && <MailX size={10} style={{ color: '#ef4444' }} />}
-      {task.isExternal && <ExternalLink size={12} style={{ color: '#f59e0b' }} />}
+      {task.isExternal && <ExternalLink size={11} style={{ color: '#f59e0b' }} />}
       {task.language === 'en' && <TranslateButton task={task} size="small" />}
-      {task.status === 'ideas' && <span className="text-xs hidden sm:inline">💡</span>}
-      {task.market === 'pl' && task.subcategory && (() => { const sc = PL_SUBCATEGORIES.find(s => s.id === task.subcategory); return sc && <span className="text-xs px-1.5 py-0.5 rounded-full font-medium hidden sm:inline" style={{ background: sc.bg, color: sc.color }}>{sc.name}</span>; })()}
-      <div className="flex -space-x-1">{task.assignees?.slice(0, 3).map(aId => { const m = teamMembers.find(x => x.id === aId); return m && <div key={aId} className="w-5 h-5 rounded-full flex items-center justify-center text-white text-xs font-medium border border-white" style={{ background: m.color }} title={m.name}>{getInitials(m.name)}</div>; })}{task.assignees?.length > 3 && <div className="w-5 h-5 rounded-full flex items-center justify-center text-xs font-medium border border-white" style={{ background: '#e5e7eb', color: '#6b7280' }}>+{task.assignees.length - 3}</div>}</div>
-      {task.comments?.length > 0 && !uc && <div className="flex items-center gap-0.5 hidden sm:flex" style={{ color: '#9ca3af' }}><MessageSquare size={12} /><span className="text-xs">{task.comments.length}</span></div>}
+      {task.status === 'ideas' && <span className="hidden sm:inline" style={{ fontSize: '11px' }}>💡</span>}
+      {task.market === 'pl' && task.subcategory && (() => { const sc = PL_SUBCATEGORIES.find(s => s.id === task.subcategory); return sc && <span className="rounded-full hidden sm:inline" style={{ fontSize: '10.5px', padding: '1px 7px', background: sc.bg, color: sc.color, fontWeight: 500 }}>{sc.name}</span>; })()}
+      <div className="flex -space-x-1">{task.assignees?.slice(0, 3).map(aId => { const m = teamMembers.find(x => x.id === aId); return m && <div key={aId} className="w-[18px] h-[18px] rounded-full flex items-center justify-center text-white border border-white" style={{ background: m.color, fontSize: '9px', fontWeight: 600 }} title={m.name}>{getInitials(m.name)}</div>; })}{task.assignees?.length > 3 && <div className="w-[18px] h-[18px] rounded-full flex items-center justify-center border border-white" style={{ background: '#e5e7eb', color: '#6b7280', fontSize: '9px', fontWeight: 500 }}>+{task.assignees.length - 3}</div>}</div>
+      {task.comments?.length > 0 && !uc && <div className="flex items-center gap-0.5 hidden sm:flex" style={{ color: '#b0b5bc' }}><MessageSquare size={11} /><span style={{ fontSize: '10.5px' }}>{task.comments.length}</span></div>}
       <SubtaskProgress subtasks={task.subtasks} />
-      <ChevronRight size={16} style={{ color: '#d1d5db' }} />
+      <ChevronRight size={14} style={{ color: '#d1d5db' }} />
     </div>
   </div></div>;
 }
@@ -310,18 +310,18 @@ function WeeklySendsAccordion({ sends, tasks, isOpen, onToggle, onSelectTask, on
     return (
       <div key={`send-fallback-${send.id}`}
         onClick={() => onCreateTaskForSend(send)}
-        className="bg-white rounded-lg px-3 py-2 cursor-pointer border transition-all duration-100 hover:border-gray-300"
-        style={{ borderWidth: '0.5px', borderColor: '#e5e7eb' }}>
+        className="rounded-lg px-3 py-1.5 cursor-pointer transition-all duration-100 hover:bg-gray-50"
+        style={{ borderWidth: '0.5px', borderStyle: 'solid', borderColor: '#eef0f2' }}>
         <div className="flex items-center gap-2">
-          <Circle size={18} style={{ color: '#9ca3af' }} />
-          <span className="flex-shrink-0">{mk?.icon}</span>
-          <h4 className="font-medium text-sm flex-1 min-w-0 truncate" style={{ color: '#111827' }}>{send.title}</h4>
-          <div className="flex items-center gap-1.5 flex-shrink-0">
-            <span className="text-xs" style={{ color: '#9ca3af' }}>{fmtD(send.sendDate)}</span>
+          <Circle size={16} style={{ color: '#9ca3af' }} />
+          <span className="flex-shrink-0 text-sm">{mk?.icon}</span>
+          <h4 className="flex-1 min-w-0 truncate" style={{ fontSize: '13px', fontWeight: 450, letterSpacing: '-0.01em', color: '#1a1d21' }}>{send.title}</h4>
+          <div className="flex items-center gap-1 flex-shrink-0">
+            <span style={{ fontSize: '10.5px', color: '#9ca3af' }}>{fmtD(send.sendDate)}</span>
             <div className="flex -space-x-1">
-              {assigned.slice(0, 3).map(m => <div key={m.id} className="w-5 h-5 rounded-full flex items-center justify-center text-white text-xs font-medium border border-white" style={{ background: m.color }}>{getInitials(m.name)}</div>)}
+              {assigned.slice(0, 3).map(m => <div key={m.id} className="w-[18px] h-[18px] rounded-full flex items-center justify-center text-white border border-white" style={{ background: m.color, fontSize: '9px', fontWeight: 600 }}>{getInitials(m.name)}</div>)}
             </div>
-            <ChevronRight size={16} style={{ color: '#d1d5db' }} />
+            <ChevronRight size={14} style={{ color: '#d1d5db' }} />
           </div>
         </div>
       </div>
@@ -731,7 +731,7 @@ export default function TaskApp() {
                 variant="week3"
               />
             </>)}
-            <div className="max-w-4xl mx-auto">{filteredTasks.length === 0 ? <div className="text-center py-16"><CheckCircle size={48} className="mx-auto mb-4" style={{ color: '#16a34a', opacity: 0.4 }} /><p style={{ color: '#6b7280' }}>{t.noTasksToShow}</p></div> : <div className="space-y-0.5">{filteredTasks.map(task => <TaskItem key={task.id} task={task} isSelected={selectedTask?.id === task.id} onClick={() => handleSelectTask(task)} onStatusChange={s => updateTask(task.id, { status: s })} currentUser={currentUser} readTimestamps={readTimestamps} seenTaskIds={seenTaskIds} lang={lang} t={t} teamMembers={teamMembers} customTags={customTags} />)}</div>}</div></>
+            <div className="max-w-4xl mx-auto">{filteredTasks.length === 0 ? <div className="text-center py-16"><CheckCircle size={48} className="mx-auto mb-4" style={{ color: '#16a34a', opacity: 0.4 }} /><p style={{ color: '#6b7280' }}>{t.noTasksToShow}</p></div> : <div className="space-y-px">{filteredTasks.map(task => <TaskItem key={task.id} task={task} isSelected={selectedTask?.id === task.id} onClick={() => handleSelectTask(task)} onStatusChange={s => updateTask(task.id, { status: s })} currentUser={currentUser} readTimestamps={readTimestamps} seenTaskIds={seenTaskIds} lang={lang} t={t} teamMembers={teamMembers} customTags={customTags} />)}</div>}</div></>
           )}
         </div>
       </main>
