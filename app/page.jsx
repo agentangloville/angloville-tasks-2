@@ -270,26 +270,108 @@ const SEND_CHANNELS = [
   { id: 'whatsapp', name: 'WhatsApp', icon: MessageSquare, color: '#25d366' },
   { id: 'infomeeting', name: 'Infomeeting', icon: Users, color: '#7c3aed' },
 ];
-const SEND_STATUSES = {
-  todo: { name: 'Do przygotowania', nameEn: 'To prepare', color: '#9ca3af', icon: Circle },
-  scheduled: { name: 'Zaplanowane', nameEn: 'Scheduled', color: '#2563eb', icon: Clock },
-  sent: { name: 'Wysłane', nameEn: 'Sent', color: '#16a34a', icon: CheckCircle },
-};
 
-function WeeklySendsAccordion({ sends, isOpen, onToggle, lang, teamMembers }) {
+function WeeklySendsAccordion({ sends, tasks, isOpen, onToggle, onSelectTask, onStatusChange, currentUser, readTimestamps, seenTaskIds, lang, t, teamMembers, customTags, selectedTask }) {
   if (!sends.length) return null;
+
+  // Build a map: linkedTaskId → task
+  const taskBySendId = useMemo(() => {
+    const m = {};
+    tasks.forEach(tk => { if (tk.linkedSendId) m[tk.linkedSendId] = tk; });
+    return m;
+  }, [tasks]);
+
+  // Split sends into this week vs next week
+  const { thisWeek, nextWeek } = useMemo(() => {
+    const now = new Date();
+    const day = now.getDay();
+    const diffMon = day === 0 ? -6 : 1 - day;
+    const monday = new Date(now); monday.setDate(now.getDate() + diffMon); monday.setHours(0,0,0,0);
+    const thisSunday = new Date(monday); thisSunday.setDate(monday.getDate() + 6);
+    const thisSunStr = thisSunday.toISOString().split('T')[0];
+    const tw = [], nw = [];
+    sends.forEach(s => {
+      if (s.sendDate <= thisSunStr) tw.push(s);
+      else nw.push(s);
+    });
+    return { thisWeek: tw, nextWeek: nw };
+  }, [sends]);
+
   const todoCount = sends.filter(s => s.status === 'todo').length;
   const fmtD = (ds) => new Date(ds+'T00:00:00').toLocaleDateString(lang==='en'?'en-US':'pl-PL',{weekday:'short',day:'numeric',month:'short'});
-  const fmtTime = (ts) => ts ? ts.substring(0,5) : '';
+
+  const renderSendAsTask = (send) => {
+    const linkedTask = taskBySendId[send.id];
+    if (linkedTask) {
+      // Render as a real TaskItem
+      return (
+        <TaskItem
+          key={`send-${send.id}`}
+          task={linkedTask}
+          isSelected={selectedTask?.id === linkedTask.id}
+          onClick={() => onSelectTask(linkedTask)}
+          onStatusChange={s => onStatusChange(linkedTask.id, s)}
+          currentUser={currentUser}
+          readTimestamps={readTimestamps}
+          seenTaskIds={seenTaskIds}
+          lang={lang}
+          t={t}
+          teamMembers={teamMembers}
+          customTags={customTags}
+        />
+      );
+    }
+    // Fallback: no linked task yet — show a simpler row with send info
+    const ch = SEND_CHANNELS.find(c => c.id === send.channel);
+    const ChIcon = ch?.icon || Mail;
+    const mk = MARKETS.find(m => m.id === send.market);
+    const assigned = (send.assignees||[]).map(id => teamMembers.find(m => m.id === id)).filter(Boolean);
+    return (
+      <a key={`send-fallback-${send.id}`} href="/planner" target="_blank" rel="noopener noreferrer"
+        className="bg-white rounded-lg px-3 py-2 cursor-pointer border transition-all duration-100 block"
+        style={{ borderWidth: '0.5px', borderColor: '#e5e7eb' }}>
+        <div className="flex items-center gap-2">
+          <Circle size={18} style={{ color: '#9ca3af' }} />
+          <div className="w-5 h-5 rounded flex items-center justify-center flex-shrink-0" style={{ background: ch?.color + '15' }}>
+            <ChIcon size={12} style={{ color: ch?.color }} />
+          </div>
+          <span className="flex-shrink-0">{mk?.icon}</span>
+          <h4 className="font-medium text-sm flex-1 min-w-0 truncate" style={{ color: '#111827' }}>{send.title}</h4>
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+            <span className="text-xs" style={{ color: '#9ca3af' }}>{fmtD(send.sendDate)}</span>
+            <div className="flex -space-x-1">
+              {assigned.slice(0, 3).map(m => <div key={m.id} className="w-5 h-5 rounded-full flex items-center justify-center text-white text-xs font-medium border border-white" style={{ background: m.color }}>{getInitials(m.name)}</div>)}
+            </div>
+            <ExternalLink size={12} style={{ color: '#7c3aed' }} />
+          </div>
+        </div>
+      </a>
+    );
+  };
+
+  const renderGroup = (label, groupSends) => {
+    if (!groupSends.length) return null;
+    return (
+      <div className="mb-2">
+        <div className="flex items-center gap-2 mb-1 px-1">
+          <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={{ background: '#ede9f6', color: '#7c3aed' }}>{label}</span>
+          <span className="text-xs" style={{ color: '#9ca3af' }}>{groupSends.length}</span>
+        </div>
+        <div className="space-y-0.5">
+          {groupSends.map(renderSendAsTask)}
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="max-w-4xl mx-auto mb-3">
       <button onClick={onToggle}
-        className="w-full flex items-center justify-between px-4 py-2.5 rounded-t-xl text-sm font-medium transition-colors"
+        className="w-full flex items-center justify-between px-4 py-2.5 text-sm font-medium transition-colors"
         style={{ background: '#f3f0ff', color: '#7c3aed', borderBottom: isOpen ? '1px solid #e9e5f5' : 'none', borderRadius: isOpen ? '12px 12px 0 0' : '12px' }}>
         <div className="flex items-center gap-2">
           <CalendarClock size={16} />
-          <span>{lang === 'en' ? 'Sends this week' : 'Wysyłki ten tydzień'}</span>
+          <span>{lang === 'en' ? 'Sends — this & next week' : 'Wysyłki — ten i następny tydzień'}</span>
           <span className="text-xs px-2 py-0.5 rounded-full font-semibold" style={{ background: '#7c3aed', color: 'white' }}>{sends.length}</span>
           {todoCount > 0 && <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: '#fef3c7', color: '#b45309' }}>
             {todoCount} {lang === 'en' ? 'to do' : 'do zrobienia'}
@@ -298,43 +380,12 @@ function WeeklySendsAccordion({ sends, isOpen, onToggle, lang, teamMembers }) {
         {isOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
       </button>
       {isOpen && (
-        <div className="rounded-b-xl overflow-hidden" style={{ background: '#faf8ff', border: '1px solid #e9e5f5', borderTop: 'none' }}>
-          <div className="divide-y" style={{ borderColor: '#ede9f6' }}>
-            {sends.map(s => {
-              const ch = SEND_CHANNELS.find(c => c.id === s.channel);
-              const st = SEND_STATUSES[s.status] || SEND_STATUSES.todo;
-              const StIcon = st.icon;
-              const ChIcon = ch?.icon || Mail;
-              const mk = MARKETS.find(m => m.id === s.market);
-              const assigned = (s.assignees||[]).map(id => teamMembers.find(m => m.id === id)).filter(Boolean);
-              return (
-                <div key={s.id} className="flex items-center gap-2.5 px-4 py-2 hover:bg-purple-50/50 transition-colors">
-                  <StIcon size={15} style={{ color: st.color }} className={s.status === 'sent' ? 'fill-current' : ''} />
-                  <div className="w-5 h-5 rounded flex items-center justify-center flex-shrink-0" style={{ background: ch?.color + '15' }}>
-                    <ChIcon size={11} style={{ color: ch?.color }} />
-                  </div>
-                  <span className="text-sm flex-shrink-0">{mk?.icon}</span>
-                  <div className="flex-1 min-w-0">
-                    <span className="text-sm font-medium truncate block" style={{ color: '#111827' }}>{s.title}</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 flex-shrink-0">
-                    <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: st.color + '15', color: st.color }}>{lang === 'en' ? st.nameEn : st.name}</span>
-                    <div className="flex -space-x-1">
-                      {assigned.slice(0,2).map(m => <div key={m.id} className="w-4 h-4 rounded-full flex items-center justify-center text-white border border-white" style={{ background: m.color, fontSize: '7px', fontWeight: 600 }}>{getInitials(m.name)}</div>)}
-                    </div>
-                    <span className="text-xs whitespace-nowrap" style={{ color: '#9ca3af' }}>{fmtD(s.sendDate)}</span>
-                    {s.sendTime && <span className="text-xs" style={{ color: '#b8b0d0' }}>{fmtTime(s.sendTime)}</span>}
-                    <a href="/planner" target="_blank" rel="noopener noreferrer" className="p-0.5 rounded hover:bg-purple-100" style={{ color: '#7c3aed' }} onClick={e => e.stopPropagation()}>
-                      <ExternalLink size={11} />
-                    </a>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+        <div className="rounded-b-xl overflow-hidden px-2 py-2" style={{ background: '#faf8ff', border: '1px solid #e9e5f5', borderTop: 'none' }}>
+          {renderGroup(lang === 'en' ? 'This week' : 'Ten tydzień', thisWeek)}
+          {renderGroup(lang === 'en' ? 'Next week' : 'Następny tydzień', nextWeek)}
           <a href="/planner" target="_blank" rel="noopener noreferrer"
-            className="flex items-center justify-center gap-1.5 px-4 py-2 text-xs font-medium hover:bg-purple-50 transition-colors"
-            style={{ color: '#7c3aed', borderTop: '1px solid #ede9f6' }}>
+            className="flex items-center justify-center gap-1.5 px-4 py-2 text-xs font-medium hover:bg-purple-50 rounded-lg transition-colors mt-1"
+            style={{ color: '#7c3aed' }}>
             <CalendarClock size={12} />
             {lang === 'en' ? 'Open Planner' : 'Otwórz Planner'} →
           </a>
@@ -480,12 +531,12 @@ export default function TaskApp() {
       const day = now.getDay(); // 0=Sun, 1=Mon...
       const diffMon = day === 0 ? -6 : 1 - day;
       const monday = new Date(now); monday.setDate(now.getDate() + diffMon); monday.setHours(0,0,0,0);
-      const sunday = new Date(monday); sunday.setDate(monday.getDate() + 6); sunday.setHours(23,59,59,999);
+      const nextSunday = new Date(monday); nextSunday.setDate(monday.getDate() + 13); nextSunday.setHours(23,59,59,999);
       const monStr = monday.toISOString().split('T')[0];
-      const sunStr = sunday.toISOString().split('T')[0];
-      const week = all.filter(s => s.sendDate >= monStr && s.sendDate <= sunStr && s.status !== 'cancelled');
-      week.sort((a, b) => a.sendDate.localeCompare(b.sendDate) || (a.sendTime||'').localeCompare(b.sendTime||''));
-      setWeeklySends(week);
+      const nextSunStr = nextSunday.toISOString().split('T')[0];
+      const twoWeeks = all.filter(s => s.sendDate >= monStr && s.sendDate <= nextSunStr && s.status !== 'cancelled');
+      twoWeeks.sort((a, b) => a.sendDate.localeCompare(b.sendDate) || (a.sendTime||'').localeCompare(b.sendTime||''));
+      setWeeklySends(twoWeeks);
     } catch (e) { console.error('Failed to load weekly sends:', e); }
   };
   useEffect(() => { if (currentUser) { loadTasks(); loadCustomTags(); loadWeeklySends(); } }, [currentUser]);
@@ -619,7 +670,22 @@ export default function TaskApp() {
         <div className="flex-1 overflow-y-auto p-3 lg:p-4">
           {showUsersPanel ? null : activeTab === 'pending' && isManager ? <PendingView tasks={pendingTasks} approveTask={approveTask} deleteTask={deleteTask} currentUser={currentUser} t={t} lang={lang} teamMembers={teamMembers} /> : (
             <>{(filterStatus === 'active' || filterStatus === 'open') && weeklySends.length > 0 && !filterLinkedPlanner && !filterDeadline && !hasDateFilter && (
-              <WeeklySendsAccordion sends={weeklySends} isOpen={weekSendsOpen} onToggle={() => setWeekSendsOpen(o => !o)} lang={lang} teamMembers={teamMembers} />
+              <WeeklySendsAccordion
+                sends={weeklySends}
+                tasks={tasks}
+                isOpen={weekSendsOpen}
+                onToggle={() => setWeekSendsOpen(o => !o)}
+                onSelectTask={handleSelectTask}
+                onStatusChange={(id, s) => updateTask(id, { status: s })}
+                currentUser={currentUser}
+                readTimestamps={readTimestamps}
+                seenTaskIds={seenTaskIds}
+                lang={lang}
+                t={t}
+                teamMembers={teamMembers}
+                customTags={customTags}
+                selectedTask={selectedTask}
+              />
             )}
             <div className="max-w-4xl mx-auto">{filteredTasks.length === 0 ? <div className="text-center py-16"><CheckCircle size={48} className="mx-auto mb-4" style={{ color: '#16a34a', opacity: 0.4 }} /><p style={{ color: '#6b7280' }}>{t.noTasksToShow}</p></div> : <div className="space-y-0.5">{filteredTasks.map(task => <TaskItem key={task.id} task={task} isSelected={selectedTask?.id === task.id} onClick={() => handleSelectTask(task)} onStatusChange={s => updateTask(task.id, { status: s })} currentUser={currentUser} readTimestamps={readTimestamps} seenTaskIds={seenTaskIds} lang={lang} t={t} teamMembers={teamMembers} customTags={customTags} />)}</div>}</div></>
           )}
