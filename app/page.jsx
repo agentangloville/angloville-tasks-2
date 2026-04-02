@@ -271,8 +271,15 @@ const SEND_CHANNELS = [
   { id: 'infomeeting', name: 'Infomeeting', icon: Users, color: '#7c3aed' },
 ];
 
-function WeeklySendsAccordion({ sends, tasks, isOpen, onToggle, onSelectTask, onStatusChange, onCreateTaskForSend, currentUser, readTimestamps, seenTaskIds, lang, t, teamMembers, customTags, selectedTask }) {
+function WeeklySendsAccordion({ sends, tasks, isOpen, onToggle, onSelectTask, onStatusChange, onCreateTaskForSend, currentUser, readTimestamps, seenTaskIds, lang, t, teamMembers, customTags, selectedTask, label, variant = 'default' }) {
   if (!sends.length) return null;
+
+  const isNext = variant === 'next';
+  const isWeek3 = variant === 'week3';
+  const bgHeader = isWeek3 ? '#f8f6ff' : isNext ? '#f5f3ff' : '#f3f0ff';
+  const bgContent = isWeek3 ? '#fdfcff' : isNext ? '#fcfbff' : '#faf8ff';
+  const borderColor = isWeek3 ? '#f0ecf9' : isNext ? '#ede9f6' : '#e9e5f5';
+  const accentColor = isWeek3 ? '#c4b5fd' : isNext ? '#a78bfa' : '#7c3aed';
 
   // Build a map: sendId → task (task.linkedSendId = send.id)
   const taskBySendId = useMemo(() => {
@@ -337,11 +344,11 @@ function WeeklySendsAccordion({ sends, tasks, isOpen, onToggle, onSelectTask, on
     <div className="max-w-4xl mx-auto mb-3">
       <button onClick={onToggle}
         className="w-full flex items-center justify-between px-4 py-2.5 text-sm font-medium transition-colors"
-        style={{ background: '#f3f0ff', color: '#7c3aed', borderBottom: isOpen ? '1px solid #e9e5f5' : 'none', borderRadius: isOpen ? '12px 12px 0 0' : '12px' }}>
+        style={{ background: bgHeader, color: accentColor, borderBottom: isOpen ? `1px solid ${borderColor}` : 'none', borderRadius: isOpen ? '12px 12px 0 0' : '12px' }}>
         <div className="flex items-center gap-2">
           <CalendarClock size={16} />
-          <span>{lang === 'en' ? 'Sends this week' : 'Wysyłki ten tydzień'}</span>
-          <span className="text-xs px-2 py-0.5 rounded-full font-semibold" style={{ background: '#7c3aed', color: 'white' }}>{sends.length}</span>
+          <span>{label}</span>
+          <span className="text-xs px-2 py-0.5 rounded-full font-semibold" style={{ background: accentColor, color: 'white' }}>{sends.length}</span>
           {todoCount > 0 && <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: '#fef3c7', color: '#b45309' }}>
             {todoCount} {lang === 'en' ? 'to do' : 'do zrobienia'}
           </span>}
@@ -349,13 +356,13 @@ function WeeklySendsAccordion({ sends, tasks, isOpen, onToggle, onSelectTask, on
         {isOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
       </button>
       {isOpen && (
-        <div className="rounded-b-xl overflow-hidden px-2 py-2" style={{ background: '#faf8ff', border: '1px solid #e9e5f5', borderTop: 'none' }}>
+        <div className="rounded-b-xl overflow-hidden px-2 py-2" style={{ background: bgContent, border: `1px solid ${borderColor}`, borderTop: 'none' }}>
           <div className="space-y-0.5">
             {sends.map(renderSendAsTask)}
           </div>
           <a href="/planner" target="_blank" rel="noopener noreferrer"
             className="flex items-center justify-center gap-1.5 px-4 py-2 text-xs font-medium hover:bg-purple-50 rounded-lg transition-colors mt-1"
-            style={{ color: '#7c3aed' }}>
+            style={{ color: accentColor }}>
             <CalendarClock size={12} />
             {lang === 'en' ? 'Open Planner' : 'Otwórz Planner'} →
           </a>
@@ -479,7 +486,11 @@ export default function TaskApp() {
   const [currentUser, setCurrentUser] = useState(null); const [teamMembers, setTeamMembers] = useState(FALLBACK_TEAM); const [tasks, setTasks] = useState([]); const [loading, setLoading] = useState(true); const [loadingTeam, setLoadingTeam] = useState(true); const [selectedTask, setSelectedTask] = useState(null); const [showNewTask, setShowNewTask] = useState(false); const [showUsersPanel, setShowUsersPanel] = useState(false); const [filterMarket, setFilterMarket] = useState('all'); const [filterPerson, setFilterPerson] = useState('all'); const [filterStatus, setFilterStatus] = useState('active'); const [filterDeadline, setFilterDeadline] = useState(false);
   const [filterLinkedPlanner, setFilterLinkedPlanner] = useState(false);
   const [weeklySends, setWeeklySends] = useState([]);
+  const [nextWeekSends, setNextWeekSends] = useState([]);
+  const [week3Sends, setWeek3Sends] = useState([]);
   const [weekSendsOpen, setWeekSendsOpen] = useState(false);
+  const [nextWeekSendsOpen, setNextWeekSendsOpen] = useState(false);
+  const [week3SendsOpen, setWeek3SendsOpen] = useState(false);
   const [filterDateFrom, setFilterDateFrom] = useState('');
   const [filterDateTo, setFilterDateTo] = useState('');
   const [sortBy, setSortBy] = useState('newest'); const [activeTab, setActiveTab] = useState('tasks'); const [copied, setCopied] = useState(false); const [checkingAuth, setCheckingAuth] = useState(true); const [readTimestamps, setReadTimestamps] = useState({}); const [seenTaskIds, setSeenTaskIds] = useState([]); const [sidebarOpen, setSidebarOpen] = useState(false); const [customTags, setCustomTags] = useState([]); const filtersInitialized = useRef(false);
@@ -498,15 +509,21 @@ export default function TaskApp() {
     try {
       const all = await getScheduledSends();
       const now = new Date();
-      const day = now.getDay(); // 0=Sun, 1=Mon...
+      const day = now.getDay();
       const diffMon = day === 0 ? -6 : 1 - day;
       const monday = new Date(now); monday.setDate(now.getDate() + diffMon); monday.setHours(0,0,0,0);
-      const sunday = new Date(monday); sunday.setDate(monday.getDate() + 6);
-      const monStr = `${monday.getFullYear()}-${String(monday.getMonth()+1).padStart(2,'0')}-${String(monday.getDate()).padStart(2,'0')}`;
-      const sunStr = `${sunday.getFullYear()}-${String(sunday.getMonth()+1).padStart(2,'0')}-${String(sunday.getDate()).padStart(2,'0')}`;
-      const week = all.filter(s => s.sendDate >= monStr && s.sendDate <= sunStr && s.status !== 'cancelled');
-      week.sort((a, b) => a.sendDate.localeCompare(b.sendDate) || (a.sendTime||'').localeCompare(b.sendTime||''));
-      setWeeklySends(week);
+      const fmt = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+      const weekRange = (offset) => {
+        const mon = new Date(monday); mon.setDate(monday.getDate() + offset * 7);
+        const sun = new Date(mon); sun.setDate(mon.getDate() + 6);
+        return [fmt(mon), fmt(sun)];
+      };
+      const [m1, s1] = weekRange(0), [m2, s2] = weekRange(1), [m3, s3] = weekRange(2);
+      const sort = (a, b) => a.sendDate.localeCompare(b.sendDate) || (a.sendTime||'').localeCompare(b.sendTime||'');
+      const notCancelled = s => s.status !== 'cancelled';
+      setWeeklySends(all.filter(s => s.sendDate >= m1 && s.sendDate <= s1 && notCancelled(s)).sort(sort));
+      setNextWeekSends(all.filter(s => s.sendDate >= m2 && s.sendDate <= s2 && notCancelled(s)).sort(sort));
+      setWeek3Sends(all.filter(s => s.sendDate >= m3 && s.sendDate <= s3 && notCancelled(s)).sort(sort));
     } catch (e) { console.error('Failed to load weekly sends:', e); }
   };
   useEffect(() => { if (currentUser) { loadTasks(); loadCustomTags(); loadWeeklySends(); } }, [currentUser]);
@@ -528,7 +545,7 @@ export default function TaskApp() {
   
   // Hide all planner-linked tasks from the main list when accordion is visible
   // (this week's are in the accordion, future ones will appear when their week comes)
-  const showAccordion = (filterStatus === 'active' || filterStatus === 'open') && weeklySends.length > 0 && !filterLinkedPlanner && !filterDeadline && !(filterDateFrom || filterDateTo);
+  const showAccordion = (filterStatus === 'active' || filterStatus === 'open') && (weeklySends.length > 0 || nextWeekSends.length > 0 || week3Sends.length > 0) && !filterLinkedPlanner && !filterDeadline && !(filterDateFrom || filterDateTo);
   if (showAccordion) {
     filteredTasks = filteredTasks.filter(t => !t.linkedSendId);
   }
@@ -668,7 +685,7 @@ export default function TaskApp() {
 
         <div className="flex-1 overflow-y-auto p-3 lg:p-4">
           {showUsersPanel ? null : activeTab === 'pending' && isManager ? <PendingView tasks={pendingTasks} approveTask={approveTask} deleteTask={deleteTask} currentUser={currentUser} t={t} lang={lang} teamMembers={teamMembers} /> : (
-            <>{showAccordion && (
+            <>{showAccordion && (<>
               <WeeklySendsAccordion
                 sends={weeklySends}
                 tasks={tasks}
@@ -685,8 +702,48 @@ export default function TaskApp() {
                 teamMembers={teamMembers}
                 customTags={customTags}
                 selectedTask={selectedTask}
+                label={lang === 'en' ? 'Sends this week' : 'Wysyłki ten tydzień'}
+                variant="default"
               />
-            )}
+              <WeeklySendsAccordion
+                sends={nextWeekSends}
+                tasks={tasks}
+                isOpen={nextWeekSendsOpen}
+                onToggle={() => setNextWeekSendsOpen(o => !o)}
+                onSelectTask={handleSelectTask}
+                onStatusChange={(id, s) => updateTask(id, { status: s })}
+                onCreateTaskForSend={createTaskForSend}
+                currentUser={currentUser}
+                readTimestamps={readTimestamps}
+                seenTaskIds={seenTaskIds}
+                lang={lang}
+                t={t}
+                teamMembers={teamMembers}
+                customTags={customTags}
+                selectedTask={selectedTask}
+                label={lang === 'en' ? 'Next week' : 'Następny tydzień'}
+                variant="next"
+              />
+              <WeeklySendsAccordion
+                sends={week3Sends}
+                tasks={tasks}
+                isOpen={week3SendsOpen}
+                onToggle={() => setWeek3SendsOpen(o => !o)}
+                onSelectTask={handleSelectTask}
+                onStatusChange={(id, s) => updateTask(id, { status: s })}
+                onCreateTaskForSend={createTaskForSend}
+                currentUser={currentUser}
+                readTimestamps={readTimestamps}
+                seenTaskIds={seenTaskIds}
+                lang={lang}
+                t={t}
+                teamMembers={teamMembers}
+                customTags={customTags}
+                selectedTask={selectedTask}
+                label={lang === 'en' ? 'In 2 weeks' : 'Za 2 tygodnie'}
+                variant="week3"
+              />
+            </>)}
             <div className="max-w-4xl mx-auto">{filteredTasks.length === 0 ? <div className="text-center py-16"><CheckCircle size={48} className="mx-auto mb-4" style={{ color: '#16a34a', opacity: 0.4 }} /><p style={{ color: '#6b7280' }}>{t.noTasksToShow}</p></div> : <div className="space-y-0.5">{filteredTasks.map(task => <TaskItem key={task.id} task={task} isSelected={selectedTask?.id === task.id} onClick={() => handleSelectTask(task)} onStatusChange={s => updateTask(task.id, { status: s })} currentUser={currentUser} readTimestamps={readTimestamps} seenTaskIds={seenTaskIds} lang={lang} t={t} teamMembers={teamMembers} customTags={customTags} />)}</div>}</div></>
           )}
         </div>
