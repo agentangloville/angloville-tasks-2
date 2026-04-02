@@ -246,7 +246,6 @@ function TaskItem({ task, isSelected, onClick, onStatusChange, currentUser, read
       <PriorityBadge priority={task.priority} size="small" lang={lang} />
       <DeadlineBadge deadline={task.deadline} size="small" lang={lang} t={t} />
       {tTags.map(tg => <span key={tg.id} className="text-xs px-1.5 py-0.5 rounded-full font-medium" style={{ background: tg.color + '20', color: tg.color }}>{tg.name}</span>)}
-      {task.linkedSendId && <span className="text-xs px-1.5 py-0.5 rounded-full font-medium" style={{ background: '#f5f3ff', color: '#7c3aed' }}>📬</span>}
       {isNew && <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs font-medium" style={{ background: '#2563eb', color: 'white' }}><Sparkles size={10} />{t.new}</span>}
       {mc > 0 && <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs font-medium" style={{ background: '#ef4444', color: 'white' }}><AtSign size={10} />{mc}</span>}
       {uc > 0 && mc === 0 && <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs font-medium" style={{ background: '#f59e0b', color: 'white' }}><MessageSquare size={10} />{uc}</span>}
@@ -293,22 +292,30 @@ function WeeklySendsAccordion({ sends, tasks, isOpen, onToggle, onSelectTask, on
 
   const renderSendAsTask = (send) => {
     const linkedTask = taskBySendId[send.id];
+    const ch = SEND_CHANNELS.find(c => c.id === send.channel);
+    const ChIcon = ch?.icon || Mail;
     if (linkedTask) {
       return (
-        <TaskItem
-          key={`send-${send.id}`}
-          task={linkedTask}
-          isSelected={selectedTask?.id === linkedTask.id}
-          onClick={() => onSelectTask(linkedTask)}
-          onStatusChange={s => onStatusChange(linkedTask.id, s)}
-          currentUser={currentUser}
-          readTimestamps={readTimestamps}
-          seenTaskIds={seenTaskIds}
-          lang={lang}
-          t={t}
-          teamMembers={teamMembers}
-          customTags={customTags}
-        />
+        <div key={`send-${send.id}`} className="flex items-center gap-1.5">
+          <div className="w-5 h-5 rounded flex items-center justify-center flex-shrink-0" style={{ background: ch?.color + '15' }}>
+            <ChIcon size={11} style={{ color: ch?.color }} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <TaskItem
+              task={linkedTask}
+              isSelected={selectedTask?.id === linkedTask.id}
+              onClick={() => onSelectTask(linkedTask)}
+              onStatusChange={s => onStatusChange(linkedTask.id, s)}
+              currentUser={currentUser}
+              readTimestamps={readTimestamps}
+              seenTaskIds={seenTaskIds}
+              lang={lang}
+              t={t}
+              teamMembers={teamMembers}
+              customTags={customTags}
+            />
+          </div>
+        </div>
       );
     }
     const ch = SEND_CHANNELS.find(c => c.id === send.channel);
@@ -638,7 +645,6 @@ export default function TaskApp() {
           ].map(item => { const I = item.icon; const isActive = (item.key === 'pending' ? activeTab === 'pending' : activeTab === 'tasks' && filterStatus === item.key) && !showUsersPanel && !filterDeadline && !filterLinkedPlanner; return <button key={item.key} onClick={() => { if (item.key === 'pending') { setActiveTab('pending'); } else { setActiveTab('tasks'); setFilterStatus(item.key); } setFilterDeadline(false); setFilterLinkedPlanner(false); setShowUsersPanel(false); setSidebarOpen(false); }} className="w-full flex items-center justify-between px-2.5 py-1 rounded-md text-xs" style={{ background: isActive ? item.bg : 'transparent', color: isActive ? item.color : '#374151', fontWeight: isActive ? 500 : 400 }}><div className={`flex items-center gap-1.5 ${item.pl ? 'pl-1.5' : ''}`}>{item.pl ? <div style={{ width: 5, height: 5, borderRadius: '50%', background: item.color, flexShrink: 0, opacity: isActive ? 1 : 0.5 }} /> : <I size={13} style={{ color: item.color }} />}<span>{item.label}</span></div><span className="text-xs tabular-nums" style={{ color: isActive ? item.color : '#9ca3af', fontWeight: item.key === 'pending' ? 600 : 400, fontSize: '11px' }}>{item.count}</span></button>; })}
           
           {withDeadlineCount > 0 && <button onClick={() => { setActiveTab('tasks'); setFilterStatus('active'); setFilterDeadline(!filterDeadline); setFilterLinkedPlanner(false); setShowUsersPanel(false); setSidebarOpen(false); }} className="w-full flex items-center justify-between px-2.5 py-1 rounded-md text-xs mt-1" style={{ background: filterDeadline ? '#fef2f2' : 'transparent', color: filterDeadline ? '#ef4444' : '#374151', fontWeight: filterDeadline ? 500 : 400 }}><div className="flex items-center gap-1.5 pl-1.5"><div style={{ width: 5, height: 5, borderRadius: '50%', background: '#ef4444', flexShrink: 0, opacity: filterDeadline ? 1 : 0.5 }} /><span>{t.withDeadline}</span></div><span style={{ color: '#ef4444', fontSize: '11px' }}>{withDeadlineCount}</span></button>}
-          {(() => { const linkedCount = visibleTasks.filter(t => !!t.linkedSendId && t.status !== 'closed').length; return linkedCount > 0 && <button onClick={() => { setActiveTab('tasks'); setFilterStatus('active'); setFilterDeadline(false); setFilterLinkedPlanner(!filterLinkedPlanner); setShowUsersPanel(false); setSidebarOpen(false); }} className="w-full flex items-center justify-between px-2.5 py-1 rounded-md text-xs mt-0.5" style={{ background: filterLinkedPlanner ? '#f5f3ff' : 'transparent', color: filterLinkedPlanner ? '#7c3aed' : '#374151', fontWeight: filterLinkedPlanner ? 500 : 400 }}><div className="flex items-center gap-1.5 pl-1.5"><div style={{ width: 5, height: 5, borderRadius: '50%', background: '#7c3aed', flexShrink: 0, opacity: filterLinkedPlanner ? 1 : 0.5 }} /><span>{t.onlyLinkedPlanner}</span></div><span style={{ color: '#7c3aed', fontSize: '11px' }}>{linkedCount}</span></button>; })()}
         </div>
         <div className="mt-4 space-y-0.5">
   <a href="/planner" target="_blank" className="w-full flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs" style={{ color: '#374151' }}><CalendarClock size={13} style={{ color: '#7c3aed' }} /><span>Planner</span><ExternalLink size={10} style={{ color: '#9ca3af' }} /></a>
@@ -652,7 +658,7 @@ export default function TaskApp() {
 
       <main className="flex-1 flex flex-col overflow-hidden min-w-0">
         <header className="bg-white px-4 lg:px-6 py-2.5 flex items-center justify-between gap-2" style={{ borderBottom: '0.5px solid #e5e7eb' }}>
-          <div className="flex items-center gap-2 min-w-0"><button onClick={() => setSidebarOpen(true)} className="p-2 rounded-full hover:bg-gray-100 lg:hidden flex-shrink-0" style={{ color: '#9ca3af' }}><Menu size={20} /></button><div className="min-w-0"><h2 className="text-sm lg:text-base font-medium truncate" style={{ color: '#111827' }}>{showUsersPanel ? t.usersPanel : activeTab === 'pending' ? t.pendingApproval : filterLinkedPlanner ? t.onlyLinkedPlanner : filterDeadline ? t.withDeadlineTasks : filterStatus === 'active' ? t.activeTasks : filterStatus === 'open' ? t.openTasks : filterStatus === 'longterm' ? t.longtermTasks : filterStatus === 'paused' ? t.pausedTasks : filterStatus === 'monitoring' ? t.monitoringTasks : filterStatus === 'approval' ? t.approvalTasks : filterStatus === 'ideas' ? t.ideasTasks : t.closedTasks}</h2>{filterPerson !== 'all' && !showUsersPanel && <p style={{ fontSize: '11px', color: '#9ca3af' }}>{t.filter}: {teamMembers.find(m => m.id === filterPerson)?.name}</p>}</div></div>
+          <div className="flex items-center gap-2 min-w-0"><button onClick={() => setSidebarOpen(true)} className="p-2 rounded-full hover:bg-gray-100 lg:hidden flex-shrink-0" style={{ color: '#9ca3af' }}><Menu size={20} /></button><div className="min-w-0"><h2 className="text-sm lg:text-base font-medium truncate" style={{ color: '#111827' }}>{showUsersPanel ? t.usersPanel : activeTab === 'pending' ? t.pendingApproval : filterDeadline ? t.withDeadlineTasks : filterStatus === 'active' ? t.activeTasks : filterStatus === 'open' ? t.openTasks : filterStatus === 'longterm' ? t.longtermTasks : filterStatus === 'paused' ? t.pausedTasks : filterStatus === 'monitoring' ? t.monitoringTasks : filterStatus === 'approval' ? t.approvalTasks : filterStatus === 'ideas' ? t.ideasTasks : t.closedTasks}</h2>{filterPerson !== 'all' && !showUsersPanel && <p style={{ fontSize: '11px', color: '#9ca3af' }}>{t.filter}: {teamMembers.find(m => m.id === filterPerson)?.name}</p>}</div></div>
           <div className="flex items-center gap-2 flex-shrink-0">
             <NotificationBell tasks={tasks} currentUser={currentUser} readTimestamps={readTimestamps} teamMembers={teamMembers} onSelectTask={handleSelectTask} t={t} lang={lang} />
             {!showUsersPanel && activeTab === 'tasks' && (
@@ -669,16 +675,6 @@ export default function TaskApp() {
             {!showUsersPanel && <><button onClick={loadTasks} className="p-2 rounded-full hover:bg-gray-100" style={{ color: '#6b7280' }}><Loader2 size={18} className={loading ? 'animate-spin' : ''} /></button>{activeTab === 'tasks' && <button onClick={() => setShowNewTask(true)} className="flex items-center gap-1.5 px-3 lg:px-3.5 py-1.5 rounded-lg font-medium text-xs" style={{ background: '#2563eb', color: 'white' }}><Plus size={15} /> <span className="hidden sm:inline">{t.newTask}</span></button>}</>}
           </div>
         </header>
-
-        {filterLinkedPlanner && !showUsersPanel && activeTab === 'tasks' && (
-          <div className="px-4 py-2 flex items-center gap-2 border-b text-xs" style={{ background: '#f5f3ff', borderColor: '#ddd6fe' }}>
-            <span style={{ fontSize: '14px' }}>📬</span>
-            <span style={{ color: '#7c3aed' }}>
-              {t.onlyLinkedPlanner} — {filteredTasks.length} {lang === 'en' ? 'tasks' : 'zadań'}
-            </span>
-            <button onClick={() => setFilterLinkedPlanner(false)} className="ml-auto flex items-center gap-1 px-2 py-0.5 rounded hover:bg-purple-200 font-medium" style={{ color: '#7c3aed' }}><X size={12} /></button>
-          </div>
-        )}
 
         {hasDateFilter && !showUsersPanel && activeTab === 'tasks' && (
           <div className="px-4 py-2 flex items-center gap-2 border-b text-xs" style={{ background: '#eff6ff', borderColor: '#bfdbfe' }}>
