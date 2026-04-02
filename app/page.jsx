@@ -527,6 +527,13 @@ export default function TaskApp() {
   if (filterDeadline) filteredTasks = filteredTasks.filter(t => !!t.deadline);
   if (filterLinkedPlanner) filteredTasks = filteredTasks.filter(t => !!t.linkedSendId);
   
+  // Hide tasks shown in the weekly sends accordion from the main list
+  const showAccordion = (filterStatus === 'active' || filterStatus === 'open') && weeklySends.length > 0 && !filterLinkedPlanner && !filterDeadline && !(filterDateFrom || filterDateTo);
+  if (showAccordion) {
+    const weeklySendIds = new Set(weeklySends.map(s => s.id));
+    filteredTasks = filteredTasks.filter(t => !t.linkedSendId || !weeklySendIds.has(t.linkedSendId));
+  }
+
   if (filterDateFrom || filterDateTo) {
     filteredTasks = filteredTasks.filter(task => {
       const isClosed = task.status === 'closed';
@@ -662,7 +669,7 @@ export default function TaskApp() {
 
         <div className="flex-1 overflow-y-auto p-3 lg:p-4">
           {showUsersPanel ? null : activeTab === 'pending' && isManager ? <PendingView tasks={pendingTasks} approveTask={approveTask} deleteTask={deleteTask} currentUser={currentUser} t={t} lang={lang} teamMembers={teamMembers} /> : (
-            <>{(filterStatus === 'active' || filterStatus === 'open') && weeklySends.length > 0 && !filterLinkedPlanner && !filterDeadline && !hasDateFilter && (
+            <>{showAccordion && (
               <WeeklySendsAccordion
                 sends={weeklySends}
                 tasks={tasks}
