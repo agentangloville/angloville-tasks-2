@@ -79,6 +79,10 @@ const T = {
     createLinkedTask: 'Utwórz task w Taskerze',
     linkedTask: 'Powiązany task',
     openLinkedTask: 'Otwórz w Taskerze',
+    seriesName: 'Nazwa serii',
+    seriesNamePlaceholder: 'np. Newsletter Junior PL, Follow-up wakacje...',
+    groupByDate: 'Po dacie',
+    groupBySeries: 'Po serii',
   },
   en: {
     planner: 'Send Planner', calendar: 'Calendar', list: 'List', newSend: 'New send',
@@ -103,6 +107,10 @@ const T = {
     createLinkedTask: 'Create task in Tasker',
     linkedTask: 'Linked task',
     openLinkedTask: 'Open in Tasker',
+    seriesName: 'Series name',
+    seriesNamePlaceholder: 'e.g. Junior PL Newsletter, Summer follow-up...',
+    groupByDate: 'By date',
+    groupBySeries: 'By series',
   },
 };
 
@@ -258,6 +266,7 @@ function SendFormModal({ send, onSave, onClose, currentUser, teamMembers, t, lan
     taskLink: send?.taskLink || '',
     assignees: send?.assignees || [currentUser],
     linkedTaskId: send?.linkedTaskId || null,
+    seriesName: send?.seriesName || '',
   });
 
   const chChange = (ch) => {
@@ -306,6 +315,14 @@ function SendFormModal({ send, onSave, onClose, currentUser, teamMembers, t, lan
           <div>
             <label className="text-sm font-medium block mb-1.5" style={{ color: '#111827' }}>{t.title} *</label>
             <input type="text" value={f.title} onChange={e => sF({...f, title: e.target.value})} className="w-full px-4 py-2.5 border rounded-lg text-sm" style={{ borderColor: '#d1d5db' }} autoFocus />
+          </div>
+
+          {/* Nazwa serii — opcjonalna */}
+          <div>
+            <label className="text-sm font-medium block mb-1.5" style={{ color: '#111827' }}>
+              {t.seriesName} <span className="font-normal" style={{ color: '#9ca3af' }}>({t.optional})</span>
+            </label>
+            <input type="text" value={f.seriesName} onChange={e => sF({...f, seriesName: e.target.value})} className="w-full px-3 py-2 border rounded-lg text-sm" style={{ borderColor: '#d1d5db' }} placeholder={t.seriesNamePlaceholder} />
           </div>
 
           {/* Notatki — pod tytułem */}
@@ -404,10 +421,11 @@ function SendDetail({ send, onUpdate, onDelete, onEdit, onClose, onSelectSend, a
   const assigned = (send.assignees||[]).map(id => teamMembers.find(m => m.id === id)).filter(Boolean);
   const ChIcon = ch?.icon || Mail;
 
-  // Series siblings: all sends with same title + market
+  // Series siblings: match by seriesName (fallback to title) + market
   const seriesSiblings = useMemo(() => {
+    const key = send.seriesName || send.title;
     const siblings = allSends
-      .filter(s => s.title === send.title && s.market === send.market)
+      .filter(s => (s.seriesName || s.title) === key && s.market === send.market)
       .sort((a, b) => a.sendDate.localeCompare(b.sendDate) || (a.sendTime||'').localeCompare(b.sendTime||''));
     return siblings.length > 1 ? siblings : [];
   }, [send, allSends]);
@@ -460,6 +478,7 @@ function SendDetail({ send, onUpdate, onDelete, onEdit, onClose, onSelectSend, a
             </div>
           </Row>
           {send.segment && <Row label={t.segment}><span className="text-sm">{send.segment}</span></Row>}
+          {send.seriesName && <Row label={t.seriesName}><span className="flex items-center gap-1 text-sm" style={{ color: '#7c3aed' }}><Repeat size={12} />{send.seriesName}</span></Row>}
           {send.recurrence && <Row label={t.recurrence}><span className="flex items-center gap-1 text-sm" style={{ color: '#7c3aed' }}><Repeat size={12} />{RECURRENCE_OPTIONS.find(r=>r.id===send.recurrence)?.[lang==='en'?'nameEn':'name']}</span></Row>}
           {send.parentId && <Row label={lang==='en'?'Series':'Seria'}><span className="text-xs" style={{ color: '#7c3aed' }}><Repeat size={11} /> {lang==='en'?'Part of series':'Część serii'}</span></Row>}
         </div>
@@ -725,49 +744,110 @@ function CalendarView({ sends, year, month, onSelectDay, onAddSend, onSelectSend
 // ── List View ────────────────────────────────────────
 
 function ListView({ sends, onSelectSend, selectedId, teamMembers, t, lang }) {
-  const grouped = useMemo(() => {
+  const [groupMode, setGroupMode] = useState('date'); // 'date' | 'series'
+
+  const groupedByDate = useMemo(() => {
     const m = {}; sends.forEach(s => { (m[s.sendDate]||(m[s.sendDate]=[])).push(s); }); return Object.entries(m).sort(([a],[b]) => a.localeCompare(b));
   }, [sends]);
+
+  const groupedBySeries = useMemo(() => {
+    const m = {};
+    sends.forEach(s => {
+      const key = s.seriesName || s.title;
+      (m[key] || (m[key] = [])).push(s);
+    });
+    return Object.entries(m)
+      .map(([name, items]) => [name, items.sort((a, b) => a.sendDate.localeCompare(b.sendDate))])
+      .sort(([, a], [, b]) => {
+        const nextA = a.find(x => !isPast(x.sendDate)) || a[a.length - 1];
+        const nextB = b.find(x => !isPast(x.sendDate)) || b[b.length - 1];
+        return nextA.sendDate.localeCompare(nextB.sendDate);
+      });
+  }, [sends]);
+
   if (!sends.length) return <div className="text-center py-16"><Calendar size={48} className="mx-auto mb-4" style={{ color: '#d1d5db' }} /><p style={{ color: '#6b7280' }}>{t.noSends}</p></div>;
 
   return (
-    <div className="space-y-4">
-      {grouped.map(([date, ss]) => (
-        <div key={date}>
-          <div className="flex items-center gap-2 mb-2 px-1">
-            <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={{ background: isToday(date)?'#2563eb':'#f3f4f6', color: isToday(date)?'white':isPast(date)?'#9ca3af':'#111827' }}>{fmtDisp(date,lang)}</span>
-            {isToday(date) && <span className="text-xs font-medium" style={{ color: '#2563eb' }}>{t.today}</span>}
-          </div>
-          <div className="space-y-1">
-            {ss.map(s => {
-              const ch = CHANNELS.find(c => c.id === s.channel); const st = STATUSES.find(x => x.id === s.status);
-              const StI = st?.icon||Circle; const ChI = ch?.icon||Mail; const mk = MARKETS.find(m => m.id === s.market);
-              const tools = (s.tools||[]).map(id => TOOLS.find(t=>t.id===id)).filter(Boolean);
-              const assigned = (s.assignees||[]).map(id => teamMembers.find(m=>m.id===id)).filter(Boolean);
-              return (
-                <div key={s.id} onClick={() => onSelectSend(s)} className="bg-white rounded-lg px-3 py-2.5 cursor-pointer border flex items-center gap-3"
-                  style={{ borderWidth: '0.5px', borderColor: selectedId===s.id?'#3b82f6':'#e5e7eb', opacity: s.status==='cancelled'?0.5:1, boxShadow: selectedId===s.id?'0 0 0 1px rgba(59,130,246,0.15)':'none' }}>
-                  <StI size={16} style={{ color: st?.color }} className={s.status==='sent'?'fill-current':''} />
-                  <div className="w-6 h-6 rounded-md flex items-center justify-center" style={{ background: ch?.bg }}><ChI size={13} style={{ color: ch?.color }} /></div>
-                  <span className="text-sm">{mk?.icon}</span>
-                  <div className="flex-1 min-w-0">
-                    <h4 className="text-sm font-medium truncate" style={{ color: s.status==='cancelled'?'#9ca3af':'#111827', textDecoration: s.status==='cancelled'?'line-through':'none' }}>{s.title}</h4>
-                    {s.subjectLine && <p className="text-xs truncate" style={{ color: '#9ca3af' }}>✉ {s.subjectLine}</p>}
-                  </div>
-                  <div className="flex items-center gap-1">
-                    {tools.slice(0,2).map(tl => <span key={tl.id} className="text-xs px-1.5 py-0.5 rounded-full font-medium hidden sm:inline" style={{ background: tl.color+'18', color: tl.color }}>{tl.name}</span>)}
-                  </div>
-                  <div className="flex -space-x-1">
-                    {assigned.slice(0,2).map(m => <div key={m.id} className="w-5 h-5 rounded-full flex items-center justify-center text-white border border-white" style={{ background: m.color, fontSize: '8px', fontWeight: 600 }}>{getInitials(m.name)}</div>)}
-                  </div>
-                  <span className="text-xs whitespace-nowrap" style={{ color: '#9ca3af' }}>{fmtTime(s.sendTime)}</span>
-                  {isPartOfSeries(s) && <Repeat size={12} style={{ color: '#7c3aed' }} />}
-                </div>
-              );
-            })}
-          </div>
+    <div>
+      {/* Group toggle */}
+      <div className="flex items-center gap-1 mb-3">
+        <button onClick={() => setGroupMode('date')}
+          className="flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium"
+          style={{ background: groupMode==='date'?'#eff6ff':'transparent', color: groupMode==='date'?'#2563eb':'#6b7280' }}>
+          <Calendar size={12} /> {t.groupByDate}
+        </button>
+        <button onClick={() => setGroupMode('series')}
+          className="flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium"
+          style={{ background: groupMode==='series'?'#f5f3ff':'transparent', color: groupMode==='series'?'#7c3aed':'#6b7280' }}>
+          <Repeat size={12} /> {t.groupBySeries}
+        </button>
+      </div>
+
+      {groupMode === 'date' ? (
+        <div className="space-y-4">
+          {groupedByDate.map(([date, ss]) => (
+            <div key={date}>
+              <div className="flex items-center gap-2 mb-2 px-1">
+                <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={{ background: isToday(date)?'#2563eb':'#f3f4f6', color: isToday(date)?'white':isPast(date)?'#9ca3af':'#111827' }}>{fmtDisp(date,lang)}</span>
+                {isToday(date) && <span className="text-xs font-medium" style={{ color: '#2563eb' }}>{t.today}</span>}
+              </div>
+              <div className="space-y-1">
+                {ss.map(s => <SendRow key={s.id} s={s} onSelectSend={onSelectSend} selectedId={selectedId} teamMembers={teamMembers} showDate={false} lang={lang} />)}
+              </div>
+            </div>
+          ))}
         </div>
-      ))}
+      ) : (
+        <div className="space-y-4">
+          {groupedBySeries.map(([name, ss]) => {
+            const mk = MARKETS.find(m => m.id === ss[0]?.market);
+            const futureCount = ss.filter(s => !isPast(s.sendDate) || isToday(s.sendDate)).length;
+            const sentCount = ss.filter(s => s.status === 'sent').length;
+            return (
+              <div key={name}>
+                <div className="flex items-center gap-2 mb-2 px-1">
+                  <Repeat size={13} style={{ color: '#7c3aed' }} />
+                  <span className="text-xs font-semibold" style={{ color: '#7c3aed' }}>{name}</span>
+                  {mk && <span className="text-xs">{mk.icon}</span>}
+                  <span className="text-xs px-1.5 py-0.5 rounded-full" style={{ background: '#f3f4f6', color: '#6b7280' }}>{sentCount}/{ss.length}</span>
+                  {futureCount > 0 && <span className="text-xs" style={{ color: '#9ca3af' }}>{futureCount} {lang==='en'?'upcoming':'nadchodzących'}</span>}
+                </div>
+                <div className="space-y-1">
+                  {ss.map(s => <SendRow key={s.id} s={s} onSelectSend={onSelectSend} selectedId={selectedId} teamMembers={teamMembers} showDate={true} lang={lang} />)}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SendRow({ s, onSelectSend, selectedId, teamMembers, showDate, lang }) {
+  const ch = CHANNELS.find(c => c.id === s.channel); const st = STATUSES.find(x => x.id === s.status);
+  const StI = st?.icon||Circle; const ChI = ch?.icon||Mail; const mk = MARKETS.find(m => m.id === s.market);
+  const tools = (s.tools||[]).map(id => TOOLS.find(t=>t.id===id)).filter(Boolean);
+  const assigned = (s.assignees||[]).map(id => teamMembers.find(m=>m.id===id)).filter(Boolean);
+  return (
+    <div onClick={() => onSelectSend(s)} className="bg-white rounded-lg px-3 py-2.5 cursor-pointer border flex items-center gap-3"
+      style={{ borderWidth: '0.5px', borderColor: selectedId===s.id?'#3b82f6':'#e5e7eb', opacity: s.status==='cancelled'?0.5:1, boxShadow: selectedId===s.id?'0 0 0 1px rgba(59,130,246,0.15)':'none' }}>
+      <StI size={16} style={{ color: st?.color }} className={s.status==='sent'?'fill-current':''} />
+      <div className="w-6 h-6 rounded-md flex items-center justify-center" style={{ background: ch?.bg }}><ChI size={13} style={{ color: ch?.color }} /></div>
+      <span className="text-sm">{mk?.icon}</span>
+      <div className="flex-1 min-w-0">
+        <h4 className="text-sm font-medium truncate" style={{ color: s.status==='cancelled'?'#9ca3af':'#111827', textDecoration: s.status==='cancelled'?'line-through':'none' }}>{s.title}</h4>
+        {s.subjectLine && <p className="text-xs truncate" style={{ color: '#9ca3af' }}>✉ {s.subjectLine}</p>}
+      </div>
+      {showDate && <span className="text-xs whitespace-nowrap flex-shrink-0" style={{ color: isToday(s.sendDate)?'#2563eb':isPast(s.sendDate)?'#9ca3af':'#111827' }}>{fmtDisp(s.sendDate,lang)}</span>}
+      <div className="flex items-center gap-1">
+        {tools.slice(0,2).map(tl => <span key={tl.id} className="text-xs px-1.5 py-0.5 rounded-full font-medium hidden sm:inline" style={{ background: tl.color+'18', color: tl.color }}>{tl.name}</span>)}
+      </div>
+      <div className="flex -space-x-1">
+        {assigned.slice(0,2).map(m => <div key={m.id} className="w-5 h-5 rounded-full flex items-center justify-center text-white border border-white" style={{ background: m.color, fontSize: '8px', fontWeight: 600 }}>{getInitials(m.name)}</div>)}
+      </div>
+      <span className="text-xs whitespace-nowrap" style={{ color: '#9ca3af' }}>{fmtTime(s.sendTime)}</span>
+      {!showDate && isPartOfSeries(s) && <Repeat size={12} style={{ color: '#7c3aed' }} />}
     </div>
   );
 }
@@ -819,7 +899,7 @@ function ExportModal({ sends, onClose, t, lang }) {
   }, [sends, selMarkets, selStatuses, selChannels, dateFrom, dateTo]);
 
   const downloadCSV = () => {
-    const headers = ['Date', 'Time', 'Title', 'Market', 'Channel', 'Tools', 'Status', 'Segment', 'Subject Line', 'Notes/Idea'];
+    const headers = ['Date', 'Time', 'Title', 'Series', 'Market', 'Channel', 'Tools', 'Status', 'Segment', 'Subject Line', 'Notes/Idea'];
     const rows = filtered.map(s => {
       const mk = MARKETS.find(m => m.id === s.market);
       const tools = (s.tools || []).map(id => TOOLS.find(t => t.id === id)?.name || id).join(', ');
@@ -828,6 +908,7 @@ function ExportModal({ sends, onClose, t, lang }) {
         s.sendDate,
         (s.sendTime || '').substring(0, 5),
         s.title,
+        s.seriesName || '',
         mk ? (lang === 'en' ? mk.nameEn : mk.name) : '',
         s.channel,
         tools,
