@@ -271,10 +271,10 @@ const SEND_CHANNELS = [
   { id: 'infomeeting', name: 'Infomeeting', icon: Users, color: '#7c3aed' },
 ];
 
-function WeeklySendsAccordion({ sends, tasks, isOpen, onToggle, onSelectTask, onStatusChange, currentUser, readTimestamps, seenTaskIds, lang, t, teamMembers, customTags, selectedTask }) {
+function WeeklySendsAccordion({ sends, tasks, isOpen, onToggle, onSelectTask, onStatusChange, onCreateTaskForSend, currentUser, readTimestamps, seenTaskIds, lang, t, teamMembers, customTags, selectedTask }) {
   if (!sends.length) return null;
 
-  // Build a map: linkedTaskId → task
+  // Build a map: sendId → task (task.linkedSendId = send.id)
   const taskBySendId = useMemo(() => {
     const m = {};
     tasks.forEach(tk => { if (tk.linkedSendId) m[tk.linkedSendId] = tk; });
@@ -321,14 +321,15 @@ function WeeklySendsAccordion({ sends, tasks, isOpen, onToggle, onSelectTask, on
         />
       );
     }
-    // Fallback: no linked task yet — show a simpler row with send info
+    // Fallback: no linked task yet — show row that creates task on click
     const ch = SEND_CHANNELS.find(c => c.id === send.channel);
     const ChIcon = ch?.icon || Mail;
     const mk = MARKETS.find(m => m.id === send.market);
     const assigned = (send.assignees||[]).map(id => teamMembers.find(m => m.id === id)).filter(Boolean);
     return (
-      <a key={`send-fallback-${send.id}`} href="/planner" target="_blank" rel="noopener noreferrer"
-        className="bg-white rounded-lg px-3 py-2 cursor-pointer border transition-all duration-100 block"
+      <div key={`send-fallback-${send.id}`}
+        onClick={() => onCreateTaskForSend(send)}
+        className="bg-white rounded-lg px-3 py-2 cursor-pointer border transition-all duration-100 hover:border-gray-300"
         style={{ borderWidth: '0.5px', borderColor: '#e5e7eb' }}>
         <div className="flex items-center gap-2">
           <Circle size={18} style={{ color: '#9ca3af' }} />
@@ -338,14 +339,15 @@ function WeeklySendsAccordion({ sends, tasks, isOpen, onToggle, onSelectTask, on
           <span className="flex-shrink-0">{mk?.icon}</span>
           <h4 className="font-medium text-sm flex-1 min-w-0 truncate" style={{ color: '#111827' }}>{send.title}</h4>
           <div className="flex items-center gap-1.5 flex-shrink-0">
+            <span className="text-xs px-1.5 py-0.5 rounded-full" style={{ background: '#f5f3ff', color: '#7c3aed' }}>📬</span>
             <span className="text-xs" style={{ color: '#9ca3af' }}>{fmtD(send.sendDate)}</span>
             <div className="flex -space-x-1">
               {assigned.slice(0, 3).map(m => <div key={m.id} className="w-5 h-5 rounded-full flex items-center justify-center text-white text-xs font-medium border border-white" style={{ background: m.color }}>{getInitials(m.name)}</div>)}
             </div>
-            <ExternalLink size={12} style={{ color: '#7c3aed' }} />
+            <ChevronRight size={16} style={{ color: '#d1d5db' }} />
           </div>
         </div>
-      </a>
+      </div>
     );
   };
 
@@ -588,6 +590,28 @@ export default function TaskApp() {
   const approveTask = async (task, assignees) => { await updateTask(task.id, { status: 'open', assignees, approvedAt: new Date().toISOString(), approvedBy: currentUser }); for (const aId of assignees) { const m = teamMembers.find(x => x.id === aId); if (m) await sendEmailNotification(m.email, m.name, task.title, currentMember?.name); } setActiveTab('tasks'); };
   const addTask = async (task) => { const nt = {...task, createdAt: new Date().toISOString(), createdBy: currentUser, isExternal: false, subtasks: []}; const c = await createTask(nt); if (c) await loadTasks(); setShowNewTask(false); for (const aId of task.assignees||[]) { const m = teamMembers.find(x => x.id === aId); if (m && m.id !== currentUser) await sendEmailNotification(m.email, m.name, task.title, currentMember?.name); } };
 
+  // Auto-create task for a planner send that doesn't have one yet
+  const createTaskForSend = async (send) => {
+    const newTask = await createTask({
+      title: send.title,
+      description: send.notes || '',
+      market: send.market,
+      status: 'open',
+      deadline: send.sendDate || null,
+      assignees: send.assignees || [],
+      createdBy: currentUser,
+      language: 'pl',
+      linkedSendId: send.id,
+    });
+    if (newTask) {
+      // Update the send with the linked task id
+      try { await updateScheduledSend(send.id, { linkedTaskId: newTask.id }); } catch (e) { console.error('Failed to link send to task:', e); }
+      await loadTasks();
+      await loadWeeklySends();
+      handleSelectTask(newTask);
+    }
+  };
+
   const formUrl = typeof window !== 'undefined' ? `${window.location.origin}/request` : '/request';
   const copyLink = () => { navigator.clipboard.writeText(formUrl); setCopied(true); setTimeout(() => setCopied(false), 2000); };
   if (loading) return <div className="min-h-screen flex items-center justify-center" style={{ background: '#f8f9fa', color: '#6b7280' }}>{t.loading}</div>;
@@ -677,6 +701,7 @@ export default function TaskApp() {
                 onToggle={() => setWeekSendsOpen(o => !o)}
                 onSelectTask={handleSelectTask}
                 onStatusChange={(id, s) => updateTask(id, { status: s })}
+                onCreateTaskForSend={createTaskForSend}
                 currentUser={currentUser}
                 readTimestamps={readTimestamps}
                 seenTaskIds={seenTaskIds}
