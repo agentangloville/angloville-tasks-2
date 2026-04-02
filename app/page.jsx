@@ -269,10 +269,10 @@ function WeeklySendsAccordion({ sends, tasks, isOpen, onToggle, onSelectTask, on
 
   const isNext = variant === 'next';
   const isWeek3 = variant === 'week3';
-  const bgHeader = isWeek3 ? '#f8f6ff' : isNext ? '#f5f3ff' : '#f3f0ff';
-  const bgContent = isWeek3 ? '#fdfcff' : isNext ? '#fcfbff' : '#faf8ff';
-  const borderColor = isWeek3 ? '#f0ecf9' : isNext ? '#ede9f6' : '#e9e5f5';
-  const accentColor = isWeek3 ? '#c4b5fd' : isNext ? '#a78bfa' : '#7c3aed';
+  const bgHeader = '#f9fafb';
+  const bgContent = '#fcfcfd';
+  const borderColor = '#e5e7eb';
+  const accentColor = '#6b7280';
 
   // Build a map: sendId → task (task.linkedSendId = send.id)
   const taskBySendId = useMemo(() => {
@@ -336,7 +336,7 @@ function WeeklySendsAccordion({ sends, tasks, isOpen, onToggle, onSelectTask, on
         <div className="flex items-center gap-2">
           <CalendarClock size={16} />
           <span>{label}</span>
-          <span className="text-xs px-2 py-0.5 rounded-full font-semibold" style={{ background: accentColor, color: 'white' }}>{sends.length}</span>
+          <span className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: '#e5e7eb', color: '#374151' }}>{sends.length}</span>
           {todoCount > 0 && <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: '#fef3c7', color: '#b45309' }}>
             {todoCount} {lang === 'en' ? 'to do' : 'do zrobienia'}
           </span>}
@@ -349,8 +349,8 @@ function WeeklySendsAccordion({ sends, tasks, isOpen, onToggle, onSelectTask, on
             {sends.map(renderSendAsTask)}
           </div>
           <a href="/planner" target="_blank" rel="noopener noreferrer"
-            className="flex items-center justify-center gap-1.5 px-4 py-2 text-xs font-medium hover:bg-purple-50 rounded-lg transition-colors mt-1"
-            style={{ color: accentColor }}>
+            className="flex items-center justify-center gap-1.5 px-4 py-1.5 text-xs hover:underline rounded-lg transition-colors mt-1"
+            style={{ color: '#9ca3af' }}>
             <CalendarClock size={12} />
             {lang === 'en' ? 'Open Planner' : 'Otwórz Planner'} →
           </a>
