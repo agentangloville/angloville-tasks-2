@@ -256,7 +256,6 @@ function SendFormModal({ send, onSave, onClose, currentUser, teamMembers, t, lan
     notes: send?.notes || '', links: send?.links || [],
     taskLink: send?.taskLink || '',
     assignees: send?.assignees || [currentUser],
-    createTask: false,
     linkedTaskId: send?.linkedTaskId || null,
   });
 
@@ -270,8 +269,8 @@ function SendFormModal({ send, onSave, onClose, currentUser, teamMembers, t, lan
     if (!f.title.trim() || !f.sendDate) return;
     let linkedTaskId = f.linkedTaskId;
 
-    // Jeśli checkbox zaznaczony i jeszcze nie ma powiązanego taska — utwórz go
-    if (f.createTask && !linkedTaskId) {
+    // Automatycznie twórz task w Taskerze dla nowej wysyłki
+    if (!linkedTaskId) {
       const newTask = await createTask({
         title: f.title,
         description: f.notes || '',
@@ -397,18 +396,7 @@ function SendFormModal({ send, onSave, onClose, currentUser, teamMembers, t, lan
             <input type="url" value={f.taskLink} onChange={e => sF({...f, taskLink: e.target.value})} className="w-full px-3 py-2 border rounded-lg text-sm" style={{ borderColor: '#d1d5db' }} placeholder={t.taskLinkPlaceholder} />
           </div>
 
-          {/* Checkbox: Utwórz task w Taskerze */}
-          {!f.linkedTaskId && (
-            <label className="flex items-center gap-2.5 cursor-pointer p-3 rounded-lg hover:bg-gray-50" style={{ border: '1px solid #e5e7eb' }}>
-              <input type="checkbox" checked={f.createTask} onChange={e => sF({...f, createTask: e.target.checked})} className="w-4 h-4 rounded" style={{ accentColor: '#2563eb' }} />
-              <div>
-                <span className="text-sm font-medium" style={{ color: '#111827' }}>{t.createLinkedTask}</span>
-                <p className="text-xs mt-0.5" style={{ color: '#9ca3af' }}>{lang === 'en' ? 'Auto-creates a task with same title, market & assignees' : 'Automatycznie utworzy task z tym samym tytułem, rynkiem i przypisanymi'}</p>
-              </div>
-            </label>
-          )}
-
-          {/* Pokaż info o powiązanym tasku przy edycji */}
+          {/* Info o powiązanym tasku — tworzony automatycznie */}
           {f.linkedTaskId && (
             <div className="flex items-center gap-2 p-3 rounded-lg" style={{ background: '#eff6ff', border: '1px solid #bfdbfe' }}>
               <CheckCircle size={14} style={{ color: '#2563eb' }} />
@@ -1096,7 +1084,20 @@ export default function PlannerPage() {
 
   const handleUpdateSend = async (id, updates) => {
     const up = await updateScheduledSend(id, updates);
-    if (up) { setSends(p => p.map(s => s.id === up.id ? up : s)); setSelectedSend(p => p?.id === up.id ? up : p); }
+    if (up) {
+      setSends(p => p.map(s => s.id === up.id ? up : s)); setSelectedSend(p => p?.id === up.id ? up : p);
+      // Sync: update linked task when send is edited
+      if (up.linkedTaskId) {
+        const taskUpdates = {};
+        if (updates.title) taskUpdates.title = updates.title;
+        if (updates.sendDate) taskUpdates.deadline = updates.sendDate;
+        if (updates.assignees) taskUpdates.assignees = updates.assignees;
+        if (updates.market) taskUpdates.market = updates.market;
+        if (Object.keys(taskUpdates).length > 0) {
+          try { await updateTaskDb(up.linkedTaskId, taskUpdates); } catch (e) { console.error('Sync task failed:', e); }
+        }
+      }
+    }
   };
 
   const handleEditSend = (send) => {
