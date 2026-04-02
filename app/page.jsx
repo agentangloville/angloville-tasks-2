@@ -281,29 +281,12 @@ function WeeklySendsAccordion({ sends, tasks, isOpen, onToggle, onSelectTask, on
     return m;
   }, [tasks]);
 
-  // Split sends into this week vs next week
-  const { thisWeek, nextWeek } = useMemo(() => {
-    const now = new Date();
-    const day = now.getDay();
-    const diffMon = day === 0 ? -6 : 1 - day;
-    const monday = new Date(now); monday.setDate(now.getDate() + diffMon); monday.setHours(0,0,0,0);
-    const thisSunday = new Date(monday); thisSunday.setDate(monday.getDate() + 6);
-    const thisSunStr = thisSunday.toISOString().split('T')[0];
-    const tw = [], nw = [];
-    sends.forEach(s => {
-      if (s.sendDate <= thisSunStr) tw.push(s);
-      else nw.push(s);
-    });
-    return { thisWeek: tw, nextWeek: nw };
-  }, [sends]);
-
   const todoCount = sends.filter(s => s.status === 'todo').length;
   const fmtD = (ds) => new Date(ds+'T00:00:00').toLocaleDateString(lang==='en'?'en-US':'pl-PL',{weekday:'short',day:'numeric',month:'short'});
 
   const renderSendAsTask = (send) => {
     const linkedTask = taskBySendId[send.id];
     if (linkedTask) {
-      // Render as a real TaskItem
       return (
         <TaskItem
           key={`send-${send.id}`}
@@ -351,21 +334,6 @@ function WeeklySendsAccordion({ sends, tasks, isOpen, onToggle, onSelectTask, on
     );
   };
 
-  const renderGroup = (label, groupSends) => {
-    if (!groupSends.length) return null;
-    return (
-      <div className="mb-2">
-        <div className="flex items-center gap-2 mb-1 px-1">
-          <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={{ background: '#ede9f6', color: '#7c3aed' }}>{label}</span>
-          <span className="text-xs" style={{ color: '#9ca3af' }}>{groupSends.length}</span>
-        </div>
-        <div className="space-y-0.5">
-          {groupSends.map(renderSendAsTask)}
-        </div>
-      </div>
-    );
-  };
-
   return (
     <div className="max-w-4xl mx-auto mb-3">
       <button onClick={onToggle}
@@ -373,7 +341,7 @@ function WeeklySendsAccordion({ sends, tasks, isOpen, onToggle, onSelectTask, on
         style={{ background: '#f3f0ff', color: '#7c3aed', borderBottom: isOpen ? '1px solid #e9e5f5' : 'none', borderRadius: isOpen ? '12px 12px 0 0' : '12px' }}>
         <div className="flex items-center gap-2">
           <CalendarClock size={16} />
-          <span>{lang === 'en' ? 'Sends — this & next week' : 'Wysyłki — ten i następny tydzień'}</span>
+          <span>{lang === 'en' ? 'Sends this week' : 'Wysyłki ten tydzień'}</span>
           <span className="text-xs px-2 py-0.5 rounded-full font-semibold" style={{ background: '#7c3aed', color: 'white' }}>{sends.length}</span>
           {todoCount > 0 && <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: '#fef3c7', color: '#b45309' }}>
             {todoCount} {lang === 'en' ? 'to do' : 'do zrobienia'}
@@ -383,8 +351,9 @@ function WeeklySendsAccordion({ sends, tasks, isOpen, onToggle, onSelectTask, on
       </button>
       {isOpen && (
         <div className="rounded-b-xl overflow-hidden px-2 py-2" style={{ background: '#faf8ff', border: '1px solid #e9e5f5', borderTop: 'none' }}>
-          {renderGroup(lang === 'en' ? 'This week' : 'Ten tydzień', thisWeek)}
-          {renderGroup(lang === 'en' ? 'Next week' : 'Następny tydzień', nextWeek)}
+          <div className="space-y-0.5">
+            {sends.map(renderSendAsTask)}
+          </div>
           <a href="/planner" target="_blank" rel="noopener noreferrer"
             className="flex items-center justify-center gap-1.5 px-4 py-2 text-xs font-medium hover:bg-purple-50 rounded-lg transition-colors mt-1"
             style={{ color: '#7c3aed' }}>
@@ -533,12 +502,12 @@ export default function TaskApp() {
       const day = now.getDay(); // 0=Sun, 1=Mon...
       const diffMon = day === 0 ? -6 : 1 - day;
       const monday = new Date(now); monday.setDate(now.getDate() + diffMon); monday.setHours(0,0,0,0);
-      const nextSunday = new Date(monday); nextSunday.setDate(monday.getDate() + 13); nextSunday.setHours(23,59,59,999);
-      const monStr = monday.toISOString().split('T')[0];
-      const nextSunStr = nextSunday.toISOString().split('T')[0];
-      const twoWeeks = all.filter(s => s.sendDate >= monStr && s.sendDate <= nextSunStr && s.status !== 'cancelled');
-      twoWeeks.sort((a, b) => a.sendDate.localeCompare(b.sendDate) || (a.sendTime||'').localeCompare(b.sendTime||''));
-      setWeeklySends(twoWeeks);
+      const sunday = new Date(monday); sunday.setDate(monday.getDate() + 6);
+      const monStr = `${monday.getFullYear()}-${String(monday.getMonth()+1).padStart(2,'0')}-${String(monday.getDate()).padStart(2,'0')}`;
+      const sunStr = `${sunday.getFullYear()}-${String(sunday.getMonth()+1).padStart(2,'0')}-${String(sunday.getDate()).padStart(2,'0')}`;
+      const week = all.filter(s => s.sendDate >= monStr && s.sendDate <= sunStr && s.status !== 'cancelled');
+      week.sort((a, b) => a.sendDate.localeCompare(b.sendDate) || (a.sendTime||'').localeCompare(b.sendTime||''));
+      setWeeklySends(week);
     } catch (e) { console.error('Failed to load weekly sends:', e); }
   };
   useEffect(() => { if (currentUser) { loadTasks(); loadCustomTags(); loadWeeklySends(); } }, [currentUser]);
