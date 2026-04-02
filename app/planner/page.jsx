@@ -791,7 +791,7 @@ function ListView({ sends, onSelectSend, selectedId, teamMembers, t, lang }) {
                 <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={{ background: isToday(date)?'#2563eb':'#f3f4f6', color: isToday(date)?'white':isPast(date)?'#9ca3af':'#111827' }}>{fmtDisp(date,lang)}</span>
                 {isToday(date) && <span className="text-xs font-medium" style={{ color: '#2563eb' }}>{t.today}</span>}
               </div>
-              <div className="space-y-1">
+              <div className="space-y-px">
                 {ss.map(s => <SendRow key={s.id} s={s} onSelectSend={onSelectSend} selectedId={selectedId} teamMembers={teamMembers} showDate={false} lang={lang} />)}
               </div>
             </div>
@@ -812,7 +812,7 @@ function ListView({ sends, onSelectSend, selectedId, teamMembers, t, lang }) {
                   <span className="text-xs px-1.5 py-0.5 rounded-full" style={{ background: '#f3f4f6', color: '#6b7280' }}>{sentCount}/{ss.length}</span>
                   {futureCount > 0 && <span className="text-xs" style={{ color: '#9ca3af' }}>{futureCount} {lang==='en'?'upcoming':'nadchodzących'}</span>}
                 </div>
-                <div className="space-y-1">
+                <div className="space-y-px">
                   {ss.map(s => <SendRow key={s.id} s={s} onSelectSend={onSelectSend} selectedId={selectedId} teamMembers={teamMembers} showDate={true} lang={lang} />)}
                 </div>
               </div>
@@ -830,24 +830,26 @@ function SendRow({ s, onSelectSend, selectedId, teamMembers, showDate, lang }) {
   const tools = (s.tools||[]).map(id => TOOLS.find(t=>t.id===id)).filter(Boolean);
   const assigned = (s.assignees||[]).map(id => teamMembers.find(m=>m.id===id)).filter(Boolean);
   return (
-    <div onClick={() => onSelectSend(s)} className="bg-white rounded-lg px-3 py-2.5 cursor-pointer border flex items-center gap-3"
-      style={{ borderWidth: '0.5px', borderColor: selectedId===s.id?'#3b82f6':'#e5e7eb', opacity: s.status==='cancelled'?0.5:1, boxShadow: selectedId===s.id?'0 0 0 1px rgba(59,130,246,0.15)':'none' }}>
-      <StI size={16} style={{ color: st?.color }} className={s.status==='sent'?'fill-current':''} />
-      <div className="w-6 h-6 rounded-md flex items-center justify-center" style={{ background: ch?.bg }}><ChI size={13} style={{ color: ch?.color }} /></div>
+    <div onClick={() => onSelectSend(s)} className="rounded-lg px-3 py-1.5 cursor-pointer flex items-center gap-2 transition-all duration-100"
+      style={{ borderWidth: '0.5px', borderStyle: 'solid', borderColor: selectedId===s.id?'#3b82f6':'#eef0f2', background: selectedId===s.id?'#fafbff':'white', opacity: s.status==='cancelled'?0.5:1, boxShadow: selectedId===s.id?'0 0 0 1px rgba(59,130,246,0.1)':'none' }}
+      onMouseEnter={e => { if (selectedId!==s.id) { e.currentTarget.style.borderColor='#d5d9dd'; e.currentTarget.style.background='#fafbfc'; }}}
+      onMouseLeave={e => { if (selectedId!==s.id) { e.currentTarget.style.borderColor='#eef0f2'; e.currentTarget.style.background='white'; }}}>
+      <StI size={14} style={{ color: st?.color }} className={s.status==='sent'?'fill-current':''} />
+      <div className="w-5 h-5 rounded flex items-center justify-center" style={{ background: ch?.bg }}><ChI size={11} style={{ color: ch?.color }} /></div>
       <span className="text-sm">{mk?.icon}</span>
       <div className="flex-1 min-w-0">
-        <h4 className="text-sm font-medium truncate" style={{ color: s.status==='cancelled'?'#9ca3af':'#111827', textDecoration: s.status==='cancelled'?'line-through':'none' }}>{s.title}</h4>
-        {s.subjectLine && <p className="text-xs truncate" style={{ color: '#9ca3af' }}>✉ {s.subjectLine}</p>}
+        <h4 className="truncate" style={{ fontSize: '13px', fontWeight: 450, letterSpacing: '-0.01em', color: s.status==='cancelled'?'#9ca3af':'#1a1d21', textDecoration: s.status==='cancelled'?'line-through':'none' }}>{s.title}</h4>
+        {s.subjectLine && <p className="truncate" style={{ fontSize: '11px', color: '#9ca3af' }}>✉ {s.subjectLine}</p>}
       </div>
-      {showDate && <span className="text-xs whitespace-nowrap flex-shrink-0" style={{ color: isToday(s.sendDate)?'#2563eb':isPast(s.sendDate)?'#9ca3af':'#111827' }}>{fmtDisp(s.sendDate,lang)}</span>}
+      {showDate && <span className="whitespace-nowrap flex-shrink-0" style={{ fontSize: '10.5px', color: isToday(s.sendDate)?'#2563eb':isPast(s.sendDate)?'#9ca3af':'#1a1d21' }}>{fmtDisp(s.sendDate,lang)}</span>}
       <div className="flex items-center gap-1">
-        {tools.slice(0,2).map(tl => <span key={tl.id} className="text-xs px-1.5 py-0.5 rounded-full font-medium hidden sm:inline" style={{ background: tl.color+'18', color: tl.color }}>{tl.name}</span>)}
+        {tools.slice(0,2).map(tl => <span key={tl.id} className="rounded-full hidden sm:inline" style={{ fontSize: '10.5px', padding: '1px 7px', background: tl.color+'15', color: tl.color, fontWeight: 500 }}>{tl.name}</span>)}
       </div>
       <div className="flex -space-x-1">
-        {assigned.slice(0,2).map(m => <div key={m.id} className="w-5 h-5 rounded-full flex items-center justify-center text-white border border-white" style={{ background: m.color, fontSize: '8px', fontWeight: 600 }}>{getInitials(m.name)}</div>)}
+        {assigned.slice(0,2).map(m => <div key={m.id} className="w-[18px] h-[18px] rounded-full flex items-center justify-center text-white border border-white" style={{ background: m.color, fontSize: '8px', fontWeight: 600 }}>{getInitials(m.name)}</div>)}
       </div>
-      <span className="text-xs whitespace-nowrap" style={{ color: '#9ca3af' }}>{fmtTime(s.sendTime)}</span>
-      {!showDate && isPartOfSeries(s) && <Repeat size={12} style={{ color: '#7c3aed' }} />}
+      <span className="whitespace-nowrap" style={{ fontSize: '10.5px', color: '#b0b5bc' }}>{fmtTime(s.sendTime)}</span>
+      {!showDate && isPartOfSeries(s) && <Repeat size={11} style={{ color: '#7c3aed' }} />}
     </div>
   );
 }
