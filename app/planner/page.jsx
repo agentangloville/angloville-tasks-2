@@ -439,16 +439,14 @@ function SendDetail({ send, onUpdate, onDelete, onEdit, onClose, onSelectSend, a
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        <h3 className="font-medium text-lg" style={{ color: '#111827' }}>{send.title}</h3>
-
-        {/* Quick actions */}
-        <div className="flex gap-2">
-          {send.status === 'scheduled' && <>
-            <button onClick={() => onUpdate(send.id, { status: 'sent' })} className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-medium" style={{ background: '#f0fdf4', color: '#16a34a', border: '1px solid #bbf7d0' }}><CheckCircle size={14} />{t.markSent}</button>
-            <button onClick={() => onUpdate(send.id, { status: 'cancelled' })} className="px-4 py-2 rounded-lg text-sm" style={{ background: '#fef2f2', color: '#ef4444', border: '1px solid #fecaca' }}><XCircle size={14} /></button>
-          </>}
-          {send.status === 'todo' && <button onClick={() => onUpdate(send.id, { status: 'scheduled' })} className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-medium" style={{ background: '#eff6ff', color: '#2563eb', border: '1px solid #bfdbfe' }}><Clock size={14} />{t.markScheduled}</button>}
-          {send.status === 'cancelled' && <button onClick={() => onUpdate(send.id, { status: 'scheduled' })} className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-medium" style={{ background: '#eff6ff', color: '#2563eb', border: '1px solid #bfdbfe' }}><Clock size={14} />{t.restore}</button>}
+        {/* Title + Status dropdown */}
+        <div className="flex items-start gap-3">
+          <h3 className="font-medium text-lg flex-1" style={{ color: '#111827' }}>{send.title}</h3>
+          <select value={send.status} onChange={e => onUpdate(send.id, { status: e.target.value })}
+            className="text-xs px-2.5 py-1.5 border rounded-lg font-medium flex-shrink-0"
+            style={{ borderColor: st?.color + '60', color: st?.color, background: st?.bg }}>
+            {STATUSES.map(s => <option key={s.id} value={s.id}>{lang==='en' ? s.nameEn : s.name}</option>)}
+          </select>
         </div>
 
         {/* Info */}
@@ -480,18 +478,12 @@ function SendDetail({ send, onUpdate, onDelete, onEdit, onClose, onSelectSend, a
 
         {send.subjectLine && <div><label className="text-xs font-medium block mb-1" style={{ color: '#6b7280' }}>{t.subjectLine}</label><div className="px-3 py-2 rounded-lg text-sm" style={{ background: '#f3f4f6' }}>{send.subjectLine}</div></div>}
         <LinksDisplay links={send.links} />
-        {send.taskLink && <div><label className="text-xs font-medium block mb-1" style={{ color: '#6b7280' }}>{t.taskLink}</label><a href={send.taskLink} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-blue-50 text-sm" style={{ color: '#2563eb' }}><ExternalLink size={13} /><span className="hover:underline">{lang==='en'?'Open task':'Otwórz task'}</span></a></div>}
 
-        {/* Linked Task */}
-        {send.linkedTaskId && (
-          <div>
-            <label className="text-xs font-medium block mb-1" style={{ color: '#6b7280' }}>{t.linkedTask}</label>
-            <a href={`/?task=${send.linkedTaskId}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-blue-50 text-sm" style={{ color: '#2563eb', background: '#eff6ff', border: '1px solid #bfdbfe' }}>
-              <CheckCircle size={13} />
-              <span className="hover:underline">{lang==='en'?'Open linked task':'Otwórz powiązany task'}</span>
-            </a>
-          </div>
-        )}
+        {/* Link do Taskera */}
+        <a href="/" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-blue-50 text-sm" style={{ color: '#2563eb', background: '#eff6ff', border: '1px solid #bfdbfe' }}>
+          <ExternalLink size={13} />
+          <span>{lang==='en'?'Open Tasker':'Otwórz Tasker'}</span>
+        </a>
 
         {send.description && <div>
           <div className="flex items-center justify-between mb-1">
