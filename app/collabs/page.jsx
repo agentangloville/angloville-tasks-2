@@ -90,6 +90,7 @@ const T = {
     sortNewest: 'Od najnowszych', sortFollowers: 'Wg obserwujących', sortDeadline: 'Wg deadline',
     filterActive: 'Aktywne', filterAll: 'Wszystkie',
     planner: 'Planner',
+    comments: 'Komentarze', addComment: 'Dodaj komentarz...', editComment: 'Edytuj', deleteComment: 'Usuń', commentPlaceholder: 'Napisz komentarz... (Shift+Enter = nowa linia)', openContract: 'Umowa',
   },
   en: {
     collabs: 'Collabs', newCollab: 'New collab', influencer: 'Influencer', handle: 'IG Handle',
@@ -109,6 +110,7 @@ const T = {
     sortNewest: 'Newest', sortFollowers: 'By followers', sortDeadline: 'By deadline',
     filterActive: 'Active', filterAll: 'All',
     planner: 'Planner',
+    comments: 'Comments', addComment: 'Add comment...', editComment: 'Edit', deleteComment: 'Delete', commentPlaceholder: 'Write a comment... (Shift+Enter = new line)', openContract: 'Contract',
   },
 };
 
@@ -471,6 +473,167 @@ function CollabFormModal({ collab, onSave, onClose, currentUser, teamMembers, t,
   );
 }
 
+// ── Comments Section ────────────────────────────────
+
+function CommentsSection({ collab, onUpdate, teamMembers, t, lang }) {
+  const [newComment, setNewComment] = useState('');
+  const [editingId, setEditingId] = useState(null);
+  const [editText, setEditText] = useState('');
+  const textareaRef = useRef(null);
+  const editRef = useRef(null);
+  const comments = collab.comments || [];
+  const currentUserId = typeof window !== 'undefined' ? localStorage.getItem('av_tasks_user') : null;
+
+  const addComment = () => {
+    if (!newComment.trim()) return;
+    const comment = {
+      id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+      text: newComment.trim(),
+      author: currentUserId,
+      createdAt: new Date().toISOString(),
+      updatedAt: null,
+    };
+    onUpdate(collab.id, { comments: [...comments, comment] });
+    setNewComment('');
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      addComment();
+    }
+  };
+
+  const startEdit = (comment) => {
+    setEditingId(comment.id);
+    setEditText(comment.text);
+    setTimeout(() => editRef.current?.focus(), 50);
+  };
+
+  const saveEdit = () => {
+    if (!editText.trim()) return;
+    const updated = comments.map(c =>
+      c.id === editingId ? { ...c, text: editText.trim(), updatedAt: new Date().toISOString() } : c
+    );
+    onUpdate(collab.id, { comments: updated });
+    setEditingId(null);
+    setEditText('');
+  };
+
+  const handleEditKeyDown = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      saveEdit();
+    }
+    if (e.key === 'Escape') {
+      setEditingId(null);
+      setEditText('');
+    }
+  };
+
+  const deleteComment = (id) => {
+    const updated = comments.filter(c => c.id !== id);
+    onUpdate(collab.id, { comments: updated });
+  };
+
+  const fmtTime = (iso) => {
+    if (!iso) return '';
+    const d = new Date(iso);
+    const day = d.toLocaleDateString('pl-PL', { day: 'numeric', month: 'short' });
+    const time = d.toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' });
+    return `${day}, ${time}`;
+  };
+
+  return (
+    <div>
+      <label className="text-xs font-medium flex items-center gap-1.5 mb-2" style={{ color: '#6b7280' }}>
+        <MessageSquare size={13} />
+        {t.comments} ({comments.length})
+      </label>
+
+      {/* Comments list */}
+      <div className="space-y-2 mb-2">
+        {comments.map(c => {
+          const author = teamMembers.find(m => m.id === c.author);
+          const isOwn = c.author === currentUserId;
+
+          return (
+            <div key={c.id} className="group rounded-lg px-3 py-2" style={{ background: '#f8f9fa', border: '1px solid #f3f4f6' }}>
+              <div className="flex items-center gap-2 mb-1">
+                {author && (
+                  <div className="w-5 h-5 rounded-full flex items-center justify-center text-white flex-shrink-0"
+                    style={{ background: author.color, fontSize: '8px', fontWeight: 600 }}>
+                    {getInitials(author.name)}
+                  </div>
+                )}
+                <span className="text-xs font-medium" style={{ color: '#374151' }}>{author?.name?.split(' ')[0] || '?'}</span>
+                <span className="text-xs" style={{ color: '#9ca3af' }}>{fmtTime(c.createdAt)}</span>
+                {c.updatedAt && <span className="text-xs italic" style={{ color: '#9ca3af' }}>(edytowano)</span>}
+                {isOwn && editingId !== c.id && (
+                  <div className="ml-auto flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button onClick={() => startEdit(c)} className="p-1 rounded hover:bg-gray-200" style={{ color: '#6b7280' }}>
+                      <Edit3 size={12} />
+                    </button>
+                    <button onClick={() => deleteComment(c.id)} className="p-1 rounded hover:bg-red-50" style={{ color: '#ef4444' }}>
+                      <X size={12} />
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {editingId === c.id ? (
+                <div>
+                  <textarea
+                    ref={editRef}
+                    value={editText}
+                    onChange={e => setEditText(e.target.value)}
+                    onKeyDown={handleEditKeyDown}
+                    className="w-full px-2 py-1.5 border rounded-lg text-sm resize-none"
+                    style={{ borderColor: '#2563eb', outline: 'none', boxShadow: '0 0 0 1px #2563eb' }}
+                    rows={Math.min(editText.split('\n').length + 1, 6)}
+                  />
+                  <div className="flex items-center gap-1.5 mt-1">
+                    <button onClick={saveEdit} className="text-xs px-2 py-1 rounded font-medium" style={{ background: '#2563eb', color: 'white' }}>{t.save}</button>
+                    <button onClick={() => { setEditingId(null); setEditText(''); }} className="text-xs px-2 py-1 rounded font-medium hover:bg-gray-100" style={{ color: '#6b7280' }}>{t.cancel}</button>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-sm whitespace-pre-wrap" style={{ color: '#374151' }}>{c.text}</p>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* New comment input */}
+      <div className="flex gap-2">
+        <textarea
+          ref={textareaRef}
+          value={newComment}
+          onChange={e => setNewComment(e.target.value)}
+          onKeyDown={handleKeyDown}
+          className="flex-1 px-3 py-2 border rounded-lg text-sm resize-none"
+          style={{ borderColor: '#d1d5db' }}
+          placeholder={t.commentPlaceholder}
+          rows={1}
+          onInput={e => {
+            e.target.style.height = 'auto';
+            e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px';
+          }}
+        />
+        <button
+          onClick={addComment}
+          disabled={!newComment.trim()}
+          className="self-end p-2 rounded-lg disabled:opacity-30"
+          style={{ background: '#2563eb', color: 'white' }}
+        >
+          <Send size={14} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ── Collab Detail Panel ──────────────────────────────
 
 function CollabDetail({ collab, onUpdate, onEdit, onDelete, onClose, teamMembers, t, lang }) {
@@ -495,6 +658,14 @@ function CollabDetail({ collab, onUpdate, onEdit, onDelete, onClose, teamMembers
           <StI size={18} style={{ color: st?.color }} />
           <span className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: st?.bg, color: st?.color }}>{lang === 'en' ? st?.nameEn : st?.name}</span>
           <span className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: ct?.bg, color: ct?.color }}>{ct?.name}</span>
+          {collab.contractUrl && (
+            <a href={collab.contractUrl} target="_blank" rel="noopener noreferrer"
+              className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium hover:opacity-80"
+              style={{ background: cs?.color === '#16a34a' ? '#f0fdf4' : '#f5f3ff', color: cs?.color || '#7c3aed' }}>
+              <FileText size={11} />
+              {t.openContract} ↗
+            </a>
+          )}
         </div>
         <div className="flex items-center gap-1">
           <button onClick={() => onEdit(collab)} className="p-1.5 rounded-full hover:bg-gray-100" style={{ color: '#6b7280' }}><Edit3 size={16} /></button>
@@ -614,6 +785,9 @@ function CollabDetail({ collab, onUpdate, onEdit, onDelete, onClose, teamMembers
             <p className="text-sm" style={{ color: '#dc2626' }}>{collab.rejectionReason}</p>
           </div>
         )}
+
+        {/* Comments */}
+        <CommentsSection collab={collab} onUpdate={onUpdate} teamMembers={teamMembers} t={t} lang={lang} />
 
         <div className="pt-3 border-t text-xs" style={{ borderColor: '#e5e7eb', color: '#9ca3af' }}>
           <p>Dodano: {fmtFull(collab.createdAt?.split('T')[0])}</p>
