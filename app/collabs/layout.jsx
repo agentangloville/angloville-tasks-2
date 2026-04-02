@@ -1,0 +1,11 @@
+export const metadata = {
+  title: 'Angloville Collabs',
+  description: 'Influencer Collaboration Management',
+  icons: {
+    icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="8" fill="%23ec4899"/><path d="M16 6l2.5 5.5L24 12.5l-4 4.2.8 5.8L16 20l-4.8 2.5L12 16.7 8 12.5l5.5-1z" fill="white"/></svg>',
+  },
+}
+
+export default function CollabsLayout({ children }) {
+  return children;
+}
