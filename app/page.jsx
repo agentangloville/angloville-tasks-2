@@ -271,9 +271,8 @@ const SEND_CHANNELS = [
   { id: 'infomeeting', name: 'Infomeeting', icon: Users, color: '#7c3aed' },
 ];
 
-function WeeklySendsAccordion({ sends, tasks, olderLinkedTasks, isOpen, onToggle, onSelectTask, onStatusChange, onCreateTaskForSend, currentUser, readTimestamps, seenTaskIds, lang, t, teamMembers, customTags, selectedTask }) {
-  const hasAnything = sends.length > 0 || olderLinkedTasks.length > 0;
-  if (!hasAnything) return null;
+function WeeklySendsAccordion({ sends, tasks, isOpen, onToggle, onSelectTask, onStatusChange, onCreateTaskForSend, currentUser, readTimestamps, seenTaskIds, lang, t, teamMembers, customTags, selectedTask }) {
+  if (!sends.length) return null;
 
   // Build a map: sendId → task (task.linkedSendId = send.id)
   const taskBySendId = useMemo(() => {
@@ -283,7 +282,6 @@ function WeeklySendsAccordion({ sends, tasks, olderLinkedTasks, isOpen, onToggle
   }, [tasks]);
 
   const todoCount = sends.filter(s => s.status === 'todo').length;
-  const totalCount = sends.length + olderLinkedTasks.length;
   const fmtD = (ds) => new Date(ds+'T00:00:00').toLocaleDateString(lang==='en'?'en-US':'pl-PL',{weekday:'short',day:'numeric',month:'short'});
 
   const renderSendAsTask = (send) => {
@@ -306,7 +304,6 @@ function WeeklySendsAccordion({ sends, tasks, olderLinkedTasks, isOpen, onToggle
         />
       );
     }
-    // Fallback: no linked task yet — show row that creates task on click
     const ch = SEND_CHANNELS.find(c => c.id === send.channel);
     const ChIcon = ch?.icon || Mail;
     const mk = MARKETS.find(m => m.id === send.market);
@@ -344,7 +341,7 @@ function WeeklySendsAccordion({ sends, tasks, olderLinkedTasks, isOpen, onToggle
         <div className="flex items-center gap-2">
           <CalendarClock size={16} />
           <span>{lang === 'en' ? 'Sends this week' : 'Wysyłki ten tydzień'}</span>
-          <span className="text-xs px-2 py-0.5 rounded-full font-semibold" style={{ background: '#7c3aed', color: 'white' }}>{totalCount}</span>
+          <span className="text-xs px-2 py-0.5 rounded-full font-semibold" style={{ background: '#7c3aed', color: 'white' }}>{sends.length}</span>
           {todoCount > 0 && <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: '#fef3c7', color: '#b45309' }}>
             {todoCount} {lang === 'en' ? 'to do' : 'do zrobienia'}
           </span>}
@@ -353,36 +350,9 @@ function WeeklySendsAccordion({ sends, tasks, olderLinkedTasks, isOpen, onToggle
       </button>
       {isOpen && (
         <div className="rounded-b-xl overflow-hidden px-2 py-2" style={{ background: '#faf8ff', border: '1px solid #e9e5f5', borderTop: 'none' }}>
-          {sends.length > 0 && <div className="space-y-0.5">
+          <div className="space-y-0.5">
             {sends.map(renderSendAsTask)}
-          </div>}
-          {olderLinkedTasks.length > 0 && (
-            <div className={sends.length > 0 ? 'mt-2' : ''}>
-              <div className="flex items-center gap-2 mb-1 px-1">
-                <span className="text-xs font-medium px-2 py-0.5 rounded-full" style={{ background: '#fef3c7', color: '#b45309' }}>
-                  {lang === 'en' ? 'Older' : 'Starsze'} ({olderLinkedTasks.length})
-                </span>
-              </div>
-              <div className="space-y-0.5">
-                {olderLinkedTasks.map(task => (
-                  <TaskItem
-                    key={`older-${task.id}`}
-                    task={task}
-                    isSelected={selectedTask?.id === task.id}
-                    onClick={() => onSelectTask(task)}
-                    onStatusChange={s => onStatusChange(task.id, s)}
-                    currentUser={currentUser}
-                    readTimestamps={readTimestamps}
-                    seenTaskIds={seenTaskIds}
-                    lang={lang}
-                    t={t}
-                    teamMembers={teamMembers}
-                    customTags={customTags}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
+          </div>
           <a href="/planner" target="_blank" rel="noopener noreferrer"
             className="flex items-center justify-center gap-1.5 px-4 py-2 text-xs font-medium hover:bg-purple-50 rounded-lg transition-colors mt-1"
             style={{ color: '#7c3aed' }}>
@@ -556,10 +526,11 @@ export default function TaskApp() {
   if (filterDeadline) filteredTasks = filteredTasks.filter(t => !!t.deadline);
   if (filterLinkedPlanner) filteredTasks = filteredTasks.filter(t => !!t.linkedSendId);
   
-  // Hide ALL open planner-linked tasks from the main list when accordion is visible
-  const showAccordion = (filterStatus === 'active' || filterStatus === 'open') && !filterLinkedPlanner && !filterDeadline && !(filterDateFrom || filterDateTo);
+  // Hide only this week's planner-linked tasks from the main list (they show in accordion)
+  const showAccordion = (filterStatus === 'active' || filterStatus === 'open') && weeklySends.length > 0 && !filterLinkedPlanner && !filterDeadline && !(filterDateFrom || filterDateTo);
   if (showAccordion) {
-    filteredTasks = filteredTasks.filter(t => !t.linkedSendId);
+    const weeklySendIds = new Set(weeklySends.map(s => s.id));
+    filteredTasks = filteredTasks.filter(t => !t.linkedSendId || !weeklySendIds.has(t.linkedSendId));
   }
 
   if (filterDateFrom || filterDateTo) {
@@ -697,14 +668,10 @@ export default function TaskApp() {
 
         <div className="flex-1 overflow-y-auto p-3 lg:p-4">
           {showUsersPanel ? null : activeTab === 'pending' && isManager ? <PendingView tasks={pendingTasks} approveTask={approveTask} deleteTask={deleteTask} currentUser={currentUser} t={t} lang={lang} teamMembers={teamMembers} /> : (
-            <>{showAccordion && (() => {
-              const weeklySendIds = new Set(weeklySends.map(s => s.id));
-              const olderLinked = visibleTasks.filter(tk => tk.linkedSendId && !weeklySendIds.has(tk.linkedSendId) && tk.status !== 'closed');
-              return (weeklySends.length > 0 || olderLinked.length > 0) && (
+            <>{showAccordion && (
               <WeeklySendsAccordion
                 sends={weeklySends}
                 tasks={tasks}
-                olderLinkedTasks={olderLinked}
                 isOpen={weekSendsOpen}
                 onToggle={() => setWeekSendsOpen(o => !o)}
                 onSelectTask={handleSelectTask}
@@ -718,8 +685,8 @@ export default function TaskApp() {
                 teamMembers={teamMembers}
                 customTags={customTags}
                 selectedTask={selectedTask}
-              />);
-            })()}
+              />
+            )}
             <div className="max-w-4xl mx-auto">{filteredTasks.length === 0 ? <div className="text-center py-16"><CheckCircle size={48} className="mx-auto mb-4" style={{ color: '#16a34a', opacity: 0.4 }} /><p style={{ color: '#6b7280' }}>{t.noTasksToShow}</p></div> : <div className="space-y-0.5">{filteredTasks.map(task => <TaskItem key={task.id} task={task} isSelected={selectedTask?.id === task.id} onClick={() => handleSelectTask(task)} onStatusChange={s => updateTask(task.id, { status: s })} currentUser={currentUser} readTimestamps={readTimestamps} seenTaskIds={seenTaskIds} lang={lang} t={t} teamMembers={teamMembers} customTags={customTags} />)}</div>}</div></>
           )}
         </div>
