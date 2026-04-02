@@ -526,11 +526,11 @@ export default function TaskApp() {
   if (filterDeadline) filteredTasks = filteredTasks.filter(t => !!t.deadline);
   if (filterLinkedPlanner) filteredTasks = filteredTasks.filter(t => !!t.linkedSendId);
   
-  // Hide only this week's planner-linked tasks from the main list (they show in accordion)
+  // Hide all planner-linked tasks from the main list when accordion is visible
+  // (this week's are in the accordion, future ones will appear when their week comes)
   const showAccordion = (filterStatus === 'active' || filterStatus === 'open') && weeklySends.length > 0 && !filterLinkedPlanner && !filterDeadline && !(filterDateFrom || filterDateTo);
   if (showAccordion) {
-    const weeklySendIds = new Set(weeklySends.map(s => s.id));
-    filteredTasks = filteredTasks.filter(t => !t.linkedSendId || !weeklySendIds.has(t.linkedSendId));
+    filteredTasks = filteredTasks.filter(t => !t.linkedSendId);
   }
 
   if (filterDateFrom || filterDateTo) {
