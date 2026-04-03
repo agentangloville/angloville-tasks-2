@@ -150,18 +150,18 @@ function DateRangeFilter({ dateFrom, dateTo, onFromChange, onToChange, onClear, 
 }
 
 // === NOTIFICATION SYSTEM ===
-const getReadTimestamps = (userId) => { try { return JSON.parse(localStorage.getItem(`av_read_${userId}`) || '{}'); } catch { return {}; } };
-const setTaskRead = (taskId, userId) => { const ts = getReadTimestamps(userId); ts[taskId] = new Date().toISOString(); localStorage.setItem(`av_read_${userId}`, JSON.stringify(ts)); };
-const setTaskUnread = (taskId, userId) => { const ts = getReadTimestamps(userId); delete ts[taskId]; localStorage.setItem(`av_read_${userId}`, JSON.stringify(ts)); };
-const setAllTasksRead = (tasks, userId) => { const ts = getReadTimestamps(userId); const now = new Date().toISOString(); tasks.forEach(t => { ts[t.id] = now; }); localStorage.setItem(`av_read_${userId}`, JSON.stringify(ts)); };
+const getReadTimestamps = (userId) => { try { return JSON.parse(sessionStorage.getItem(`av_read_${userId}`) || '{}'); } catch { return {}; } };
+const setTaskRead = (taskId, userId) => { const ts = getReadTimestamps(userId); ts[taskId] = new Date().toISOString(); sessionStorage.setItem(`av_read_${userId}`, JSON.stringify(ts)); };
+const setTaskUnread = (taskId, userId) => { const ts = getReadTimestamps(userId); delete ts[taskId]; sessionStorage.setItem(`av_read_${userId}`, JSON.stringify(ts)); };
+const setAllTasksRead = (tasks, userId) => { const ts = getReadTimestamps(userId); const now = new Date().toISOString(); tasks.forEach(t => { ts[t.id] = now; }); sessionStorage.setItem(`av_read_${userId}`, JSON.stringify(ts)); };
 const getUnreadComments = (task, userId, timestamps) => { if (!task.comments?.length) return []; const lastRead = timestamps[task.id]; if (!lastRead) return task.comments.filter(c => c.author !== userId); return task.comments.filter(c => c.author !== userId && new Date(c.createdAt) > new Date(lastRead)); };
 const getUnreadCount = (task, userId, timestamps) => getUnreadComments(task, userId, timestamps).length;
 const parseMentions = (text) => { const mentionRegex = /@(\w+)/g; const mentions = []; let match; while ((match = mentionRegex.exec(text)) !== null) { mentions.push(match[1].toLowerCase()); } return mentions; };
 const getMentionsForUser = (task, userId, timestamps, teamMembers) => { const unreadComments = getUnreadComments(task, userId, timestamps); const userMember = teamMembers.find(m => m.id === userId); if (!userMember) return []; const userIdentifiers = [userId.toLowerCase(), userMember.name.split(' ')[0].toLowerCase(), userMember.name.toLowerCase().replace(/\s+/g, '_'), userMember.name.toLowerCase().replace(/\s+/g, '')]; return unreadComments.filter(c => { const mentions = parseMentions(c.text); return mentions.some(m => userIdentifiers.includes(m)); }); };
-const getSeenTaskIds = (userId) => { try { return JSON.parse(localStorage.getItem(`av_seen_${userId}`) || '[]'); } catch { return []; } };
-const markTaskAsSeen = (taskId, userId) => { const seen = getSeenTaskIds(userId); if (!seen.includes(taskId)) { seen.push(taskId); localStorage.setItem(`av_seen_${userId}`, JSON.stringify(seen)); } };
-const getSoundEnabled = (userId) => { try { return localStorage.getItem(`av_sound_${userId}`) !== 'false'; } catch { return true; } };
-const setSoundEnabled = (userId, enabled) => { localStorage.setItem(`av_sound_${userId}`, enabled ? 'true' : 'false'); };
+const getSeenTaskIds = (userId) => { try { return JSON.parse(sessionStorage.getItem(`av_seen_${userId}`) || '[]'); } catch { return []; } };
+const markTaskAsSeen = (taskId, userId) => { const seen = getSeenTaskIds(userId); if (!seen.includes(taskId)) { seen.push(taskId); sessionStorage.setItem(`av_seen_${userId}`, JSON.stringify(seen)); } };
+const getSoundEnabled = (userId) => { try { return sessionStorage.getItem(`av_sound_${userId}`) !== 'false'; } catch { return true; } };
+const setSoundEnabled = (userId, enabled) => { sessionStorage.setItem(`av_sound_${userId}`, enabled ? 'true' : 'false'); };
 
 const getFileIcon = (type) => { if (type?.startsWith('image/')) return Image; if (type?.includes('spreadsheet') || type?.includes('excel')) return FileSpreadsheet; if (type?.includes('pdf') || type?.includes('document')) return FileText; return File; };
 const formatFileSize = (bytes) => { if (bytes < 1024) return bytes + ' B'; if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB'; return (bytes / (1024 * 1024)).toFixed(1) + ' MB'; };
@@ -494,10 +494,11 @@ export default function TaskApp() {
   useEffect(() => { if (currentUser) { setReadTimestamps(getReadTimestamps(currentUser)); setSeenTaskIds(getSeenTaskIds(currentUser)); } }, [currentUser]);
   useEffect(() => { const su = sessionStorage.getItem('av_tasks_user'); if (su) { (async () => { const m = await getTeamMembers(); if (m.find(x => x.id === su)) { setCurrentUser(su); setTeamMembers(m); } setCheckingAuth(false); })(); } else setCheckingAuth(false); }, []);
   useEffect(() => { if (restrictedMarket) setFilterMarket(restrictedMarket); }, [restrictedMarket]);
-  useEffect(() => { if (!currentUser || filtersInitialized.current) return; filtersInitialized.current = true; const sm = localStorage.getItem(`av_filter_market_${currentUser}`); const sp = localStorage.getItem(`av_filter_person_${currentUser}`); if (!restrictedMarket && sm) setFilterMarket(sm); if (sp) setFilterPerson(sp); else if (!isManager) setFilterPerson(currentUser); }, [currentUser, isManager, restrictedMarket]);
-  useEffect(() => { if (currentUser && !restrictedMarket) localStorage.setItem(`av_filter_market_${currentUser}`, filterMarket); }, [filterMarket, currentUser, restrictedMarket]);
-  useEffect(() => { if (currentUser) localStorage.setItem(`av_filter_person_${currentUser}`, filterPerson); }, [filterPerson, currentUser]);
-  const loadTasks = async () => { const d = await getTasks(); setTasks(d); setLoading(false); };
+  useEffect(() => { if (!currentUser || filtersInitialized.current) return; filtersInitialized.current = true; const sm = sessionStorage.getItem(`av_filter_market_${currentUser}`); const sp = sessionStorage.getItem(`av_filter_person_${currentUser}`); if (!restrictedMarket && sm) setFilterMarket(sm); if (sp) setFilterPerson(sp); else if (!isManager) setFilterPerson(currentUser); }, [currentUser, isManager, restrictedMarket]);
+  useEffect(() => { if (currentUser && !restrictedMarket) sessionStorage.setItem(`av_filter_market_${currentUser}`, filterMarket); }, [filterMarket, currentUser, restrictedMarket]);
+  useEffect(() => { if (currentUser) sessionStorage.setItem(`av_filter_person_${currentUser}`, filterPerson); }, [filterPerson, currentUser]);
+  const loadTasks = async () => { const d = await getTasks(); setTasks(d); setLoading(false); return d; };
+  const initialReadDone = useRef(false);
   const loadCustomTags = async () => { setCustomTags(await getCustomTags()); };
   const loadWeeklySends = async () => {
     try {
@@ -520,7 +521,7 @@ export default function TaskApp() {
       setWeek3Sends(all.filter(s => s.sendDate >= m3 && s.sendDate <= s3 && notCancelled(s)).sort(sort));
     } catch (e) { console.error('Failed to load weekly sends:', e); }
   };
-  useEffect(() => { if (currentUser) { loadTasks(); loadCustomTags(); loadWeeklySends(); } }, [currentUser]);
+  useEffect(() => { if (currentUser) { loadTasks().then(d => { if (!initialReadDone.current && d && d.length > 0) { setAllTasksRead(d, currentUser); setReadTimestamps(getReadTimestamps(currentUser)); const allIds = d.map(t => t.id); sessionStorage.setItem(`av_seen_${currentUser}`, JSON.stringify(allIds)); setSeenTaskIds(allIds); initialReadDone.current = true; } }); loadCustomTags(); loadWeeklySends(); } }, [currentUser]);
   useEffect(() => { if (!currentUser) return; const iv = setInterval(() => { loadTasks(); loadWeeklySends(); }, 30000); return () => clearInterval(iv); }, [currentUser]);
   const handleLogout = () => { sessionStorage.removeItem('av_tasks_user'); setCurrentUser(null); setTasks([]); setSelectedTask(null); setShowUsersPanel(false); filtersInitialized.current = false; };
   const handleSelectTask = useCallback((task) => { setSelectedTask(task); setShowUsersPanel(false); setSidebarOpen(false); if (currentUser && task) { setTaskRead(task.id, currentUser); setReadTimestamps(prev => ({...prev, [task.id]: new Date().toISOString()})); markTaskAsSeen(task.id, currentUser); setSeenTaskIds(prev => prev.includes(task.id) ? prev : [...prev, task.id]); } }, [currentUser]);
