@@ -142,19 +142,16 @@ const isToday = (ds) => ds === fmtD(new Date());
 // ── Login ────────────────────────────────────────────
 
 function LoginScreen({ onLogin, teamMembers }) {
-  const [su, setSu] = useState(''); const [pin, setPin] = useState(''); const [err, setErr] = useState(''); const [ld, setLd] = useState(false);
-  const am = teamMembers.filter(m => m.isActive !== false);
-  const hl = async (e) => {
-    e.preventDefault(); if (!su) { setErr('Wybierz osobę'); return; }
-    setLd(true);
-    try {
-      const r = await fetch('/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: su, pin }) });
-      const d = await r.json();
-      if (d.success) { localStorage.setItem('av_tasks_user', su); onLogin(su); } else setErr('Nieprawidłowy PIN');
-    } catch { setErr('Błąd połączenia'); }
-    setLd(false);
-  };
-  return <div className="min-h-screen flex items-center justify-center p-4" style={{ background: '#f8f9fa' }}><div className="bg-white rounded-xl p-8 w-full max-w-sm" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}><div className="text-center mb-6"><h1 className="text-xl font-semibold" style={{ color: '#111827' }}>📣 Influencer Collabs</h1><p className="text-sm mt-1" style={{ color: '#6b7280' }}>Panel współprac z influencerami</p></div><form onSubmit={hl} className="space-y-4">{err && <div className="p-3 rounded-lg text-sm text-center" style={{ background: '#fef2f2', color: '#dc2626' }}>{err}</div>}<div><label className="block text-sm font-medium mb-1.5" style={{ color: '#111827' }}>Osoba</label><select value={su} onChange={e => { setSu(e.target.value); setErr(''); }} className="w-full px-4 py-3 border rounded-lg text-sm" style={{ borderColor: '#d1d5db' }}><option value="">Wybierz...</option>{am.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}</select></div><div><label className="block text-sm font-medium mb-1.5" style={{ color: '#111827' }}>PIN</label><input type="password" value={pin} onChange={e => { setPin(e.target.value.replace(/\D/g, '').slice(0, 4)); setErr(''); }} className="w-full px-4 py-3 border rounded-lg text-sm text-center tracking-widest" style={{ borderColor: '#d1d5db' }} placeholder="••••" maxLength={4} inputMode="numeric" /></div><button type="submit" disabled={ld} className="w-full py-3 rounded-lg font-medium flex items-center justify-center gap-2 disabled:opacity-70" style={{ background: '#2563eb', color: 'white' }}>{ld ? <Loader2 size={18} className="animate-spin" /> : <Lock size={18} />}{ld ? '...' : 'Zaloguj się'}</button></form></div></div>;
+  // Check if already logged in via Tasker (shared sessionStorage)
+  useEffect(() => {
+    const su = sessionStorage.getItem('av_tasks_user');
+    if (su) {
+      const found = teamMembers.find(m => m.id === su);
+      if (found) onLogin(su);
+    }
+  }, [teamMembers, onLogin]);
+
+  return <div className="min-h-screen flex items-center justify-center p-4" style={{ background: '#f8f9fa' }}><div className="bg-white rounded-xl p-8 w-full max-w-sm text-center" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}><h1 className="text-xl font-semibold mb-2" style={{ color: '#111827' }}>📣 Influencer Collabs</h1><p className="text-sm mb-6" style={{ color: '#6b7280' }}>Zaloguj się najpierw przez Taskera</p><a href="/" className="inline-flex items-center justify-center gap-2 w-full py-3 rounded-lg font-medium text-sm" style={{ background: '#2563eb', color: 'white', textDecoration: 'none' }}><Lock size={18} />Zaloguj się w Taskerze →</a><p className="text-xs mt-4" style={{ color: '#9ca3af' }}>Po zalogowaniu wróć tutaj — sesja zostanie udostępniona</p></div></div>;
 }
 
 // ── Deliverables Editor ──────────────────────────────
@@ -482,7 +479,7 @@ function CommentsSection({ collab, onUpdate, teamMembers, t, lang }) {
   const textareaRef = useRef(null);
   const editRef = useRef(null);
   const comments = collab.comments || [];
-  const currentUserId = typeof window !== 'undefined' ? localStorage.getItem('av_tasks_user') : null;
+  const currentUserId = typeof window !== 'undefined' ? sessionStorage.getItem('av_tasks_user') : null;
 
   const addComment = () => {
     if (!newComment.trim()) return;
@@ -935,13 +932,13 @@ export default function CollabsPage() {
   const lang = cm?.language || 'pl';
   const t = T[lang];
 
-  useEffect(() => { const su = localStorage.getItem('av_tasks_user'); if (su) { (async () => { const m = await getTeamMembers(); if (m.find(x => x.id === su)) { setCurrentUser(su); setTeamMembers(m); } setCheckingAuth(false); })(); } else setCheckingAuth(false); }, []);
+  useEffect(() => { const su = sessionStorage.getItem('av_tasks_user'); if (su) { (async () => { const m = await getTeamMembers(); if (m.find(x => x.id === su)) { setCurrentUser(su); setTeamMembers(m); } setCheckingAuth(false); })(); } else setCheckingAuth(false); }, []);
 
   const loadCollabs = useCallback(async () => { const d = await getCollabs(); setCollabs(d); setLoading(false); }, []);
   useEffect(() => { if (currentUser) loadCollabs(); }, [currentUser, loadCollabs]);
   useEffect(() => { if (!currentUser) return; const iv = setInterval(loadCollabs, 30000); return () => clearInterval(iv); }, [currentUser, loadCollabs]);
 
-  const handleLogout = () => { localStorage.removeItem('av_tasks_user'); setCurrentUser(null); };
+  const handleLogout = () => { sessionStorage.removeItem('av_tasks_user'); setCurrentUser(null); };
 
   const handleSave = async (data) => {
     if (editCollab?.id) {
