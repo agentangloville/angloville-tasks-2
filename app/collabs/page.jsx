@@ -142,16 +142,18 @@ const isToday = (ds) => ds === fmtD(new Date());
 // ── Login ────────────────────────────────────────────
 
 function LoginScreen({ onLogin, teamMembers }) {
-  // Check if already logged in via Tasker (shared sessionStorage)
-  useEffect(() => {
-    const su = sessionStorage.getItem('av_tasks_user');
-    if (su) {
-      const found = teamMembers.find(m => m.id === su);
-      if (found) onLogin(su);
-    }
-  }, [teamMembers, onLogin]);
-
-  return <div className="min-h-screen flex items-center justify-center p-4" style={{ background: '#f8f9fa' }}><div className="bg-white rounded-xl p-8 w-full max-w-sm text-center" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}><h1 className="text-xl font-semibold mb-2" style={{ color: '#111827' }}>📣 Influencer Collabs</h1><p className="text-sm mb-6" style={{ color: '#6b7280' }}>Zaloguj się najpierw przez Taskera</p><a href="/" className="inline-flex items-center justify-center gap-2 w-full py-3 rounded-lg font-medium text-sm" style={{ background: '#2563eb', color: 'white', textDecoration: 'none' }}><Lock size={18} />Zaloguj się w Taskerze →</a><p className="text-xs mt-4" style={{ color: '#9ca3af' }}>Po zalogowaniu wróć tutaj — sesja zostanie udostępniona</p></div></div>;
+  const [su, setSu] = useState(''); const [pin, setPin] = useState(''); const [err, setErr] = useState(''); const [ld, setLd] = useState(false);
+  const hl = async (e) => {
+    e.preventDefault(); if (!su.trim()) { setErr('Wpisz login'); return; }
+    setLd(true); setErr('');
+    try {
+      const r = await fetch('/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: su.trim().toLowerCase(), pin }) });
+      const d = await r.json();
+      if (d.success) { sessionStorage.setItem('av_tasks_user', d.user.id); onLogin(d.user.id); } else { setErr('Nieprawidłowy login lub PIN'); setPin(''); }
+    } catch { setErr('Błąd połączenia'); }
+    setLd(false);
+  };
+  return <div className="min-h-screen flex items-center justify-center p-4" style={{ background: '#f8f9fa' }}><div className="bg-white rounded-xl p-8 w-full max-w-sm" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}><div className="text-center mb-6"><h1 className="text-xl font-semibold" style={{ color: '#111827' }}>📣 Influencer Collabs</h1><p className="text-sm mt-1" style={{ color: '#6b7280' }}>Panel współprac z influencerami</p></div><form onSubmit={hl} className="space-y-4">{err && <div className="p-3 rounded-lg text-sm text-center" style={{ background: '#fef2f2', color: '#dc2626' }}>{err}</div>}<div><label className="block text-sm font-medium mb-1.5" style={{ color: '#111827' }}>Login</label><input type="text" value={su} onChange={e => { setSu(e.target.value); setErr(''); }} className="w-full px-4 py-3 border rounded-lg text-sm" style={{ borderColor: '#d1d5db' }} placeholder="Login" autoComplete="username" autoFocus /></div><div><label className="block text-sm font-medium mb-1.5" style={{ color: '#111827' }}>PIN</label><input type="password" value={pin} onChange={e => { setPin(e.target.value.replace(/\D/g, '').slice(0, 4)); setErr(''); }} className="w-full px-4 py-3 border rounded-lg text-sm text-center tracking-widest" style={{ borderColor: '#d1d5db' }} placeholder="••••" maxLength={4} inputMode="numeric" autoComplete="current-password" /></div><button type="submit" disabled={ld} className="w-full py-3 rounded-lg font-medium flex items-center justify-center gap-2 disabled:opacity-70" style={{ background: '#2563eb', color: 'white' }}>{ld ? <Loader2 size={18} className="animate-spin" /> : <Lock size={18} />}{ld ? '...' : 'Zaloguj się'}</button></form></div></div>;
 }
 
 // ── Deliverables Editor ──────────────────────────────
