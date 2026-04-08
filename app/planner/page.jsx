@@ -1,5 +1,32 @@
 'use client';
 
+// Google-style font injection
+if (typeof document !== 'undefined') {
+  const existingLink = document.querySelector('link[href*="fonts.googleapis.com/css2?family=Google+Sans"]');
+  if (!existingLink) {
+    const link = document.createElement('link');
+    link.href = 'https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&family=Roboto:wght@400;500&display=swap';
+    link.rel = 'stylesheet';
+    document.head.appendChild(link);
+    const style = document.createElement('style');
+    style.textContent = `
+      * { font-family: 'Google Sans', 'Roboto', -apple-system, BlinkMacSystemFont, sans-serif !important; }
+      input, select, textarea, button, code { font-family: 'Google Sans', 'Roboto', -apple-system, BlinkMacSystemFont, sans-serif !important; }
+      button { transition: background 0.15s ease, box-shadow 0.15s ease, transform 0.1s ease; }
+      button:active:not(:disabled) { transform: scale(0.98); }
+      select { cursor: pointer; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%235f6368' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 8px center; padding-right: 24px !important; }
+      input:focus, select:focus, textarea:focus { outline: none; border-color: #1a73e8 !important; box-shadow: 0 0 0 2px rgba(26,115,232,0.2) !important; }
+      ::-webkit-scrollbar { width: 8px; }
+      ::-webkit-scrollbar-track { background: transparent; }
+      ::-webkit-scrollbar-thumb { background: #dadce0; border-radius: 4px; }
+      ::-webkit-scrollbar-thumb:hover { background: #bdc1c6; }
+    `;
+    document.head.appendChild(style);
+  }
+}
+
+
+
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   Plus, X, Check, Edit3, Trash2, ChevronLeft, ChevronRight,
@@ -25,7 +52,7 @@ const MARKETS = [
 ];
 
 const CHANNELS = [
-  { id: 'email', name: 'Email', icon: Mail, color: '#2563eb', bg: '#eff6ff' },
+  { id: 'email', name: 'Email', icon: Mail, color: '#1a73e8', bg: '#e8f0fe' },
   { id: 'sms', name: 'SMS', icon: Phone, color: '#16a34a', bg: '#f0fdf4' },
   { id: 'whatsapp', name: 'WhatsApp', icon: MessageSquare, color: '#25d366', bg: '#ecfdf5' },
   { id: 'infomeeting', name: 'Infomeeting', icon: Users, color: '#7c3aed', bg: '#f5f3ff' },
@@ -42,8 +69,8 @@ const TOOLS = [
 ];
 
 const STATUSES = [
-  { id: 'todo', name: 'Do przygotowania', nameEn: 'To prepare', color: '#9ca3af', bg: '#f3f4f6', icon: Circle },
-  { id: 'scheduled', name: 'Zaplanowane', nameEn: 'Scheduled', color: '#2563eb', bg: '#eff6ff', icon: Clock },
+  { id: 'todo', name: 'Do przygotowania', nameEn: 'To prepare', color: '#80868b', bg: '#f1f3f4', icon: Circle },
+  { id: 'scheduled', name: 'Zaplanowane', nameEn: 'Scheduled', color: '#1a73e8', bg: '#e8f0fe', icon: Clock },
   { id: 'sent', name: 'Wysłane', nameEn: 'Sent', color: '#16a34a', bg: '#f0fdf4', icon: CheckCircle },
   { id: 'cancelled', name: 'Anulowane', nameEn: 'Cancelled', color: '#ef4444', bg: '#fef2f2', icon: XCircle },
 ];
@@ -145,26 +172,26 @@ function SeriesChoiceModal({ type, onChoice, onClose, t }) {
   const isDelete = type === 'delete';
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4" onClick={onClose}>
-      <div className="bg-white rounded-xl w-full max-w-xs overflow-hidden" style={{ boxShadow: '0 24px 38px 3px rgba(0,0,0,.14)' }} onClick={e => e.stopPropagation()}>
+      <div className="bg-white rounded-xl w-full max-w-xs overflow-hidden" style={{ boxShadow: '0 1px 3px 0 rgba(60,64,67,.3), 0 4px 8px 3px rgba(60,64,67,.15)' }} onClick={e => e.stopPropagation()}>
         <div className="p-5">
-          <h3 className="text-base font-semibold mb-4" style={{ color: '#111827' }}>
+          <h3 className="text-base font-semibold mb-4" style={{ color: '#202124' }}>
             {isDelete ? t.deleteRecurring : t.editRecurring}
           </h3>
           <div className="space-y-2">
             <button onClick={() => onChoice('this')}
               className="w-full text-left px-4 py-3 rounded-lg border hover:bg-gray-50 text-sm font-medium"
-              style={{ borderColor: '#e5e7eb', color: '#111827' }}>
+              style={{ borderColor: '#dadce0', color: '#202124' }}>
               {isDelete ? t.deleteThis : t.editThis}
             </button>
             <button onClick={() => onChoice('all')}
               className="w-full text-left px-4 py-3 rounded-lg border hover:bg-gray-50 text-sm font-medium"
-              style={{ borderColor: '#e5e7eb', color: '#111827' }}>
+              style={{ borderColor: '#dadce0', color: '#202124' }}>
               {isDelete ? t.deleteAll : t.editAll}
             </button>
           </div>
         </div>
         <div className="px-5 pb-4">
-          <button onClick={onClose} className="w-full py-2 rounded-lg text-sm" style={{ color: '#6b7280' }}>{t.cancel}</button>
+          <button onClick={onClose} className="w-full py-2 rounded-lg text-sm" style={{ color: '#5f6368' }}>{t.cancel}</button>
         </div>
       </div>
     </div>
@@ -179,15 +206,15 @@ function LinksEditor({ links, onChange, t }) {
   const rm = (i) => onChange(links.filter((_, j) => j !== i));
   return (
     <div>
-      <label className="text-sm font-medium block mb-1.5" style={{ color: '#111827' }}>{t.links}</label>
+      <label className="text-sm font-medium block mb-1.5" style={{ color: '#202124' }}>{t.links}</label>
       {links.map((l, i) => (
         <div key={i} className="flex items-center gap-2 mb-1.5">
-          <input type="text" value={l.name} onChange={e => upd(i,'name',e.target.value)} className="w-28 px-2 py-1.5 border rounded-lg text-sm" style={{ borderColor: '#d1d5db' }} placeholder={t.title} />
-          <input type="url" value={l.url} onChange={e => upd(i,'url',e.target.value)} className="flex-1 px-2 py-1.5 border rounded-lg text-sm" style={{ borderColor: '#d1d5db' }} placeholder="https://..." />
+          <input type="text" value={l.name} onChange={e => upd(i,'name',e.target.value)} className="w-28 px-2 py-1.5 border rounded-lg text-sm" style={{ borderColor: '#dadce0' }} placeholder={t.title} />
+          <input type="url" value={l.url} onChange={e => upd(i,'url',e.target.value)} className="flex-1 px-2 py-1.5 border rounded-lg text-sm" style={{ borderColor: '#dadce0' }} placeholder="https://..." />
           <button type="button" onClick={() => rm(i)} className="p-1 rounded hover:bg-red-50" style={{ color: '#ef4444' }}><X size={14} /></button>
         </div>
       ))}
-      <button type="button" onClick={add} className="text-xs font-medium px-2 py-1 rounded hover:bg-blue-50" style={{ color: '#2563eb' }}>{t.addLink}</button>
+      <button type="button" onClick={add} className="text-xs font-medium px-2 py-1 rounded hover:bg-blue-50" style={{ color: '#1a73e8' }}>{t.addLink}</button>
     </div>
   );
 }
@@ -197,7 +224,7 @@ function LinksDisplay({ links }) {
   return (
     <div className="space-y-1">
       {links.map((l, i) => (
-        <a key={i} href={l.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-blue-50 text-sm" style={{ color: '#2563eb' }}>
+        <a key={i} href={l.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-blue-50 text-sm" style={{ color: '#1a73e8' }}>
           <ExternalLink size={13} /><span className="hover:underline">{l.name || l.url}</span>
         </a>
       ))}
@@ -212,18 +239,18 @@ function ToolMultiSelect({ selected, channel, onChange, t }) {
   const toggle = (id) => onChange(selected.includes(id) ? selected.filter(x => x !== id) : [...selected, id]);
   return (
     <div>
-      <label className="text-sm font-medium block mb-1.5" style={{ color: '#111827' }}>{t.tools}</label>
+      <label className="text-sm font-medium block mb-1.5" style={{ color: '#202124' }}>{t.tools}</label>
       <div className="flex flex-wrap gap-1.5">
         {opts.map(tool => {
           const on = selected.includes(tool.id);
           return <button key={tool.id} type="button" onClick={() => toggle(tool.id)}
             className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium border"
-            style={{ background: on ? tool.color+'18' : '#f3f4f6', color: on ? tool.color : '#6b7280', borderColor: on ? tool.color : 'transparent' }}>
+            style={{ background: on ? tool.color+'18' : '#f1f3f4', color: on ? tool.color : '#5f6368', borderColor: on ? tool.color : 'transparent' }}>
             {tool.name}{on && <Check size={12} />}
           </button>;
         })}
       </div>
-      {selected.length === 0 && opts.length > 0 && <p className="text-xs mt-1" style={{ color: '#9ca3af' }}>{t.selectTools}</p>}
+      {selected.length === 0 && opts.length > 0 && <p className="text-xs mt-1" style={{ color: '#80868b' }}>{t.selectTools}</p>}
     </div>
   );
 }
@@ -233,13 +260,13 @@ function ToolMultiSelect({ selected, channel, onChange, t }) {
 function AssigneeSelector({ assignees, teamMembers, onChange, t }) {
   return (
     <div>
-      <label className="text-sm font-medium block mb-1.5" style={{ color: '#111827' }}>{t.assignees}</label>
+      <label className="text-sm font-medium block mb-1.5" style={{ color: '#202124' }}>{t.assignees}</label>
       <div className="flex flex-wrap gap-1.5">
         {teamMembers.filter(m => m.isActive !== false).map(m => {
           const on = assignees.includes(m.id);
           return <button key={m.id} type="button" onClick={() => onChange(on ? assignees.filter(a => a !== m.id) : [...assignees, m.id])}
             className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium border"
-            style={{ borderColor: on ? '#2563eb' : '#d1d5db', background: on ? '#eff6ff' : 'white', color: on ? '#2563eb' : '#111827' }}>
+            style={{ borderColor: on ? '#1a73e8' : '#dadce0', background: on ? '#e8f0fe' : 'white', color: on ? '#1a73e8' : '#202124' }}>
             <div className="w-5 h-5 rounded-full flex items-center justify-center text-white" style={{ background: m.color, fontSize: '8px', fontWeight: 600 }}>{getInitials(m.name)}</div>
             {m.name.split(' ')[0]}{on && <Check size={12} />}
           </button>;
@@ -305,44 +332,44 @@ function SendFormModal({ send, onSave, onClose, currentUser, teamMembers, t, lan
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
-      <div className="bg-white rounded-xl w-full max-w-lg max-h-[90vh] overflow-y-auto" style={{ boxShadow: '0 24px 38px 3px rgba(0,0,0,.14)' }} onClick={e => e.stopPropagation()}>
-        <div className="p-5 border-b flex items-center justify-between" style={{ borderColor: '#e5e7eb' }}>
-          <h3 className="text-lg font-medium" style={{ color: '#111827' }}>{isEdit ? t.edit : t.newSend}</h3>
-          <button onClick={onClose} style={{ color: '#6b7280' }}><X size={20} /></button>
+      <div className="bg-white rounded-xl w-full max-w-lg max-h-[90vh] overflow-y-auto" style={{ boxShadow: '0 1px 3px 0 rgba(60,64,67,.3), 0 4px 8px 3px rgba(60,64,67,.15)' }} onClick={e => e.stopPropagation()}>
+        <div className="p-5 border-b flex items-center justify-between" style={{ borderColor: '#dadce0' }}>
+          <h3 className="text-lg font-medium" style={{ color: '#202124' }}>{isEdit ? t.edit : t.newSend}</h3>
+          <button onClick={onClose} style={{ color: '#5f6368' }}><X size={20} /></button>
         </div>
         <div className="p-5 space-y-4">
           {/* Tytuł */}
           <div>
-            <label className="text-sm font-medium block mb-1.5" style={{ color: '#111827' }}>{t.title} *</label>
-            <input type="text" value={f.title} onChange={e => sF({...f, title: e.target.value})} className="w-full px-4 py-2.5 border rounded-lg text-sm" style={{ borderColor: '#d1d5db' }} autoFocus />
+            <label className="text-sm font-medium block mb-1.5" style={{ color: '#202124' }}>{t.title} *</label>
+            <input type="text" value={f.title} onChange={e => sF({...f, title: e.target.value})} className="w-full px-4 py-2.5 border rounded-lg text-sm" style={{ borderColor: '#dadce0' }} autoFocus />
           </div>
 
           {/* Nazwa serii — opcjonalna */}
           <div>
-            <label className="text-sm font-medium block mb-1.5" style={{ color: '#111827' }}>
-              {t.seriesName} <span className="font-normal" style={{ color: '#9ca3af' }}>({t.optional})</span>
+            <label className="text-sm font-medium block mb-1.5" style={{ color: '#202124' }}>
+              {t.seriesName} <span className="font-normal" style={{ color: '#80868b' }}>({t.optional})</span>
             </label>
-            <input type="text" value={f.seriesName} onChange={e => sF({...f, seriesName: e.target.value})} className="w-full px-3 py-2 border rounded-lg text-sm" style={{ borderColor: '#d1d5db' }} placeholder={t.seriesNamePlaceholder} />
+            <input type="text" value={f.seriesName} onChange={e => sF({...f, seriesName: e.target.value})} className="w-full px-3 py-2 border rounded-lg text-sm" style={{ borderColor: '#dadce0' }} placeholder={t.seriesNamePlaceholder} />
           </div>
 
           {/* Notatki — pod tytułem */}
           <div>
             <div className="flex items-center justify-between mb-1.5">
-              <label className="text-sm font-medium" style={{ color: '#111827' }}>{t.notes}</label>
-              {f.channel === 'sms' && <span className="text-xs font-medium" style={{ color: f.description.length > 160 ? '#ef4444' : f.description.length > 140 ? '#f59e0b' : '#9ca3af' }}>{f.description.length}/160</span>}
+              <label className="text-sm font-medium" style={{ color: '#202124' }}>{t.notes}</label>
+              {f.channel === 'sms' && <span className="text-xs font-medium" style={{ color: f.description.length > 160 ? '#ef4444' : f.description.length > 140 ? '#f59e0b' : '#80868b' }}>{f.description.length}/160</span>}
             </div>
             <textarea value={f.description} onChange={e => sF({...f, description: e.target.value})}
               className="w-full px-3 py-2 border rounded-lg text-sm resize-none"
-              style={{ borderColor: f.channel === 'sms' && f.description.length > 160 ? '#ef4444' : '#d1d5db' }}
+              style={{ borderColor: f.channel === 'sms' && f.description.length > 160 ? '#ef4444' : '#dadce0' }}
               rows={3} placeholder={f.channel === 'sms' ? (lang === 'en' ? 'SMS text (max 160 chars)...' : 'Treść SMS (max 160 znaków)...') : t.notesPlaceholder} />
             {f.channel === 'sms' && f.description.length > 160 && <p className="text-xs mt-1" style={{ color: '#ef4444' }}>{lang === 'en' ? `⚠ ${f.description.length - 160} chars over` : `⚠ ${f.description.length - 160} znaków ponad limit`}</p>}
           </div>
 
           {/* Typ */}
           <div>
-            <label className="text-sm font-medium block mb-1.5" style={{ color: '#111827' }}>{t.channel}</label>
+            <label className="text-sm font-medium block mb-1.5" style={{ color: '#202124' }}>{t.channel}</label>
             <div className="flex gap-1.5 flex-wrap">
-              {CHANNELS.map(ch => { const I = ch.icon; const on = f.channel === ch.id; return <button key={ch.id} type="button" onClick={() => chChange(ch.id)} className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium" style={{ background: on ? ch.bg : '#f3f4f6', color: on ? ch.color : '#6b7280', border: on ? `1.5px solid ${ch.color}` : '1.5px solid transparent' }}><I size={14} />{ch.name}</button>; })}
+              {CHANNELS.map(ch => { const I = ch.icon; const on = f.channel === ch.id; return <button key={ch.id} type="button" onClick={() => chChange(ch.id)} className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium" style={{ background: on ? ch.bg : '#f1f3f4', color: on ? ch.color : '#5f6368', border: on ? `1.5px solid ${ch.color}` : '1.5px solid transparent' }}><I size={14} />{ch.name}</button>; })}
             </div>
           </div>
 
@@ -351,8 +378,8 @@ function SendFormModal({ send, onSave, onClose, currentUser, teamMembers, t, lan
 
           {/* Rynek */}
           <div>
-            <label className="text-sm font-medium block mb-1.5" style={{ color: '#111827' }}>{t.market}</label>
-            <select value={f.market} onChange={e => sF({...f, market: e.target.value})} className="w-full px-3 py-2 border rounded-lg text-sm" style={{ borderColor: '#d1d5db' }}>
+            <label className="text-sm font-medium block mb-1.5" style={{ color: '#202124' }}>{t.market}</label>
+            <select value={f.market} onChange={e => sF({...f, market: e.target.value})} className="w-full px-3 py-2 border rounded-lg text-sm" style={{ borderColor: '#dadce0' }}>
               {MARKETS.map(m => <option key={m.id} value={m.id}>{m.icon} {lang==='en' ? m.nameEn : m.name}</option>)}
             </select>
           </div>
@@ -360,12 +387,12 @@ function SendFormModal({ send, onSave, onClose, currentUser, teamMembers, t, lan
           {/* Data + Godzina */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="text-sm font-medium block mb-1.5" style={{ color: '#111827' }}>{t.sendDate} *</label>
-              <input type="date" value={f.sendDate} onChange={e => sF({...f, sendDate: e.target.value})} className="w-full px-3 py-2 border rounded-lg text-sm" style={{ borderColor: '#d1d5db' }} />
+              <label className="text-sm font-medium block mb-1.5" style={{ color: '#202124' }}>{t.sendDate} *</label>
+              <input type="date" value={f.sendDate} onChange={e => sF({...f, sendDate: e.target.value})} className="w-full px-3 py-2 border rounded-lg text-sm" style={{ borderColor: '#dadce0' }} />
             </div>
             <div>
-              <label className="text-sm font-medium block mb-1.5" style={{ color: '#111827' }}>{t.sendTime}</label>
-              <input type="time" value={f.sendTime} onChange={e => sF({...f, sendTime: e.target.value})} className="w-full px-3 py-2 border rounded-lg text-sm" style={{ borderColor: '#d1d5db' }} />
+              <label className="text-sm font-medium block mb-1.5" style={{ color: '#202124' }}>{t.sendTime}</label>
+              <input type="time" value={f.sendTime} onChange={e => sF({...f, sendTime: e.target.value})} className="w-full px-3 py-2 border rounded-lg text-sm" style={{ borderColor: '#dadce0' }} />
             </div>
           </div>
 
@@ -374,25 +401,25 @@ function SendFormModal({ send, onSave, onClose, currentUser, teamMembers, t, lan
             <div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-sm font-medium block mb-1.5" style={{ color: '#111827' }}>{t.recurrence}</label>
-                  <select value={f.recurrence || ''} onChange={e => sF({...f, recurrence: e.target.value || null})} className="w-full px-3 py-2 border rounded-lg text-sm" style={{ borderColor: '#d1d5db' }}>
+                  <label className="text-sm font-medium block mb-1.5" style={{ color: '#202124' }}>{t.recurrence}</label>
+                  <select value={f.recurrence || ''} onChange={e => sF({...f, recurrence: e.target.value || null})} className="w-full px-3 py-2 border rounded-lg text-sm" style={{ borderColor: '#dadce0' }}>
                     {RECURRENCE_OPTIONS.map(r => <option key={r.id||'none'} value={r.id||''}>{lang==='en' ? r.nameEn : r.name}</option>)}
                   </select>
                 </div>
                 {f.recurrence && <div>
-                  <label className="text-sm font-medium block mb-1.5" style={{ color: '#111827' }}>{t.recurrenceEnd} <span className="font-normal" style={{ color: '#9ca3af' }}>({t.optional})</span></label>
-                  <input type="date" value={f.recurrenceEndDate||''} onChange={e => sF({...f, recurrenceEndDate: e.target.value})} className="w-full px-3 py-2 border rounded-lg text-sm" style={{ borderColor: '#d1d5db' }} />
+                  <label className="text-sm font-medium block mb-1.5" style={{ color: '#202124' }}>{t.recurrenceEnd} <span className="font-normal" style={{ color: '#80868b' }}>({t.optional})</span></label>
+                  <input type="date" value={f.recurrenceEndDate||''} onChange={e => sF({...f, recurrenceEndDate: e.target.value})} className="w-full px-3 py-2 border rounded-lg text-sm" style={{ borderColor: '#dadce0' }} />
                 </div>}
               </div>
-              {f.recurrence && !f.recurrenceEndDate && <p className="text-xs mt-1.5" style={{ color: '#9ca3af' }}>{t.noEndDefault}</p>}
+              {f.recurrence && !f.recurrenceEndDate && <p className="text-xs mt-1.5" style={{ color: '#80868b' }}>{t.noEndDefault}</p>}
             </div>
           )}
 
           {/* Status */}
           <div>
-            <label className="text-sm font-medium block mb-1.5" style={{ color: '#111827' }}>{t.status}</label>
+            <label className="text-sm font-medium block mb-1.5" style={{ color: '#202124' }}>{t.status}</label>
             <div className="flex gap-1.5 flex-wrap">
-              {STATUSES.map(s => { const I = s.icon; const on = f.status === s.id; return <button key={s.id} type="button" onClick={() => sF({...f, status: s.id})} className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium" style={{ background: on ? s.bg : '#f3f4f6', color: on ? s.color : '#6b7280', border: on ? `1.5px solid ${s.color}` : '1.5px solid transparent' }}><I size={12} />{lang==='en' ? s.nameEn : s.name}</button>; })}
+              {STATUSES.map(s => { const I = s.icon; const on = f.status === s.id; return <button key={s.id} type="button" onClick={() => sF({...f, status: s.id})} className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium" style={{ background: on ? s.bg : '#f1f3f4', color: on ? s.color : '#5f6368', border: on ? `1.5px solid ${s.color}` : '1.5px solid transparent' }}><I size={12} />{lang==='en' ? s.nameEn : s.name}</button>; })}
             </div>
           </div>
 
@@ -402,9 +429,9 @@ function SendFormModal({ send, onSave, onClose, currentUser, teamMembers, t, lan
           {/* Linki */}
           <LinksEditor links={f.links} onChange={links => sF({...f, links})} t={t} />
         </div>
-        <div className="p-5 border-t flex justify-end gap-3" style={{ borderColor: '#e5e7eb' }}>
-          <button onClick={onClose} className="px-5 py-2.5 rounded-lg text-sm font-medium hover:bg-gray-100" style={{ color: '#6b7280' }}>{t.cancel}</button>
-          <button onClick={save} disabled={!f.title.trim()||!f.sendDate} className="px-5 py-2.5 rounded-lg text-sm font-medium disabled:opacity-50" style={{ background: '#2563eb', color: 'white' }}>{t.save}</button>
+        <div className="p-5 border-t flex justify-end gap-3" style={{ borderColor: '#dadce0' }}>
+          <button onClick={onClose} className="px-5 py-2.5 rounded-lg text-sm font-medium hover:bg-gray-100" style={{ color: '#5f6368' }}>{t.cancel}</button>
+          <button onClick={save} disabled={!f.title.trim()||!f.sendDate} className="px-5 py-2.5 rounded-lg text-sm font-medium disabled:opacity-50" style={{ background: '#1a73e8', color: 'white' }}>{t.save}</button>
         </div>
       </div>
     </div>
@@ -441,25 +468,25 @@ function SendDetail({ send, onUpdate, onDelete, onEdit, onClose, onSelectSend, a
   }, [seriesSiblings, send.id]);
 
   return (
-    <aside className="w-full lg:w-[520px] bg-white border-l flex flex-col overflow-hidden flex-shrink-0 fixed lg:static inset-0 z-40 lg:z-auto" style={{ borderColor: '#e5e7eb' }}>
-      <div className="p-3 border-b flex items-center justify-between" style={{ borderColor: '#e5e7eb' }}>
+    <aside className="w-full lg:w-[520px] bg-white border-l flex flex-col overflow-hidden flex-shrink-0 fixed lg:static inset-0 z-40 lg:z-auto" style={{ borderColor: '#dadce0' }}>
+      <div className="p-3 border-b flex items-center justify-between" style={{ borderColor: '#dadce0' }}>
         <div className="flex items-center gap-2">
           <ChIcon size={18} style={{ color: ch?.color }} />
-          <span className="text-sm font-medium" style={{ color: '#111827' }}>{ch?.name}</span>
+          <span className="text-sm font-medium" style={{ color: '#202124' }}>{ch?.name}</span>
           <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: st?.bg, color: st?.color }}>{lang==='en' ? st?.nameEn : st?.name}</span>
           {(isPartOfSeries(send) || seriesSiblings.length > 0) && <Repeat size={13} style={{ color: '#7c3aed' }} />}
         </div>
         <div className="flex items-center gap-1">
-          <button onClick={() => onEdit(send)} className="p-1.5 rounded-full hover:bg-gray-100" style={{ color: '#6b7280' }}><Edit3 size={16} /></button>
-          <button onClick={() => onDelete(send)} className="p-1.5 rounded-full hover:bg-red-50" style={{ color: '#6b7280' }}><Trash2 size={16} /></button>
-          <button onClick={onClose} className="p-1.5 rounded-full hover:bg-gray-100" style={{ color: '#6b7280' }}><X size={16} /></button>
+          <button onClick={() => onEdit(send)} className="p-1.5 rounded-full hover:bg-gray-100" style={{ color: '#5f6368' }}><Edit3 size={16} /></button>
+          <button onClick={() => onDelete(send)} className="p-1.5 rounded-full hover:bg-red-50" style={{ color: '#5f6368' }}><Trash2 size={16} /></button>
+          <button onClick={onClose} className="p-1.5 rounded-full hover:bg-gray-100" style={{ color: '#5f6368' }}><X size={16} /></button>
         </div>
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {/* Title + Status dropdown */}
         <div className="flex items-start gap-3">
-          <h3 className="font-medium text-lg flex-1" style={{ color: '#111827' }}>{send.title}</h3>
+          <h3 className="font-medium text-lg flex-1" style={{ color: '#202124' }}>{send.title}</h3>
           <select value={send.status} onChange={e => onUpdate(send.id, { status: e.target.value })}
             className="text-xs px-2.5 py-1.5 border rounded-lg font-medium flex-shrink-0"
             style={{ borderColor: st?.color + '60', color: st?.color, background: st?.bg }}>
@@ -468,13 +495,13 @@ function SendDetail({ send, onUpdate, onDelete, onEdit, onClose, onSelectSend, a
         </div>
 
         {/* Info */}
-        <div className="space-y-3 p-3 rounded-lg" style={{ background: '#f8f9fa', border: '1px solid #e5e7eb' }}>
-          <Row label={t.sendDate}><span className="text-sm font-medium" style={{ color: isToday(send.sendDate)?'#2563eb':isPast(send.sendDate)?'#9ca3af':'#111827' }}>{fmtDisp(send.sendDate,lang)} · {fmtTime(send.sendTime)}</span></Row>
+        <div className="space-y-3 p-3 rounded-lg" style={{ background: '#f6f8fc', border: '1px solid #dadce0' }}>
+          <Row label={t.sendDate}><span className="text-sm font-medium" style={{ color: isToday(send.sendDate)?'#1a73e8':isPast(send.sendDate)?'#80868b':'#202124' }}>{fmtDisp(send.sendDate,lang)} · {fmtTime(send.sendTime)}</span></Row>
           <Row label={t.market}><span className="text-sm">{mk?.icon} {lang==='en'?mk?.nameEn:mk?.name}</span></Row>
           <Row label={t.tools}>
             <div className="flex flex-wrap gap-1 justify-end">
               {tools.map(tl => <span key={tl.id} className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: tl.color+'18', color: tl.color }}>{tl.name}</span>)}
-              {!tools.length && <span className="text-xs" style={{ color: '#9ca3af' }}>—</span>}
+              {!tools.length && <span className="text-xs" style={{ color: '#80868b' }}>—</span>}
             </div>
           </Row>
           {send.segment && <Row label={t.segment}><span className="text-sm">{send.segment}</span></Row>}
@@ -487,29 +514,29 @@ function SendDetail({ send, onUpdate, onDelete, onEdit, onClose, onSelectSend, a
         {assigned.length > 0 && (
           <div className="flex flex-wrap gap-1.5">
             {assigned.map(m => (
-              <div key={m.id} className="flex items-center gap-1.5 px-2.5 py-1 rounded-full" style={{ background: '#f3f4f6' }}>
+              <div key={m.id} className="flex items-center gap-1.5 px-2.5 py-1 rounded-full" style={{ background: '#f1f3f4' }}>
                 <div className="w-5 h-5 rounded-full flex items-center justify-center text-white text-xs font-medium" style={{ background: m.color }}>{getInitials(m.name)}</div>
-                <span className="text-xs" style={{ color: '#111827' }}>{m.name.split(' ')[0]}</span>
+                <span className="text-xs" style={{ color: '#202124' }}>{m.name.split(' ')[0]}</span>
               </div>
             ))}
           </div>
         )}
 
-        {send.subjectLine && <div><label className="text-xs font-medium block mb-1" style={{ color: '#6b7280' }}>{t.subjectLine}</label><div className="px-3 py-2 rounded-lg text-sm" style={{ background: '#f3f4f6' }}>{send.subjectLine}</div></div>}
+        {send.subjectLine && <div><label className="text-xs font-medium block mb-1" style={{ color: '#5f6368' }}>{t.subjectLine}</label><div className="px-3 py-2 rounded-lg text-sm" style={{ background: '#f1f3f4' }}>{send.subjectLine}</div></div>}
         <LinksDisplay links={send.links} />
 
         {/* Link do Taskera */}
-        <a href="/" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-blue-50 text-sm" style={{ color: '#2563eb', background: '#eff6ff', border: '1px solid #bfdbfe' }}>
+        <a href="/" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-blue-50 text-sm" style={{ color: '#1a73e8', background: '#e8f0fe', border: '1px solid #aecbfa' }}>
           <ExternalLink size={13} />
           <span>{lang==='en'?'Open Tasker':'Otwórz Tasker'}</span>
         </a>
 
         {send.description && <div>
           <div className="flex items-center justify-between mb-1">
-            <label className="text-xs font-medium" style={{ color: '#6b7280' }}>{t.notes}</label>
-            {send.channel === 'sms' && <span className="text-xs font-medium" style={{ color: send.description.length > 160 ? '#ef4444' : send.description.length > 140 ? '#f59e0b' : '#9ca3af' }}>{send.description.length}/160</span>}
+            <label className="text-xs font-medium" style={{ color: '#5f6368' }}>{t.notes}</label>
+            {send.channel === 'sms' && <span className="text-xs font-medium" style={{ color: send.description.length > 160 ? '#ef4444' : send.description.length > 140 ? '#f59e0b' : '#80868b' }}>{send.description.length}/160</span>}
           </div>
-          <div className="px-3 py-2 rounded-lg text-sm whitespace-pre-wrap" style={{ background: send.channel === 'sms' && send.description.length > 160 ? '#fef2f2' : '#f3f4f6', color: send.channel === 'sms' && send.description.length > 160 ? '#ef4444' : '#374151' }}>{send.description}</div>
+          <div className="px-3 py-2 rounded-lg text-sm whitespace-pre-wrap" style={{ background: send.channel === 'sms' && send.description.length > 160 ? '#fef2f2' : '#f1f3f4', color: send.channel === 'sms' && send.description.length > 160 ? '#ef4444' : '#3c4043' }}>{send.description}</div>
           {send.channel === 'sms' && send.description.length > 160 && <p className="text-xs mt-1" style={{ color: '#ef4444' }}>⚠ {send.description.length - 160} {lang==='en' ? 'chars over limit' : 'znaków ponad limit'}</p>}
         </div>}
 
@@ -531,7 +558,7 @@ function SendDetail({ send, onUpdate, onDelete, onEdit, onClose, onSelectSend, a
 }
 
 function Row({ label, children }) {
-  return <div className="flex items-center justify-between"><span className="text-xs font-medium" style={{ color: '#6b7280' }}>{label}</span>{children}</div>;
+  return <div className="flex items-center justify-between"><span className="text-xs font-medium" style={{ color: '#5f6368' }}>{label}</span>{children}</div>;
 }
 
 function SeriesTimeline({ items, currentId, totalCount, onSelect, onUpdate, t, lang }) {
@@ -573,7 +600,7 @@ function SeriesTimeline({ items, currentId, totalCount, onSelect, onUpdate, t, l
             <div key={item.id}
               className="rounded-lg border transition-all"
               style={{
-                borderColor: isCurrent ? '#7c3aed' : '#e5e7eb',
+                borderColor: isCurrent ? '#7c3aed' : '#dadce0',
                 background: isCurrent ? '#f5f3ff' : past ? '#fafafa' : 'white',
                 borderWidth: isCurrent ? '1.5px' : '0.5px',
               }}>
@@ -582,9 +609,9 @@ function SeriesTimeline({ items, currentId, totalCount, onSelect, onUpdate, t, l
                 <div className="flex-shrink-0">
                   {isSent ? <CheckCircle size={14} style={{ color: '#16a34a' }} /> :
                    isCurrent ? <div className="w-3 h-3 rounded-full" style={{ background: '#7c3aed' }} /> :
-                   <div className="w-3 h-3 rounded-full border-2" style={{ borderColor: past ? '#d1d5db' : '#7c3aed' }} />}
+                   <div className="w-3 h-3 rounded-full border-2" style={{ borderColor: past ? '#dadce0' : '#7c3aed' }} />}
                 </div>
-                <span className="text-xs font-medium flex-1" style={{ color: past && !isCurrent ? '#9ca3af' : '#111827' }}>
+                <span className="text-xs font-medium flex-1" style={{ color: past && !isCurrent ? '#80868b' : '#202124' }}>
                   {fmtDisp(item.sendDate, lang)}
                 </span>
                 {isCurrent && <span className="text-xs px-1.5 py-0.5 rounded-full font-medium" style={{ background: '#7c3aed', color: 'white' }}>
@@ -593,7 +620,7 @@ function SeriesTimeline({ items, currentId, totalCount, onSelect, onUpdate, t, l
                 {!isEditing && (
                   <button onClick={e => { e.stopPropagation(); startEdit(item); }}
                     className="p-1 rounded hover:bg-gray-100 opacity-0 group-hover:opacity-100"
-                    style={{ color: '#6b7280', opacity: isCurrent ? 1 : undefined }}>
+                    style={{ color: '#5f6368', opacity: isCurrent ? 1 : undefined }}>
                     <Edit3 size={12} />
                   </button>
                 )}
@@ -603,26 +630,26 @@ function SeriesTimeline({ items, currentId, totalCount, onSelect, onUpdate, t, l
               {isEditing ? (
                 <div className="px-3 pb-3 space-y-2" onClick={e => e.stopPropagation()}>
                   <div>
-                    <label className="text-xs font-medium block mb-1" style={{ color: '#6b7280' }}>{t.subjectLine}</label>
+                    <label className="text-xs font-medium block mb-1" style={{ color: '#5f6368' }}>{t.subjectLine}</label>
                     <input type="text" value={editSubject} onChange={e => setEditSubject(e.target.value)}
-                      className="w-full px-2.5 py-1.5 border rounded-lg text-sm" style={{ borderColor: '#d1d5db' }}
+                      className="w-full px-2.5 py-1.5 border rounded-lg text-sm" style={{ borderColor: '#dadce0' }}
                       placeholder={t.subjectPlaceholder} autoFocus />
                   </div>
                   <div>
-                    <label className="text-xs font-medium block mb-1" style={{ color: '#6b7280' }}>{lang==='en' ? 'Idea / outline' : 'Zarys / pomysł'}</label>
+                    <label className="text-xs font-medium block mb-1" style={{ color: '#5f6368' }}>{lang==='en' ? 'Idea / outline' : 'Zarys / pomysł'}</label>
                     <textarea value={editNotes} onChange={e => setEditNotes(e.target.value)}
-                      className="w-full px-2.5 py-1.5 border rounded-lg text-sm resize-none" style={{ borderColor: '#d1d5db' }}
+                      className="w-full px-2.5 py-1.5 border rounded-lg text-sm resize-none" style={{ borderColor: '#dadce0' }}
                       rows={2} placeholder={lang==='en' ? 'Brief idea for this send...' : 'Krótki zarys tej wysyłki...'} />
                   </div>
                   <div className="flex gap-2">
-                    <button onClick={saveEdit} className="flex-1 py-1.5 rounded-lg text-xs font-medium" style={{ background: '#2563eb', color: 'white' }}>{t.save}</button>
-                    <button onClick={cancelEdit} className="px-3 py-1.5 rounded-lg text-xs" style={{ color: '#6b7280' }}>{t.cancel}</button>
+                    <button onClick={saveEdit} className="flex-1 py-1.5 rounded-lg text-xs font-medium" style={{ background: '#1a73e8', color: 'white' }}>{t.save}</button>
+                    <button onClick={cancelEdit} className="px-3 py-1.5 rounded-lg text-xs" style={{ color: '#5f6368' }}>{t.cancel}</button>
                   </div>
                 </div>
               ) : (item.subjectLine || item.description) ? (
                 <div className="px-3 pb-2 pl-8">
-                  {item.subjectLine && <p className="text-xs font-medium truncate" style={{ color: past && !isCurrent ? '#bdc1c6' : '#374151' }}>✉ {item.subjectLine}</p>}
-                  {item.description && <p className="text-xs truncate mt-0.5" style={{ color: '#9ca3af' }}>{item.description}</p>}
+                  {item.subjectLine && <p className="text-xs font-medium truncate" style={{ color: past && !isCurrent ? '#bdc1c6' : '#3c4043' }}>✉ {item.subjectLine}</p>}
+                  {item.description && <p className="text-xs truncate mt-0.5" style={{ color: '#80868b' }}>{item.description}</p>}
                 </div>
               ) : null}
             </div>
@@ -654,22 +681,22 @@ function CalendarView({ sends, year, month, onSelectDay, onAddSend, onSelectSend
 
   return (
     <div className="relative">
-    <div className="bg-white rounded-xl border" style={{ borderColor: '#e5e7eb' }}>
-      <div className="grid grid-cols-7 border-b" style={{ borderColor: '#e5e7eb' }}>
-        {dayNames.map(d => <div key={d} className="text-center py-2.5 text-xs font-medium" style={{ color: '#6b7280' }}>{d}</div>)}
+    <div className="bg-white rounded-xl border" style={{ borderColor: '#dadce0' }}>
+      <div className="grid grid-cols-7 border-b" style={{ borderColor: '#dadce0' }}>
+        {dayNames.map(d => <div key={d} className="text-center py-2.5 text-xs font-medium" style={{ color: '#5f6368' }}>{d}</div>)}
       </div>
       <div className="grid grid-cols-7">
         {days.map((day, i) => {
           const ds = fmt(day.date); const ss = byDate[ds]||[]; const it = ds===todayStr; const iSel = ds===selectedDate;
           return (
             <div key={i} onClick={() => onSelectDay(ds)} className="group min-h-[90px] p-1 border-b border-r cursor-pointer transition-colors hover:bg-blue-50/30"
-              style={{ borderColor: '#f3f4f6', background: iSel?'#eff6ff':it?'#fefce8':!day.cur?'#fafafa':'white' }}>
+              style={{ borderColor: '#f1f3f4', background: iSel?'#e8f0fe':it?'#fefce8':!day.cur?'#fafafa':'white' }}>
               <div className="flex items-center justify-between px-1 mb-0.5">
                 <span className={`text-xs font-medium ${it?'w-5 h-5 rounded-full flex items-center justify-center':''}`}
-                  style={{ color: !day.cur?'#d1d5db':it?'white':'#111827', background: it?'#2563eb':'transparent' }}>
+                  style={{ color: !day.cur?'#dadce0':it?'white':'#202124', background: it?'#1a73e8':'transparent' }}>
                   {day.date.getDate()}
                 </span>
-                <button onClick={e => {e.stopPropagation();onAddSend(ds);}} className="w-4 h-4 rounded-full items-center justify-center hidden group-hover:flex" style={{ background: 'transparent', border: '1.5px solid #d1d5db', color: '#9ca3af', fontSize: '12px', lineHeight: '12px' }}>+</button>
+                <button onClick={e => {e.stopPropagation();onAddSend(ds);}} className="w-4 h-4 rounded-full items-center justify-center hidden group-hover:flex" style={{ background: 'transparent', border: '1.5px solid #dadce0', color: '#80868b', fontSize: '12px', lineHeight: '12px' }}>+</button>
               </div>
               <div className="space-y-0.5">
                 {ss.slice(0,3).map(s => {
@@ -678,14 +705,14 @@ function CalendarView({ sends, year, month, onSelectDay, onAddSend, onSelectSend
                   return (
                     <div key={s.id} onClick={e => {e.stopPropagation();onSelectSend(s);}}
                       className="flex items-center gap-1 px-1 py-0.5 rounded text-xs truncate cursor-pointer hover:bg-blue-50"
-                      style={{ color: s.status==='cancelled'?'#9ca3af':st?.color }}>
+                      style={{ color: s.status==='cancelled'?'#80868b':st?.color }}>
                       <span style={{ fontSize: '10px', textDecoration: s.status==='cancelled'?'line-through':'none' }}>
                         {MARKETS.find(m=>m.id===s.market)?.icon} {s.title}
                       </span>
                     </div>
                   );
                 })}
-                {ss.length > 3 && <button onClick={e => {e.stopPropagation(); setPopupDate(ds);}} className="px-1 py-0.5 rounded hover:bg-blue-100 cursor-pointer" style={{ fontSize: '10px', color: '#2563eb', fontWeight: 500 }}>+{ss.length-3} {lang==='en'?'more':'więcej'}</button>}
+                {ss.length > 3 && <button onClick={e => {e.stopPropagation(); setPopupDate(ds);}} className="px-1 py-0.5 rounded hover:bg-blue-100 cursor-pointer" style={{ fontSize: '10px', color: '#1a73e8', fontWeight: 500 }}>+{ss.length-3} {lang==='en'?'more':'więcej'}</button>}
               </div>
             </div>
           );
@@ -696,14 +723,14 @@ function CalendarView({ sends, year, month, onSelectDay, onAddSend, onSelectSend
     {/* Day popup */}
     {popupDate && popupSends.length > 0 && (
       <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50" onClick={() => setPopupDate(null)}>
-        <div ref={popupRef} className="bg-white rounded-xl w-full max-w-md max-h-[70vh] overflow-hidden" style={{ boxShadow: '0 24px 38px 3px rgba(0,0,0,.14)' }} onClick={e => e.stopPropagation()}>
-          <div className="px-4 py-3 border-b flex items-center justify-between" style={{ borderColor: '#e5e7eb', background: '#f8f9fa' }}>
+        <div ref={popupRef} className="bg-white rounded-xl w-full max-w-md max-h-[70vh] overflow-hidden" style={{ boxShadow: '0 1px 3px 0 rgba(60,64,67,.3), 0 4px 8px 3px rgba(60,64,67,.15)' }} onClick={e => e.stopPropagation()}>
+          <div className="px-4 py-3 border-b flex items-center justify-between" style={{ borderColor: '#dadce0', background: '#f6f8fc' }}>
             <div className="flex items-center gap-2">
-              <Calendar size={16} style={{ color: '#2563eb' }} />
-              <span className="text-sm font-semibold" style={{ color: '#111827' }}>{fmtDisp(popupDate, lang)}</span>
-              <span className="text-xs px-1.5 py-0.5 rounded-full" style={{ background: '#eff6ff', color: '#2563eb' }}>{popupSends.length}</span>
+              <Calendar size={16} style={{ color: '#1a73e8' }} />
+              <span className="text-sm font-semibold" style={{ color: '#202124' }}>{fmtDisp(popupDate, lang)}</span>
+              <span className="text-xs px-1.5 py-0.5 rounded-full" style={{ background: '#e8f0fe', color: '#1a73e8' }}>{popupSends.length}</span>
             </div>
-            <button onClick={() => setPopupDate(null)} className="p-1 rounded-full hover:bg-gray-200" style={{ color: '#6b7280' }}><X size={16} /></button>
+            <button onClick={() => setPopupDate(null)} className="p-1 rounded-full hover:bg-gray-200" style={{ color: '#5f6368' }}><X size={16} /></button>
           </div>
           <div className="overflow-y-auto p-2" style={{ maxHeight: '60vh' }}>
             {popupSends.map(s => {
@@ -723,12 +750,12 @@ function CalendarView({ sends, year, month, onSelectDay, onAddSend, onSelectSend
                   </div>
                   <span className="text-sm flex-shrink-0">{mk?.icon}</span>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate" style={{ color: s.status==='cancelled'?'#9ca3af':'#111827', textDecoration: s.status==='cancelled'?'line-through':'none' }}>{s.title}</p>
-                    {s.subjectLine && <p className="text-xs truncate" style={{ color: '#9ca3af' }}>✉ {s.subjectLine}</p>}
+                    <p className="text-sm font-medium truncate" style={{ color: s.status==='cancelled'?'#80868b':'#202124', textDecoration: s.status==='cancelled'?'line-through':'none' }}>{s.title}</p>
+                    {s.subjectLine && <p className="text-xs truncate" style={{ color: '#80868b' }}>✉ {s.subjectLine}</p>}
                   </div>
                   <div className="flex items-center gap-1 flex-shrink-0">
                     {tools.slice(0,1).map(tl => <span key={tl.id} className="text-xs px-1.5 py-0.5 rounded-full font-medium" style={{ background: tl.color+'18', color: tl.color }}>{tl.name}</span>)}
-                    <span className="text-xs" style={{ color: '#9ca3af' }}>{fmtTime(s.sendTime)}</span>
+                    <span className="text-xs" style={{ color: '#80868b' }}>{fmtTime(s.sendTime)}</span>
                   </div>
                 </button>
               );
@@ -765,7 +792,7 @@ function ListView({ sends, onSelectSend, selectedId, teamMembers, t, lang }) {
       });
   }, [sends]);
 
-  if (!sends.length) return <div className="text-center py-16"><Calendar size={48} className="mx-auto mb-4" style={{ color: '#d1d5db' }} /><p style={{ color: '#6b7280' }}>{t.noSends}</p></div>;
+  if (!sends.length) return <div className="text-center py-16"><Calendar size={48} className="mx-auto mb-4" style={{ color: '#dadce0' }} /><p style={{ color: '#5f6368' }}>{t.noSends}</p></div>;
 
   return (
     <div>
@@ -773,12 +800,12 @@ function ListView({ sends, onSelectSend, selectedId, teamMembers, t, lang }) {
       <div className="flex items-center gap-1 mb-3">
         <button onClick={() => setGroupMode('date')}
           className="flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium"
-          style={{ background: groupMode==='date'?'#eff6ff':'transparent', color: groupMode==='date'?'#2563eb':'#6b7280' }}>
+          style={{ background: groupMode==='date'?'#e8f0fe':'transparent', color: groupMode==='date'?'#1a73e8':'#5f6368' }}>
           <Calendar size={12} /> {t.groupByDate}
         </button>
         <button onClick={() => setGroupMode('series')}
           className="flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium"
-          style={{ background: groupMode==='series'?'#f5f3ff':'transparent', color: groupMode==='series'?'#7c3aed':'#6b7280' }}>
+          style={{ background: groupMode==='series'?'#f5f3ff':'transparent', color: groupMode==='series'?'#7c3aed':'#5f6368' }}>
           <Repeat size={12} /> {t.groupBySeries}
         </button>
       </div>
@@ -788,8 +815,8 @@ function ListView({ sends, onSelectSend, selectedId, teamMembers, t, lang }) {
           {groupedByDate.map(([date, ss]) => (
             <div key={date}>
               <div className="flex items-center gap-2 mb-2 px-1">
-                <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={{ background: isToday(date)?'#2563eb':'#f3f4f6', color: isToday(date)?'white':isPast(date)?'#9ca3af':'#111827' }}>{fmtDisp(date,lang)}</span>
-                {isToday(date) && <span className="text-xs font-medium" style={{ color: '#2563eb' }}>{t.today}</span>}
+                <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={{ background: isToday(date)?'#1a73e8':'#f1f3f4', color: isToday(date)?'white':isPast(date)?'#80868b':'#202124' }}>{fmtDisp(date,lang)}</span>
+                {isToday(date) && <span className="text-xs font-medium" style={{ color: '#1a73e8' }}>{t.today}</span>}
               </div>
               <div className="space-y-px">
                 {ss.map(s => <SendRow key={s.id} s={s} onSelectSend={onSelectSend} selectedId={selectedId} teamMembers={teamMembers} showDate={false} lang={lang} />)}
@@ -809,8 +836,8 @@ function ListView({ sends, onSelectSend, selectedId, teamMembers, t, lang }) {
                   <Repeat size={13} style={{ color: '#7c3aed' }} />
                   <span className="text-xs font-semibold" style={{ color: '#7c3aed' }}>{name}</span>
                   {mk && <span className="text-xs">{mk.icon}</span>}
-                  <span className="text-xs px-1.5 py-0.5 rounded-full" style={{ background: '#f3f4f6', color: '#6b7280' }}>{sentCount}/{ss.length}</span>
-                  {futureCount > 0 && <span className="text-xs" style={{ color: '#9ca3af' }}>{futureCount} {lang==='en'?'upcoming':'nadchodzących'}</span>}
+                  <span className="text-xs px-1.5 py-0.5 rounded-full" style={{ background: '#f1f3f4', color: '#5f6368' }}>{sentCount}/{ss.length}</span>
+                  {futureCount > 0 && <span className="text-xs" style={{ color: '#80868b' }}>{futureCount} {lang==='en'?'upcoming':'nadchodzących'}</span>}
                 </div>
                 <div className="space-y-px">
                   {ss.map(s => <SendRow key={s.id} s={s} onSelectSend={onSelectSend} selectedId={selectedId} teamMembers={teamMembers} showDate={true} lang={lang} />)}
@@ -831,17 +858,17 @@ function SendRow({ s, onSelectSend, selectedId, teamMembers, showDate, lang }) {
   const assigned = (s.assignees||[]).map(id => teamMembers.find(m=>m.id===id)).filter(Boolean);
   return (
     <div onClick={() => onSelectSend(s)} className="rounded-lg px-3 py-1.5 cursor-pointer flex items-center gap-2 transition-all duration-100"
-      style={{ borderWidth: '0.5px', borderStyle: 'solid', borderColor: selectedId===s.id?'#3b82f6':'#eef0f2', background: selectedId===s.id?'#fafbff':'white', opacity: s.status==='cancelled'?0.5:1, boxShadow: selectedId===s.id?'0 0 0 1px rgba(59,130,246,0.1)':'none' }}
-      onMouseEnter={e => { if (selectedId!==s.id) { e.currentTarget.style.borderColor='#d5d9dd'; e.currentTarget.style.background='#fafbfc'; }}}
-      onMouseLeave={e => { if (selectedId!==s.id) { e.currentTarget.style.borderColor='#eef0f2'; e.currentTarget.style.background='white'; }}}>
+      style={{ borderWidth: '0.5px', borderStyle: 'solid', borderColor: selectedId===s.id?'#3b82f6':'#e8eaed', background: selectedId===s.id?'#fafbff':'white', opacity: s.status==='cancelled'?0.5:1, boxShadow: selectedId===s.id?'0 0 0 1px rgba(59,130,246,0.1)':'none' }}
+      onMouseEnter={e => { if (selectedId!==s.id) { e.currentTarget.style.borderColor='#dadce0'; e.currentTarget.style.background='#fafbfc'; }}}
+      onMouseLeave={e => { if (selectedId!==s.id) { e.currentTarget.style.borderColor='#e8eaed'; e.currentTarget.style.background='white'; }}}>
       <StI size={14} style={{ color: st?.color }} className={s.status==='sent'?'fill-current':''} />
       <div className="w-5 h-5 rounded flex items-center justify-center" style={{ background: ch?.bg }}><ChI size={11} style={{ color: ch?.color }} /></div>
       <span className="text-sm">{mk?.icon}</span>
       <div className="flex-1 min-w-0">
-        <h4 className="truncate" style={{ fontSize: '13px', fontWeight: 450, letterSpacing: '-0.01em', color: s.status==='cancelled'?'#9ca3af':'#1a1d21', textDecoration: s.status==='cancelled'?'line-through':'none' }}>{s.title}</h4>
-        {s.subjectLine && <p className="truncate" style={{ fontSize: '11px', color: '#9ca3af' }}>✉ {s.subjectLine}</p>}
+        <h4 className="truncate" style={{ fontSize: '13px', fontWeight: 450, letterSpacing: '-0.01em', color: s.status==='cancelled'?'#80868b':'#202124', textDecoration: s.status==='cancelled'?'line-through':'none' }}>{s.title}</h4>
+        {s.subjectLine && <p className="truncate" style={{ fontSize: '11px', color: '#80868b' }}>✉ {s.subjectLine}</p>}
       </div>
-      {showDate && <span className="whitespace-nowrap flex-shrink-0" style={{ fontSize: '10.5px', color: isToday(s.sendDate)?'#2563eb':isPast(s.sendDate)?'#9ca3af':'#1a1d21' }}>{fmtDisp(s.sendDate,lang)}</span>}
+      {showDate && <span className="whitespace-nowrap flex-shrink-0" style={{ fontSize: '10.5px', color: isToday(s.sendDate)?'#1a73e8':isPast(s.sendDate)?'#80868b':'#202124' }}>{fmtDisp(s.sendDate,lang)}</span>}
       <div className="flex items-center gap-1">
         {tools.slice(0,2).map(tl => <span key={tl.id} className="rounded-full hidden sm:inline" style={{ fontSize: '10.5px', padding: '1px 7px', background: tl.color+'15', color: tl.color, fontWeight: 500 }}>{tl.name}</span>)}
       </div>
@@ -868,7 +895,7 @@ function LoginScreen({ onLogin, teamMembers }) {
     } catch { setErr('Błąd połączenia'); }
     setLd(false);
   };
-  return <div className="min-h-screen flex items-center justify-center p-4" style={{ background: '#f8f9fa' }}><div className="bg-white rounded-xl p-8 w-full max-w-sm" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}><div className="text-center mb-6"><h1 className="text-xl font-semibold" style={{ color: '#111827' }}>📬 Send Planner</h1><p className="text-sm mt-1" style={{ color: '#6b7280' }}>Email · SMS · WhatsApp · Infomeetings</p></div><form onSubmit={hl} className="space-y-4">{err && <div className="p-3 rounded-lg text-sm text-center" style={{ background: '#fef2f2', color: '#dc2626' }}>{err}</div>}<div><label className="block text-sm font-medium mb-1.5" style={{ color: '#111827' }}>Login</label><input type="text" value={su} onChange={e => { setSu(e.target.value); setErr(''); }} className="w-full px-4 py-3 border rounded-lg text-sm" style={{ borderColor: '#d1d5db' }} placeholder="Login" autoComplete="username" autoFocus /></div><div><label className="block text-sm font-medium mb-1.5" style={{ color: '#111827' }}>PIN</label><input type="password" value={pin} onChange={e => { setPin(e.target.value.replace(/\D/g, '').slice(0, 4)); setErr(''); }} className="w-full px-4 py-3 border rounded-lg text-sm text-center tracking-widest" style={{ borderColor: '#d1d5db' }} placeholder="••••" maxLength={4} inputMode="numeric" autoComplete="current-password" /></div><button type="submit" disabled={ld} className="w-full py-3 rounded-lg font-medium flex items-center justify-center gap-2 disabled:opacity-70" style={{ background: '#2563eb', color: 'white' }}>{ld ? <Loader2 size={18} className="animate-spin" /> : <Lock size={18} />}{ld ? '...' : 'Zaloguj się'}</button></form></div></div>;
+  return <div className="min-h-screen flex items-center justify-center p-4" style={{ background: '#f6f8fc' }}><div className="bg-white rounded-xl p-8 w-full max-w-sm" style={{ boxShadow: '0 1px 2px 0 rgba(60,64,67,.3), 0 2px 6px 2px rgba(60,64,67,.15)' }}><div className="text-center mb-6"><h1 className="text-xl font-semibold" style={{ color: '#202124' }}>📬 Send Planner</h1><p className="text-sm mt-1" style={{ color: '#5f6368' }}>Email · SMS · WhatsApp · Infomeetings</p></div><form onSubmit={hl} className="space-y-4">{err && <div className="p-3 rounded-lg text-sm text-center" style={{ background: '#fef2f2', color: '#dc2626' }}>{err}</div>}<div><label className="block text-sm font-medium mb-1.5" style={{ color: '#202124' }}>Login</label><input type="text" value={su} onChange={e => { setSu(e.target.value); setErr(''); }} className="w-full px-4 py-3 border rounded-lg text-sm" style={{ borderColor: '#dadce0' }} placeholder="Login" autoComplete="username" autoFocus /></div><div><label className="block text-sm font-medium mb-1.5" style={{ color: '#202124' }}>PIN</label><input type="password" value={pin} onChange={e => { setPin(e.target.value.replace(/\D/g, '').slice(0, 4)); setErr(''); }} className="w-full px-4 py-3 border rounded-lg text-sm text-center tracking-widest" style={{ borderColor: '#dadce0' }} placeholder="••••" maxLength={4} inputMode="numeric" autoComplete="current-password" /></div><button type="submit" disabled={ld} className="w-full py-3 rounded-lg font-medium flex items-center justify-center gap-2 disabled:opacity-70" style={{ background: '#1a73e8', color: 'white' }}>{ld ? <Loader2 size={18} className="animate-spin" /> : <Lock size={18} />}{ld ? '...' : 'Zaloguj się'}</button></form></div></div>;
 }
 
 
@@ -928,24 +955,24 @@ function ExportModal({ sends, onClose, t, lang }) {
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
-      <div className="bg-white rounded-xl w-full max-w-md max-h-[90vh] overflow-y-auto" style={{ boxShadow: '0 24px 38px 3px rgba(0,0,0,.14)' }} onClick={e => e.stopPropagation()}>
-        <div className="p-5 border-b flex items-center justify-between" style={{ borderColor: '#e5e7eb' }}>
-          <h3 className="text-lg font-medium" style={{ color: '#111827' }}>{t.exportTitle}</h3>
-          <button onClick={onClose} style={{ color: '#6b7280' }}><X size={20} /></button>
+      <div className="bg-white rounded-xl w-full max-w-md max-h-[90vh] overflow-y-auto" style={{ boxShadow: '0 1px 3px 0 rgba(60,64,67,.3), 0 4px 8px 3px rgba(60,64,67,.15)' }} onClick={e => e.stopPropagation()}>
+        <div className="p-5 border-b flex items-center justify-between" style={{ borderColor: '#dadce0' }}>
+          <h3 className="text-lg font-medium" style={{ color: '#202124' }}>{t.exportTitle}</h3>
+          <button onClick={onClose} style={{ color: '#5f6368' }}><X size={20} /></button>
         </div>
         <div className="p-5 space-y-4">
           {/* Markets */}
           <div>
             <div className="flex items-center justify-between mb-2">
-              <label className="text-sm font-medium" style={{ color: '#111827' }}>{t.exportMarkets}</label>
-              <button onClick={() => toggleAll(selMarkets, setSelMarkets, MARKETS.map(m => m.id))} className="text-xs" style={{ color: '#2563eb' }}>{t.exportAll}</button>
+              <label className="text-sm font-medium" style={{ color: '#202124' }}>{t.exportMarkets}</label>
+              <button onClick={() => toggleAll(selMarkets, setSelMarkets, MARKETS.map(m => m.id))} className="text-xs" style={{ color: '#1a73e8' }}>{t.exportAll}</button>
             </div>
             <div className="flex flex-wrap gap-1.5">
               {MARKETS.map(m => {
                 const on = selMarkets.includes(m.id);
                 return <button key={m.id} type="button" onClick={() => toggleArr(selMarkets, setSelMarkets, m.id)}
                   className="flex items-center gap-1 px-2.5 py-1.5 rounded-full text-xs font-medium border"
-                  style={{ borderColor: on ? '#2563eb' : '#d1d5db', background: on ? '#eff6ff' : 'white', color: on ? '#2563eb' : '#6b7280' }}>
+                  style={{ borderColor: on ? '#1a73e8' : '#dadce0', background: on ? '#e8f0fe' : 'white', color: on ? '#1a73e8' : '#5f6368' }}>
                   {m.icon} {lang === 'en' ? m.nameEn : m.name} {on && <Check size={12} />}
                 </button>;
               })}
@@ -955,15 +982,15 @@ function ExportModal({ sends, onClose, t, lang }) {
           {/* Statuses */}
           <div>
             <div className="flex items-center justify-between mb-2">
-              <label className="text-sm font-medium" style={{ color: '#111827' }}>{t.exportStatuses}</label>
-              <button onClick={() => toggleAll(selStatuses, setSelStatuses, STATUSES.map(s => s.id))} className="text-xs" style={{ color: '#2563eb' }}>{t.exportAll}</button>
+              <label className="text-sm font-medium" style={{ color: '#202124' }}>{t.exportStatuses}</label>
+              <button onClick={() => toggleAll(selStatuses, setSelStatuses, STATUSES.map(s => s.id))} className="text-xs" style={{ color: '#1a73e8' }}>{t.exportAll}</button>
             </div>
             <div className="flex flex-wrap gap-1.5">
               {STATUSES.map(st => {
                 const on = selStatuses.includes(st.id);
                 return <button key={st.id} type="button" onClick={() => toggleArr(selStatuses, setSelStatuses, st.id)}
                   className="flex items-center gap-1 px-2.5 py-1.5 rounded-full text-xs font-medium border"
-                  style={{ borderColor: on ? st.color : '#d1d5db', background: on ? st.bg : 'white', color: on ? st.color : '#6b7280' }}>
+                  style={{ borderColor: on ? st.color : '#dadce0', background: on ? st.bg : 'white', color: on ? st.color : '#5f6368' }}>
                   {lang === 'en' ? st.nameEn : st.name} {on && <Check size={12} />}
                 </button>;
               })}
@@ -973,15 +1000,15 @@ function ExportModal({ sends, onClose, t, lang }) {
           {/* Channels */}
           <div>
             <div className="flex items-center justify-between mb-2">
-              <label className="text-sm font-medium" style={{ color: '#111827' }}>{t.exportChannels}</label>
-              <button onClick={() => toggleAll(selChannels, setSelChannels, CHANNELS.map(c => c.id))} className="text-xs" style={{ color: '#2563eb' }}>{t.exportAll}</button>
+              <label className="text-sm font-medium" style={{ color: '#202124' }}>{t.exportChannels}</label>
+              <button onClick={() => toggleAll(selChannels, setSelChannels, CHANNELS.map(c => c.id))} className="text-xs" style={{ color: '#1a73e8' }}>{t.exportAll}</button>
             </div>
             <div className="flex flex-wrap gap-1.5">
               {CHANNELS.map(ch => {
                 const on = selChannels.includes(ch.id);
                 return <button key={ch.id} type="button" onClick={() => toggleArr(selChannels, setSelChannels, ch.id)}
                   className="flex items-center gap-1 px-2.5 py-1.5 rounded-full text-xs font-medium border"
-                  style={{ borderColor: on ? ch.color : '#d1d5db', background: on ? ch.bg : 'white', color: on ? ch.color : '#6b7280' }}>
+                  style={{ borderColor: on ? ch.color : '#dadce0', background: on ? ch.bg : 'white', color: on ? ch.color : '#5f6368' }}>
                   {ch.name} {on && <Check size={12} />}
                 </button>;
               })}
@@ -990,24 +1017,24 @@ function ExportModal({ sends, onClose, t, lang }) {
 
           {/* Date range */}
           <div>
-            <label className="text-sm font-medium block mb-2" style={{ color: '#111827' }}>{t.exportRange}</label>
+            <label className="text-sm font-medium block mb-2" style={{ color: '#202124' }}>{t.exportRange}</label>
             <div className="flex items-center gap-2">
-              <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="flex-1 px-3 py-2 border rounded-lg text-sm" style={{ borderColor: '#d1d5db' }} />
-              <span className="text-xs" style={{ color: '#9ca3af' }}>–</span>
-              <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="flex-1 px-3 py-2 border rounded-lg text-sm" style={{ borderColor: '#d1d5db' }} />
+              <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="flex-1 px-3 py-2 border rounded-lg text-sm" style={{ borderColor: '#dadce0' }} />
+              <span className="text-xs" style={{ color: '#80868b' }}>–</span>
+              <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="flex-1 px-3 py-2 border rounded-lg text-sm" style={{ borderColor: '#dadce0' }} />
             </div>
           </div>
 
           {/* Preview count */}
-          <div className="px-4 py-3 rounded-lg text-center" style={{ background: '#f8f9fa', border: '1px solid #e5e7eb' }}>
-            <span className="text-2xl font-bold" style={{ color: '#2563eb' }}>{filtered.length}</span>
-            <span className="text-sm ml-2" style={{ color: '#6b7280' }}>{lang === 'en' ? 'sends to export' : 'wysyłek do eksportu'}</span>
+          <div className="px-4 py-3 rounded-lg text-center" style={{ background: '#f6f8fc', border: '1px solid #dadce0' }}>
+            <span className="text-2xl font-bold" style={{ color: '#1a73e8' }}>{filtered.length}</span>
+            <span className="text-sm ml-2" style={{ color: '#5f6368' }}>{lang === 'en' ? 'sends to export' : 'wysyłek do eksportu'}</span>
           </div>
         </div>
 
-        <div className="p-5 border-t flex justify-end gap-3" style={{ borderColor: '#e5e7eb' }}>
-          <button onClick={onClose} className="px-5 py-2.5 rounded-lg text-sm font-medium hover:bg-gray-100" style={{ color: '#6b7280' }}>{t.cancel}</button>
-          <button onClick={downloadCSV} disabled={filtered.length === 0} className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium disabled:opacity-50" style={{ background: '#2563eb', color: 'white' }}>
+        <div className="p-5 border-t flex justify-end gap-3" style={{ borderColor: '#dadce0' }}>
+          <button onClick={onClose} className="px-5 py-2.5 rounded-lg text-sm font-medium hover:bg-gray-100" style={{ color: '#5f6368' }}>{t.cancel}</button>
+          <button onClick={downloadCSV} disabled={filtered.length === 0} className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium disabled:opacity-50" style={{ background: '#1a73e8', color: 'white' }}>
             <Download size={16} /> {t.exportDownload}
           </button>
         </div>
@@ -1195,9 +1222,9 @@ export default function PlannerPage() {
   const goToday = () => { setCalYear(now.getFullYear()); setCalMonth(now.getMonth()); };
   const months = lang==='en' ? MONTHS_EN : MONTHS_PL;
 
-  if (checkingAuth || loadingTeam) return <div className="min-h-screen flex items-center justify-center" style={{ background: '#f8f9fa' }}><Loader2 size={32} className="animate-spin" style={{ color: '#2563eb' }} /></div>;
+  if (checkingAuth || loadingTeam) return <div className="min-h-screen flex items-center justify-center" style={{ background: '#f6f8fc' }}><Loader2 size={32} className="animate-spin" style={{ color: '#1a73e8' }} /></div>;
   if (!currentUser) return <LoginScreen onLogin={setCurrentUser} teamMembers={teamMembers} />;
-  if (loading) return <div className="min-h-screen flex items-center justify-center" style={{ background: '#f8f9fa', color: '#6b7280' }}>{t.loading}</div>;
+  if (loading) return <div className="min-h-screen flex items-center justify-center" style={{ background: '#f6f8fc', color: '#5f6368' }}>{t.loading}</div>;
 
   const marketCounts = {};
   MARKETS.forEach(m => { marketCounts[m.id] = sends.filter(s => s.market === m.id).length; });
@@ -1209,27 +1236,27 @@ export default function PlannerPage() {
   TOOLS.forEach(tl => { toolCounts[tl.id] = sends.filter(s => (s.tools || []).includes(tl.id)).length; });
 
   return (
-    <div className="min-h-screen flex" style={{ background: '#f9fafb' }}>
+    <div className="min-h-screen flex" style={{ background: '#f6f8fc' }}>
       {sidebarOpen && <div className="fixed inset-0 bg-black/50 z-30 lg:hidden" onClick={() => setSidebarOpen(false)} />}
-      <aside className={`w-52 flex flex-col min-h-screen flex-shrink-0 bg-white fixed lg:static z-30 transition-transform lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`} style={{ borderRight: '0.5px solid #e5e7eb' }}>
-        <div className="p-3 border-b" style={{ borderColor: '#e5e7eb' }}>
-          <h1 className="text-sm font-semibold" style={{ color: '#111827' }}>📬 {t.planner}</h1>
+      <aside className={`w-52 flex flex-col min-h-screen flex-shrink-0 bg-white fixed lg:static z-30 transition-transform lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`} style={{ borderRight: '0.5px solid #dadce0' }}>
+        <div className="p-3 border-b" style={{ borderColor: '#dadce0' }}>
+          <h1 className="text-sm font-semibold" style={{ color: '#202124' }}>📬 {t.planner}</h1>
         </div>
 
         <div className="flex-1 overflow-y-auto px-2 py-1.5 space-y-0.5">
           {/* Markets — always visible, compact */}
           <div>
-            <p className="text-xs font-medium px-2 mb-0.5 mt-1" style={{ color: '#9ca3af' }}>{t.market}</p>
-            <SideBtn active={filterMarket==='all'} color="#2563eb" bg="#eff6ff" onClick={() => setFilterMarket('all')} label={t.allMarkets} count={sends.length} />
-            {MARKETS.map(m => <SideBtn key={m.id} active={filterMarket===m.id} color="#2563eb" bg="#eff6ff" onClick={() => setFilterMarket(m.id)} label={`${m.icon} ${lang==='en'?m.nameEn:m.name}`} count={marketCounts[m.id]||0} dot />)}
+            <p className="text-xs font-medium px-2 mb-0.5 mt-1" style={{ color: '#80868b' }}>{t.market}</p>
+            <SideBtn active={filterMarket==='all'} color="#1a73e8" bg="#e8f0fe" onClick={() => setFilterMarket('all')} label={t.allMarkets} count={sends.length} />
+            {MARKETS.map(m => <SideBtn key={m.id} active={filterMarket===m.id} color="#1a73e8" bg="#e8f0fe" onClick={() => setFilterMarket(m.id)} label={`${m.icon} ${lang==='en'?m.nameEn:m.name}`} count={marketCounts[m.id]||0} dot />)}
           </div>
 
-          <div style={{ height: '0.5px', background: '#e5e7eb', margin: '4px 8px' }} />
+          <div style={{ height: '0.5px', background: '#dadce0', margin: '4px 8px' }} />
 
           {/* Channel + Tool combined */}
           <div>
-            <p className="text-xs font-medium px-2 mb-0.5" style={{ color: '#9ca3af' }}>{t.channel}</p>
-            <SideBtn active={filterChannel==='all' && filterTool==='all'} color="#2563eb" bg="#eff6ff" onClick={() => { setFilterChannel('all'); setFilterTool('all'); }} label={lang==='en'?'All':'Wszystkie'} count={sends.length} />
+            <p className="text-xs font-medium px-2 mb-0.5" style={{ color: '#80868b' }}>{t.channel}</p>
+            <SideBtn active={filterChannel==='all' && filterTool==='all'} color="#1a73e8" bg="#e8f0fe" onClick={() => { setFilterChannel('all'); setFilterTool('all'); }} label={lang==='en'?'All':'Wszystkie'} count={sends.length} />
             {CHANNELS.map(c => {
               const isChActive = filterChannel === c.id;
               const chTools = TOOLS.filter(tl => tl.channel === c.id);
@@ -1238,7 +1265,7 @@ export default function PlannerPage() {
                 {isChActive && chTools.length > 1 && chTools.map(tl => 
                   <button key={tl.id} onClick={() => setFilterTool(tl.id)}
                     className="w-full flex items-center justify-between pl-7 pr-2.5 py-0.5 rounded-md text-xs"
-                    style={{ background: filterTool===tl.id ? tl.color+'18' : 'transparent', color: filterTool===tl.id ? tl.color : '#9ca3af', fontWeight: filterTool===tl.id ? 500 : 400 }}>
+                    style={{ background: filterTool===tl.id ? tl.color+'18' : 'transparent', color: filterTool===tl.id ? tl.color : '#80868b', fontWeight: filterTool===tl.id ? 500 : 400 }}>
                     <span>{tl.name}</span>
                     <span style={{ fontSize: '10px' }}>{toolCounts[tl.id]||0}</span>
                   </button>
@@ -1247,55 +1274,55 @@ export default function PlannerPage() {
             })}
           </div>
 
-          <div style={{ height: '0.5px', background: '#e5e7eb', margin: '4px 8px' }} />
+          <div style={{ height: '0.5px', background: '#dadce0', margin: '4px 8px' }} />
 
           {/* Status — compact pills */}
           <div>
-            <p className="text-xs font-medium px-2 mb-0.5" style={{ color: '#9ca3af' }}>{t.status}</p>
-            <SideBtn active={filterStatus==='all'} color="#2563eb" bg="#eff6ff" onClick={() => setFilterStatus('all')} label={lang==='en'?'All':'Wszystkie'} count={sends.length} />
+            <p className="text-xs font-medium px-2 mb-0.5" style={{ color: '#80868b' }}>{t.status}</p>
+            <SideBtn active={filterStatus==='all'} color="#1a73e8" bg="#e8f0fe" onClick={() => setFilterStatus('all')} label={lang==='en'?'All':'Wszystkie'} count={sends.length} />
             {STATUSES.map(s => <SideBtn key={s.id} active={filterStatus===s.id} color={s.color} bg={s.bg} onClick={() => setFilterStatus(s.id)} label={lang==='en'?s.nameEn:s.name} count={statusCounts[s.id]||0} dot />)}
           </div>
         </div>
 
-        <div className="px-3 py-2" style={{ borderTop: '0.5px solid #e5e7eb' }}>
+        <div className="px-3 py-2" style={{ borderTop: '0.5px solid #dadce0' }}>
           <div className="space-y-1">
-            <a href="https://mailingi2.vercel.app/" className="text-xs px-2.5 py-1.5 rounded-md hover:bg-gray-100 flex items-center gap-1.5" style={{ color: '#6b7280' }}>✉ {lang==='en'?'Mail Generator':'Generator maili'}<ExternalLink size={9} style={{ color: '#9ca3af' }} /></a>
-            <a href="/" className="text-xs px-2.5 py-1.5 rounded-md hover:bg-gray-100 block" style={{ color: '#2563eb' }}>{t.backToTasks}</a>
+            <a href="https://mailingi2.vercel.app/" className="text-xs px-2.5 py-1.5 rounded-md hover:bg-gray-100 flex items-center gap-1.5" style={{ color: '#5f6368' }}>✉ {lang==='en'?'Mail Generator':'Generator maili'}<ExternalLink size={9} style={{ color: '#80868b' }} /></a>
+            <a href="/" className="text-xs px-2.5 py-1.5 rounded-md hover:bg-gray-100 block" style={{ color: '#1a73e8' }}>{t.backToTasks}</a>
           </div>
         </div>
 
-        <div className="px-3 py-2.5" style={{ borderTop: '0.5px solid #e5e7eb' }}>
+        <div className="px-3 py-2.5" style={{ borderTop: '0.5px solid #dadce0' }}>
           <div className="flex items-center gap-2">
             <div className="w-7 h-7 rounded-full flex items-center justify-center text-white" style={{ background: cm?.color, fontSize: '9px', fontWeight: 600 }}>{getInitials(cm?.name||'')}</div>
-            <span className="text-xs font-medium truncate" style={{ color: '#374151' }}>{cm?.name?.split(' ')[0]}</span>
-            <button onClick={handleLogout} className="p-1 rounded-full hover:bg-gray-100 ml-auto" style={{ color: '#9ca3af' }}><LogOut size={15} /></button>
+            <span className="text-xs font-medium truncate" style={{ color: '#3c4043' }}>{cm?.name?.split(' ')[0]}</span>
+            <button onClick={handleLogout} className="p-1 rounded-full hover:bg-gray-100 ml-auto" style={{ color: '#80868b' }}><LogOut size={15} /></button>
           </div>
         </div>
       </aside>
 
       {/* Main */}
       <main className="flex-1 flex flex-col overflow-hidden min-w-0">
-        <header className="bg-white px-4 lg:px-6 py-2.5 flex items-center justify-between gap-2" style={{ borderBottom: '0.5px solid #e5e7eb' }}>
+        <header className="bg-white px-4 lg:px-6 py-2.5 flex items-center justify-between gap-2" style={{ borderBottom: '0.5px solid #dadce0' }}>
           <div className="flex items-center gap-3">
-            <button onClick={() => setSidebarOpen(true)} className="p-2 rounded-full hover:bg-gray-100 lg:hidden" style={{ color: '#9ca3af' }}><Menu size={20} /></button>
+            <button onClick={() => setSidebarOpen(true)} className="p-2 rounded-full hover:bg-gray-100 lg:hidden" style={{ color: '#80868b' }}><Menu size={20} /></button>
             {view==='calendar' && (
               <div className="flex items-center gap-2">
-                <button onClick={prevMonth} className="p-1.5 rounded-full hover:bg-gray-100" style={{ color: '#6b7280' }}><ChevronLeft size={18} /></button>
-                <h2 className="text-sm lg:text-base font-semibold min-w-[160px] text-center" style={{ color: '#111827' }}>{months[calMonth]} {calYear}</h2>
-                <button onClick={nextMonth} className="p-1.5 rounded-full hover:bg-gray-100" style={{ color: '#6b7280' }}><ChevronRight size={18} /></button>
-                <button onClick={goToday} className="text-xs px-2.5 py-1 rounded-md border" style={{ borderColor: '#d1d5db', color: '#6b7280' }}>{t.today}</button>
+                <button onClick={prevMonth} className="p-1.5 rounded-full hover:bg-gray-100" style={{ color: '#5f6368' }}><ChevronLeft size={18} /></button>
+                <h2 className="text-sm lg:text-base font-semibold min-w-[160px] text-center" style={{ color: '#202124' }}>{months[calMonth]} {calYear}</h2>
+                <button onClick={nextMonth} className="p-1.5 rounded-full hover:bg-gray-100" style={{ color: '#5f6368' }}><ChevronRight size={18} /></button>
+                <button onClick={goToday} className="text-xs px-2.5 py-1 rounded-md border" style={{ borderColor: '#dadce0', color: '#5f6368' }}>{t.today}</button>
               </div>
             )}
-            {view==='list' && <h2 className="text-sm lg:text-base font-semibold" style={{ color: '#111827' }}>{t.planner}</h2>}
+            {view==='list' && <h2 className="text-sm lg:text-base font-semibold" style={{ color: '#202124' }}>{t.planner}</h2>}
           </div>
           <div className="flex items-center gap-2">
-            <div className="hidden lg:flex rounded-lg overflow-hidden border" style={{ borderColor: '#d1d5db' }}>
-              <button onClick={() => setView('calendar')} className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium" style={{ background: view==='calendar'?'#2563eb':'white', color: view==='calendar'?'white':'#6b7280' }}><Calendar size={14} /><span className="hidden sm:inline">{t.calendar}</span></button>
-              <button onClick={() => setView('list')} className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium" style={{ background: view==='list'?'#2563eb':'white', color: view==='list'?'white':'#6b7280', borderLeft: '1px solid #d1d5db' }}><List size={14} /><span className="hidden sm:inline">{t.list}</span></button>
+            <div className="hidden lg:flex rounded-lg overflow-hidden border" style={{ borderColor: '#dadce0' }}>
+              <button onClick={() => setView('calendar')} className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium" style={{ background: view==='calendar'?'#1a73e8':'white', color: view==='calendar'?'white':'#5f6368' }}><Calendar size={14} /><span className="hidden sm:inline">{t.calendar}</span></button>
+              <button onClick={() => setView('list')} className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium" style={{ background: view==='list'?'#1a73e8':'white', color: view==='list'?'white':'#5f6368', borderLeft: '1px solid #dadce0' }}><List size={14} /><span className="hidden sm:inline">{t.list}</span></button>
             </div>
-            <button onClick={loadSends} className="p-2 rounded-full hover:bg-gray-100" style={{ color: '#6b7280' }}><Loader2 size={18} /></button>
-            <button onClick={() => setShowExport(true)} className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium border hover:bg-gray-50" style={{ borderColor: '#d1d5db', color: '#6b7280' }}><Download size={14} /><span className="hidden sm:inline">{t.exportBtn}</span></button>
-            <button onClick={() => {setEditSend(null);setShowForm(true);}} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium text-xs" style={{ background: '#2563eb', color: 'white' }}><Plus size={15} /><span className="hidden sm:inline">{t.newSend}</span></button>
+            <button onClick={loadSends} className="p-2 rounded-full hover:bg-gray-100" style={{ color: '#5f6368' }}><Loader2 size={18} /></button>
+            <button onClick={() => setShowExport(true)} className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium border hover:bg-gray-50" style={{ borderColor: '#dadce0', color: '#5f6368' }}><Download size={14} /><span className="hidden sm:inline">{t.exportBtn}</span></button>
+            <button onClick={() => {setEditSend(null);setShowForm(true);}} className="flex items-center gap-1.5 px-4 py-2 rounded-full font-medium text-sm shadow-sm hover:shadow-md transition-shadow" style={{ background: '#1a73e8', color: 'white' }}><Plus size={16} /><span className="hidden sm:inline">{t.newSend}</span></button>
           </div>
         </header>
 
@@ -1323,11 +1350,11 @@ export default function PlannerPage() {
 }
 
 function SideBtn({ active, color, bg, onClick, label, count, icon, dot }) {
-  return <button onClick={onClick} className="w-full flex items-center justify-between px-2.5 py-1 rounded-md text-xs" style={{ background: active?bg:'transparent', color: active?color:'#374151', fontWeight: active?500:400 }}>
+  return <button onClick={onClick} className="w-full flex items-center justify-between px-2.5 py-1 rounded-md text-xs" style={{ background: active?bg:'transparent', color: active?color:'#3c4043', fontWeight: active?500:400 }}>
     <div className={`flex items-center gap-1.5 ${dot?'pl-1.5':''}`}>
       {dot ? <div style={{ width: 5, height: 5, borderRadius: '50%', background: color, opacity: active?1:0.5 }} /> : icon}
       <span>{label}</span>
     </div>
-    <span style={{ color: active?color:'#9ca3af', fontSize: '11px' }}>{count}</span>
+    <span style={{ color: active?color:'#80868b', fontSize: '11px' }}>{count}</span>
   </button>;
 }
