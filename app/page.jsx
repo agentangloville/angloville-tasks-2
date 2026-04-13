@@ -619,10 +619,17 @@ export default function TaskApp() {
   const addTask = async (task) => { const wantSend = task._createSend; const { _createSend, ...taskData } = task; const nt = {...taskData, createdAt: new Date().toISOString(), createdBy: currentUser, isExternal: false, subtasks: []}; const c = await createTask(nt); if (c) { if (wantSend && c.deadline) { try { const send = await createScheduledSend({ title: c.title, description: '', channel: 'email', tools: ['hubspot'], market: c.market, segment: '', sendDate: c.deadline, sendTime: '10:00', status: 'todo', assignees: c.assignees || [], linkedTaskId: c.id, createdBy: currentUser }); if (send) await updateTaskDb(c.id, { linkedSendId: send.id }); } catch (e) { console.error('Failed to create linked send:', e); } } await loadTasks(); await loadWeeklySends(); } setShowNewTask(false); for (const aId of task.assignees||[]) { const m = teamMembers.find(x => x.id === aId); if (m && m.id !== currentUser) await sendEmailNotification(m.email, m.name, task.title, currentMember?.name); } };
 
   // Auto-create task for a planner send that doesn't have one yet
+  const buildTaskDesc = (subjectLine, description) => {
+    const prefix = subjectLine
+      ? `<div style="background:#f5f3ff;border:1px solid #e9d5ff;border-radius:6px;padding:6px 10px;margin-bottom:8px;font-size:13px"><strong style="color:#7c3aed">✉ Temat:</strong> <span style="color:#3c4043">${subjectLine}</span></div>`
+      : '';
+    return prefix + (description || '');
+  };
+
   const createTaskForSend = async (send) => {
     const newTask = await createTask({
       title: send.title,
-      description: send.description || '',
+      description: buildTaskDesc(send.subjectLine, send.description),
       market: send.market,
       status: 'open',
       deadline: send.sendDate || null,
