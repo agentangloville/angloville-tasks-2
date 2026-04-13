@@ -37,7 +37,8 @@ import {
 import { getTeamMembers, createTask, updateTask as updateTaskDb } from '../../lib/supabase';
 import {
   getScheduledSends, createScheduledSend, updateScheduledSend,
-  deleteScheduledSend, generateRecurrences, updateSeries, deleteSeries
+  deleteScheduledSend, generateRecurrences, updateSeries, deleteSeries,
+  bulkUpdateStatus
 } from '../../lib/supabase-planner';
 
 // ── Constants ────────────────────────────────────────
@@ -110,6 +111,10 @@ const T = {
     seriesNamePlaceholder: 'np. Newsletter Junior PL, Follow-up wakacje...',
     groupByDate: 'Po dacie',
     groupBySeries: 'Po serii',
+    bulkMarkSent: 'Oznacz jako wysłane',
+    bulkSelected: 'zaznaczonych',
+    bulkSelectAll: 'Zaznacz wszystkie',
+    bulkDeselectAll: 'Odznacz',
   },
   en: {
     planner: 'Send Planner', calendar: 'Calendar', list: 'List', newSend: 'New send',
@@ -138,6 +143,10 @@ const T = {
     seriesNamePlaceholder: 'e.g. Junior PL Newsletter, Summer follow-up...',
     groupByDate: 'By date',
     groupBySeries: 'By series',
+    bulkMarkSent: 'Mark as sent',
+    bulkSelected: 'selected',
+    bulkSelectAll: 'Select all',
+    bulkDeselectAll: 'Deselect',
   },
 };
 
@@ -770,8 +779,10 @@ function CalendarView({ sends, year, month, onSelectDay, onAddSend, onSelectSend
 
 // ── List View ────────────────────────────────────────
 
-function ListView({ sends, onSelectSend, selectedId, teamMembers, t, lang }) {
+function ListView({ sends, onSelectSend, selectedId, teamMembers, t, lang, onBulkMarkSent }) {
   const [groupMode, setGroupMode] = useState('date'); // 'date' | 'series'
+  const [bulkMode, setBulkMode] = useState(false);
+  const [selected, setSelected] = useState(new Set());
 
   const groupedByDate = useMemo(() => {
     const m = {}; sends.forEach(s => { (m[s.sendDate]||(m[s.sendDate]=[])).push(s); }); return Object.entries(m).sort(([a],[b]) => a.localeCompare(b));
@@ -792,11 +803,32 @@ function ListView({ sends, onSelectSend, selectedId, teamMembers, t, lang }) {
       });
   }, [sends]);
 
+  const toggleSelect = (id) => {
+    setSelected(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const selectAll = () => {
+    const notSent = sends.filter(s => s.status !== 'sent' && s.status !== 'cancelled').map(s => s.id);
+    setSelected(new Set(notSent));
+  };
+
+  const exitBulk = () => { setBulkMode(false); setSelected(new Set()); };
+
+  const handleBulkSent = async () => {
+    if (selected.size === 0) return;
+    await onBulkMarkSent([...selected]);
+    exitBulk();
+  };
+
   if (!sends.length) return <div className="text-center py-16"><Calendar size={48} className="mx-auto mb-4" style={{ color: '#dadce0' }} /><p style={{ color: '#5f6368' }}>{t.noSends}</p></div>;
 
   return (
     <div>
-      {/* Group toggle */}
+      {/* Group toggle + bulk mode toggle */}
       <div className="flex items-center gap-1 mb-3">
         <button onClick={() => setGroupMode('date')}
           className="flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium"
@@ -808,7 +840,50 @@ function ListView({ sends, onSelectSend, selectedId, teamMembers, t, lang }) {
           style={{ background: groupMode==='series'?'#f5f3ff':'transparent', color: groupMode==='series'?'#7c3aed':'#5f6368' }}>
           <Repeat size={12} /> {t.groupBySeries}
         </button>
+        <div className="flex-1" />
+        {!bulkMode ? (
+          <button onClick={() => setBulkMode(true)}
+            className="flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium hover:bg-gray-100"
+            style={{ color: '#5f6368' }}>
+            <CheckCircle size={12} /> {t.bulkMarkSent}
+          </button>
+        ) : (
+          <div className="flex items-center gap-1">
+            <button onClick={selectAll}
+              className="text-xs px-2 py-1 rounded-md hover:bg-blue-50"
+              style={{ color: '#1a73e8' }}>
+              {t.bulkSelectAll}
+            </button>
+            <button onClick={exitBulk}
+              className="text-xs px-2 py-1 rounded-md hover:bg-gray-100"
+              style={{ color: '#5f6368' }}>
+              {t.bulkDeselectAll}
+            </button>
+          </div>
+        )}
       </div>
+
+      {/* Floating bulk action bar */}
+      {bulkMode && selected.size > 0 && (
+        <div className="sticky top-0 z-10 mb-3 flex items-center justify-between px-4 py-2.5 rounded-xl"
+          style={{ background: '#1a73e8', boxShadow: '0 2px 8px rgba(26,115,232,0.3)' }}>
+          <span className="text-sm font-medium text-white">
+            {selected.size} {t.bulkSelected}
+          </span>
+          <div className="flex items-center gap-2">
+            <button onClick={handleBulkSent}
+              className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-sm font-medium"
+              style={{ background: 'white', color: '#16a34a' }}>
+              <CheckCircle size={14} /> {t.bulkMarkSent}
+            </button>
+            <button onClick={exitBulk}
+              className="p-1.5 rounded-full hover:bg-white/20"
+              style={{ color: 'white' }}>
+              <X size={16} />
+            </button>
+          </div>
+        </div>
+      )}
 
       {groupMode === 'date' ? (
         <div className="space-y-4">
@@ -819,7 +894,7 @@ function ListView({ sends, onSelectSend, selectedId, teamMembers, t, lang }) {
                 {isToday(date) && <span className="text-xs font-medium" style={{ color: '#1a73e8' }}>{t.today}</span>}
               </div>
               <div className="space-y-px">
-                {ss.map(s => <SendRow key={s.id} s={s} onSelectSend={onSelectSend} selectedId={selectedId} teamMembers={teamMembers} showDate={false} lang={lang} />)}
+                {ss.map(s => <SendRow key={s.id} s={s} onSelectSend={onSelectSend} selectedId={selectedId} teamMembers={teamMembers} showDate={false} lang={lang} bulkMode={bulkMode} bulkSelected={selected.has(s.id)} onBulkToggle={toggleSelect} />)}
               </div>
             </div>
           ))}
@@ -840,7 +915,7 @@ function ListView({ sends, onSelectSend, selectedId, teamMembers, t, lang }) {
                   {futureCount > 0 && <span className="text-xs" style={{ color: '#80868b' }}>{futureCount} {lang==='en'?'upcoming':'nadchodzących'}</span>}
                 </div>
                 <div className="space-y-px">
-                  {ss.map(s => <SendRow key={s.id} s={s} onSelectSend={onSelectSend} selectedId={selectedId} teamMembers={teamMembers} showDate={true} lang={lang} />)}
+                  {ss.map(s => <SendRow key={s.id} s={s} onSelectSend={onSelectSend} selectedId={selectedId} teamMembers={teamMembers} showDate={true} lang={lang} bulkMode={bulkMode} bulkSelected={selected.has(s.id)} onBulkToggle={toggleSelect} />)}
                 </div>
               </div>
             );
@@ -851,17 +926,25 @@ function ListView({ sends, onSelectSend, selectedId, teamMembers, t, lang }) {
   );
 }
 
-function SendRow({ s, onSelectSend, selectedId, teamMembers, showDate, lang }) {
+function SendRow({ s, onSelectSend, selectedId, teamMembers, showDate, lang, bulkMode, bulkSelected, onBulkToggle }) {
   const ch = CHANNELS.find(c => c.id === s.channel); const st = STATUSES.find(x => x.id === s.status);
   const StI = st?.icon||Circle; const ChI = ch?.icon||Mail; const mk = MARKETS.find(m => m.id === s.market);
   const tools = (s.tools||[]).map(id => TOOLS.find(t=>t.id===id)).filter(Boolean);
   const assigned = (s.assignees||[]).map(id => teamMembers.find(m=>m.id===id)).filter(Boolean);
+  const handleClick = () => { if (bulkMode) { onBulkToggle(s.id); } else { onSelectSend(s); } };
   return (
-    <div onClick={() => onSelectSend(s)} className="rounded-lg px-3 py-1.5 cursor-pointer flex items-center gap-2 transition-all duration-100"
-      style={{ borderWidth: '0.5px', borderStyle: 'solid', borderColor: selectedId===s.id?'#3b82f6':'#e8eaed', background: selectedId===s.id?'#fafbff':'white', opacity: s.status==='cancelled'?0.5:1, boxShadow: selectedId===s.id?'0 0 0 1px rgba(59,130,246,0.1)':'none' }}
-      onMouseEnter={e => { if (selectedId!==s.id) { e.currentTarget.style.borderColor='#dadce0'; e.currentTarget.style.background='#fafbfc'; }}}
-      onMouseLeave={e => { if (selectedId!==s.id) { e.currentTarget.style.borderColor='#e8eaed'; e.currentTarget.style.background='white'; }}}>
-      <StI size={14} style={{ color: st?.color }} className={s.status==='sent'?'fill-current':''} />
+    <div onClick={handleClick} className="rounded-lg px-3 py-1.5 cursor-pointer flex items-center gap-2 transition-all duration-100"
+      style={{ borderWidth: '0.5px', borderStyle: 'solid', borderColor: bulkSelected?'#16a34a':selectedId===s.id?'#3b82f6':'#e8eaed', background: bulkSelected?'#f0fdf4':selectedId===s.id?'#fafbff':'white', opacity: s.status==='cancelled'?0.5:1, boxShadow: bulkSelected?'0 0 0 1px rgba(22,163,74,0.15)':selectedId===s.id?'0 0 0 1px rgba(59,130,246,0.1)':'none' }}
+      onMouseEnter={e => { if (!bulkSelected && selectedId!==s.id) { e.currentTarget.style.borderColor='#dadce0'; e.currentTarget.style.background='#fafbfc'; }}}
+      onMouseLeave={e => { if (!bulkSelected && selectedId!==s.id) { e.currentTarget.style.borderColor='#e8eaed'; e.currentTarget.style.background='white'; }}}>
+      {bulkMode ? (
+        <div className="w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0"
+          style={{ borderColor: bulkSelected ? '#16a34a' : '#dadce0', background: bulkSelected ? '#16a34a' : 'white' }}>
+          {bulkSelected && <Check size={10} style={{ color: 'white' }} />}
+        </div>
+      ) : (
+        <StI size={14} style={{ color: st?.color }} className={s.status==='sent'?'fill-current':''} />
+      )}
       <div className="w-5 h-5 rounded flex items-center justify-center" style={{ background: ch?.bg }}><ChI size={11} style={{ color: ch?.color }} /></div>
       <span className="text-sm">{mk?.icon}</span>
       <div className="flex-1 min-w-0">
@@ -1220,6 +1303,16 @@ export default function PlannerPage() {
   const prevMonth = () => { if (calMonth===0){setCalMonth(11);setCalYear(y=>y-1);}else setCalMonth(m=>m-1); };
   const nextMonth = () => { if (calMonth===11){setCalMonth(0);setCalYear(y=>y+1);}else setCalMonth(m=>m+1); };
   const goToday = () => { setCalYear(now.getFullYear()); setCalMonth(now.getMonth()); };
+
+  const handleBulkMarkSent = async (ids) => {
+    const ok = await bulkUpdateStatus(ids, 'sent');
+    if (ok) {
+      setSends(p => p.map(s => ids.includes(s.id) ? { ...s, status: 'sent' } : s));
+      if (selectedSend && ids.includes(selectedSend.id)) {
+        setSelectedSend(p => ({ ...p, status: 'sent' }));
+      }
+    }
+  };
   const months = lang==='en' ? MONTHS_EN : MONTHS_PL;
 
   if (checkingAuth || loadingTeam) return <div className="min-h-screen flex items-center justify-center" style={{ background: '#f6f8fc' }}><Loader2 size={32} className="animate-spin" style={{ color: '#1a73e8' }} /></div>;
@@ -1329,13 +1422,13 @@ export default function PlannerPage() {
         <div className="flex-1 overflow-y-auto p-3 lg:p-4">
           {/* Mobile: always list */}
           <div className="lg:hidden">
-            <div className="max-w-4xl mx-auto"><ListView sends={filteredSends} onSelectSend={setSelectedSend} selectedId={selectedSend?.id} teamMembers={teamMembers} t={t} lang={lang} /></div>
+            <div className="max-w-4xl mx-auto"><ListView sends={filteredSends} onSelectSend={setSelectedSend} selectedId={selectedSend?.id} teamMembers={teamMembers} t={t} lang={lang} onBulkMarkSent={handleBulkMarkSent} /></div>
           </div>
           {/* Desktop: calendar/list toggle */}
           <div className="hidden lg:block">
             {view==='calendar'
               ? <CalendarView sends={calendarSends} year={calYear} month={calMonth} onSelectDay={d => {setSelectedDate(d);setSelectedSend(null);}} onAddSend={d => {setEditSend({ _prefillDate: d });setShowForm(true);}} onSelectSend={setSelectedSend} selectedDate={selectedDate} lang={lang} />
-              : <div className="max-w-4xl mx-auto"><ListView sends={filteredSends} onSelectSend={setSelectedSend} selectedId={selectedSend?.id} teamMembers={teamMembers} t={t} lang={lang} /></div>
+              : <div className="max-w-4xl mx-auto"><ListView sends={filteredSends} onSelectSend={setSelectedSend} selectedId={selectedSend?.id} teamMembers={teamMembers} t={t} lang={lang} onBulkMarkSent={handleBulkMarkSent} /></div>
             }
           </div>
         </div>
