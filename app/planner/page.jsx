@@ -179,14 +179,6 @@ const isPast = (ds) => ds < fmt(new Date());
 const isPartOfSeries = (s) => !!(s.parentId || s.recurrence);
 const getSeriesRoot = (s) => s.parentId || s.id;
 
-// Build task description with [Temat: ...] prefix from subjectLine
-const buildTaskDesc = (subjectLine, description) => {
-  const prefix = subjectLine
-    ? `<div style="background:#f5f3ff;border:1px solid #e9d5ff;border-radius:6px;padding:6px 10px;margin-bottom:8px;font-size:13px"><strong style="color:#7c3aed">✉ Temat:</strong> <span style="color:#3c4043">${subjectLine}</span></div>`
-    : '';
-  return prefix + (description || '');
-};
-
 // ── Series Choice Modal (like Google Calendar) ───────
 
 function SeriesChoiceModal({ type, onChoice, onClose, t }) {
@@ -330,7 +322,7 @@ function SendFormModal({ send, onSave, onClose, currentUser, teamMembers, t, lan
     if (!linkedTaskId) {
       const newTask = await createTask({
         title: f.title,
-        description: buildTaskDesc(f.subjectLine, f.description),
+        description: f.description || '',
         market: f.market,
         status: 'open',
         deadline: f.sendDate || null,
@@ -1282,9 +1274,7 @@ export default function PlannerPage() {
           if (up.linkedTaskId) {
             const taskUpdates = {};
             if (data.title) taskUpdates.title = data.title;
-            if (data.description !== undefined || data.subjectLine !== undefined) {
-              taskUpdates.description = buildTaskDesc(data.subjectLine ?? up.subjectLine, data.description ?? up.description);
-            }
+            if (data.description !== undefined) taskUpdates.description = data.description;
             if (data.sendDate) taskUpdates.deadline = data.sendDate;
             if (data.assignees) taskUpdates.assignees = data.assignees;
             if (data.market) taskUpdates.market = data.market;
@@ -1322,9 +1312,7 @@ export default function PlannerPage() {
       if (up.linkedTaskId) {
         const taskUpdates = {};
         if (updates.title) taskUpdates.title = updates.title;
-        if (updates.description !== undefined || updates.subjectLine !== undefined) {
-          taskUpdates.description = buildTaskDesc(updates.subjectLine ?? up.subjectLine, updates.description ?? up.description);
-        }
+        if (updates.description !== undefined) taskUpdates.description = updates.description;
         if (updates.sendDate) taskUpdates.deadline = updates.sendDate;
         if (updates.assignees) taskUpdates.assignees = updates.assignees;
         if (updates.market) taskUpdates.market = updates.market;
