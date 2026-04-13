@@ -406,7 +406,7 @@ function WeeklySendsAccordion({ sends, tasks, isOpen, onToggle, onSelectTask, on
 }
 
 // === TASK DETAIL ===
-function TaskDetail({ task, updateTask, deleteTask, onClose, currentUser, isManager, onMarkUnread, readTimestamps, t, lang, teamMembers, customTags, onRefreshTags }) {
+function TaskDetail({ task, updateTask, deleteTask, onClose, currentUser, isManager, onMarkUnread, readTimestamps, t, lang, teamMembers, customTags, onRefreshTags, allSends }) {
   const [comment, setComment] = useState(''); const [editing, setEditing] = useState(false); const [form, setForm] = useState({ title: '', description: '' }); const [newSubtask, setNewSubtask] = useState(''); const [subtaskAssignee, setSubtaskAssignee] = useState(''); const [showSubtaskForm, setShowSubtaskForm] = useState(false); const [linkCopied, setLinkCopied] = useState(false); const [uploading, setUploading] = useState(false); const [commentAttachments, setCommentAttachments] = useState([]); const [uploadingComment, setUploadingComment] = useState(false); const [editingCommentId, setEditingCommentId] = useState(null); const [editingCommentText, setEditingCommentText] = useState(''); const [showTagManager, setShowTagManager] = useState(false); const [newTagName, setNewTagName] = useState(''); const [newTagColor, setNewTagColor] = useState(TAG_COLORS[0]);
 
   useEffect(() => { setForm({ title: task.title, description: task.description || '' }); setEditing(false); setComment(''); setNewSubtask(''); setSubtaskAssignee(''); setShowSubtaskForm(false); setLinkCopied(false); setCommentAttachments([]); setEditingCommentId(null); setShowTagManager(false); }, [task.id]);
@@ -445,6 +445,8 @@ function TaskDetail({ task, updateTask, deleteTask, onClose, currentUser, isMana
         {task.isExternal && <div className="p-2 rounded-lg text-sm" style={{ background: '#fefce8', border: '1px solid #fef3c7', color: '#b45309' }}>📨 {t.from}: <strong>{task.submittedBy}</strong> {task.submitterEmail && `(${task.submitterEmail})`}</div>}
         
         {editing ? <div className="space-y-3"><input type="text" value={form.title} onChange={e => setForm({...form, title: e.target.value})} className="w-full px-3 py-2 border rounded-lg text-lg font-medium" style={{ borderColor: '#dadce0', color: '#202124' }} /><RichTextEditor value={form.description} onChange={v => setForm({...form, description: v})} placeholder={t.taskDetails} minHeight="150px" /><div className="flex gap-2"><button onClick={save} className="flex-1 py-2 rounded-lg font-medium text-sm" style={{ background: '#1a73e8', color: 'white' }}>{t.save}</button><button onClick={() => setEditing(false)} className="flex-1 py-2 rounded-lg text-sm" style={{ background: '#f1f3f4', color: '#5f6368' }}>{t.cancel}</button></div></div> : <div><div className="flex items-center gap-2 flex-wrap mb-2"><h3 className="font-medium text-lg" style={{ color: '#202124' }}>{task.title}</h3><PriorityBadge priority={task.priority} lang={lang} /><DeadlineBadge deadline={task.deadline} lang={lang} t={t} /></div><RichTextDisplay html={task.description} /></div>}
+
+        {(() => { const ls = task.linkedSendId && allSends?.find(s => s.id === task.linkedSendId); return ls?.subjectLine ? <div className="rounded-lg p-2.5" style={{ background: '#f5f3ff', border: '1px solid #e9d5ff' }}><div className="flex items-center gap-1.5"><span style={{ color: '#7c3aed', fontSize: '13px', fontWeight: 600 }}>✉ {lang === 'en' ? 'Subject:' : 'Temat:'}</span><span className="text-sm" style={{ color: '#3c4043' }}>{ls.subjectLine}</span></div></div> : null; })()}
 
         <div className="flex flex-wrap gap-2 items-center p-3 rounded-lg" style={{ background: '#f6f8fc', border: '1px solid #dadce0' }}>
           <select value={task.market} onChange={e => updateTask(task.id, { market: e.target.value, subcategory: e.target.value === 'pl' ? task.subcategory : null })} className="text-xs px-2 py-1.5 border rounded-lg font-medium" style={{ borderColor: '#dadce0', color: '#5f6368' }}>
@@ -513,6 +515,7 @@ export default function TaskApp() {
   const [weeklySends, setWeeklySends] = useState([]);
   const [nextWeekSends, setNextWeekSends] = useState([]);
   const [week3Sends, setWeek3Sends] = useState([]);
+  const [allSends, setAllSends] = useState([]);
   const [weekSendsOpen, setWeekSendsOpen] = useState(false);
   const [nextWeekSendsOpen, setNextWeekSendsOpen] = useState(false);
   const [week3SendsOpen, setWeek3SendsOpen] = useState(false);
@@ -534,6 +537,7 @@ export default function TaskApp() {
   const loadWeeklySends = async () => {
     try {
       const all = await getScheduledSends();
+      setAllSends(all);
       const now = new Date();
       const day = now.getDay();
       const diffMon = day === 0 ? -6 : 1 - day;
@@ -619,17 +623,10 @@ export default function TaskApp() {
   const addTask = async (task) => { const wantSend = task._createSend; const { _createSend, ...taskData } = task; const nt = {...taskData, createdAt: new Date().toISOString(), createdBy: currentUser, isExternal: false, subtasks: []}; const c = await createTask(nt); if (c) { if (wantSend && c.deadline) { try { const send = await createScheduledSend({ title: c.title, description: '', channel: 'email', tools: ['hubspot'], market: c.market, segment: '', sendDate: c.deadline, sendTime: '10:00', status: 'todo', assignees: c.assignees || [], linkedTaskId: c.id, createdBy: currentUser }); if (send) await updateTaskDb(c.id, { linkedSendId: send.id }); } catch (e) { console.error('Failed to create linked send:', e); } } await loadTasks(); await loadWeeklySends(); } setShowNewTask(false); for (const aId of task.assignees||[]) { const m = teamMembers.find(x => x.id === aId); if (m && m.id !== currentUser) await sendEmailNotification(m.email, m.name, task.title, currentMember?.name); } };
 
   // Auto-create task for a planner send that doesn't have one yet
-  const buildTaskDesc = (subjectLine, description) => {
-    const prefix = subjectLine
-      ? `<div style="background:#f5f3ff;border:1px solid #e9d5ff;border-radius:6px;padding:6px 10px;margin-bottom:8px;font-size:13px"><strong style="color:#7c3aed">✉ Temat:</strong> <span style="color:#3c4043">${subjectLine}</span></div>`
-      : '';
-    return prefix + (description || '');
-  };
-
   const createTaskForSend = async (send) => {
     const newTask = await createTask({
       title: send.title,
-      description: buildTaskDesc(send.subjectLine, send.description),
+      description: send.description || '',
       market: send.market,
       status: 'open',
       deadline: send.sendDate || null,
@@ -783,7 +780,7 @@ export default function TaskApp() {
       </main>
       
       {showUsersPanel && <UsersPanel teamMembers={teamMembers} onUpdate={reloadTeamMembers} onClose={() => setShowUsersPanel(false)} t={t} />}
-      {selectedTask && !showUsersPanel && <TaskDetail task={selectedTask} updateTask={updateTask} deleteTask={deleteTask} onClose={() => setSelectedTask(null)} currentUser={currentUser} isManager={isManager} onMarkUnread={handleMarkUnread} readTimestamps={readTimestamps} t={t} lang={lang} teamMembers={teamMembers} customTags={customTags} onRefreshTags={loadCustomTags} />}
+      {selectedTask && !showUsersPanel && <TaskDetail task={selectedTask} updateTask={updateTask} deleteTask={deleteTask} onClose={() => setSelectedTask(null)} currentUser={currentUser} isManager={isManager} onMarkUnread={handleMarkUnread} readTimestamps={readTimestamps} t={t} lang={lang} teamMembers={teamMembers} customTags={customTags} onRefreshTags={loadCustomTags} allSends={allSends} />}
       {showNewTask && <NewTaskModal onClose={() => setShowNewTask(false)} onSave={addTask} currentUser={currentUser} restrictedMarket={restrictedMarket} t={t} lang={lang} teamMembers={teamMembers} />}
     </div>
   );
