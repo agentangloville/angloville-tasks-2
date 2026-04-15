@@ -136,48 +136,7 @@ function DeadlineBadge({ deadline, size = 'normal', lang = 'pl', t }) {
   </span>;
 }
 
-// === DATE FILTER HELPERS ===
-function isInDateRange(dateStr, from, to) {
-  if (!dateStr) return false;
-  const d = dateStr.split('T')[0];
-  if (from && d < from) return false;
-  if (to && d > to) return false;
-  return true;
-}
-
-// === DATE FILTER UI ===
-function DateRangeFilter({ dateFrom, dateTo, onFromChange, onToChange, onClear, t }) {
-  const hasFilter = dateFrom || dateTo;
-  return (
-    <div className="flex items-center gap-1.5">
-      <div className="flex items-center gap-1 px-2 py-1.5 rounded-lg" style={{ border: `1px solid ${hasFilter ? '#1a73e8' : '#dadce0'}`, background: hasFilter ? '#e8f0fe' : 'white' }}>
-        <Calendar size={14} style={{ color: hasFilter ? '#1a73e8' : '#5f6368', flexShrink: 0 }} />
-        <input
-          type="date"
-          value={dateFrom}
-          onChange={e => onFromChange(e.target.value)}
-          className="text-xs border-none outline-none bg-transparent"
-          style={{ color: dateFrom ? '#202124' : '#80868b', width: '110px' }}
-          title={t.dateFrom}
-        />
-        <span className="text-xs" style={{ color: '#80868b' }}>–</span>
-        <input
-          type="date"
-          value={dateTo}
-          onChange={e => onToChange(e.target.value)}
-          className="text-xs border-none outline-none bg-transparent"
-          style={{ color: dateTo ? '#202124' : '#80868b', width: '110px' }}
-          title={t.dateTo}
-        />
-        {hasFilter && (
-          <button onClick={onClear} className="ml-1 rounded-full hover:bg-blue-100 p-0.5" style={{ color: '#1a73e8' }} title={t.clearDates}>
-            <X size={12} />
-          </button>
-        )}
-      </div>
-    </div>
-  );
-}
+// === DATE FILTER UI (removed) ===
 
 // === NOTIFICATION SYSTEM (server-backed via Supabase) ===
 // Read timestamps are now stored in Supabase `read_timestamps` table.
@@ -555,8 +514,6 @@ export default function TaskApp() {
   const [weekSendsOpen, setWeekSendsOpen] = useState(false);
   const [nextWeekSendsOpen, setNextWeekSendsOpen] = useState(false);
   const [week3SendsOpen, setWeek3SendsOpen] = useState(false);
-  const [filterDateFrom, setFilterDateFrom] = useState('');
-  const [filterDateTo, setFilterDateTo] = useState('');
   const [sortBy, setSortBy] = useState('newest'); const [activeTab, setActiveTab] = useState('tasks'); const [copied, setCopied] = useState(false); const [checkingAuth, setCheckingAuth] = useState(true); const [readTimestamps, setReadTimestamps] = useState({}); const [seenTaskIds, setSeenTaskIds] = useState([]); const [sidebarOpen, setSidebarOpen] = useState(false); const [customTags, setCustomTags] = useState([]); const filtersInitialized = useRef(false);
 
   useEffect(() => { (async () => { setLoadingTeam(true); const m = await getTeamMembers(); if (m.length > 0) setTeamMembers(m); setLoadingTeam(false); })(); }, []);
@@ -610,22 +567,13 @@ export default function TaskApp() {
   
   // Hide all planner-linked tasks from the main list when accordion is visible
   // (this week's are in the accordion, future ones will appear when their week comes)
-  const showAccordion = (filterStatus === 'active' || filterStatus === 'open') && (weeklySends.length > 0 || nextWeekSends.length > 0 || week3Sends.length > 0) && !filterLinkedPlanner && !filterDeadline && !(filterDateFrom || filterDateTo);
+  const showAccordion = (filterStatus === 'active' || filterStatus === 'open') && (weeklySends.length > 0 || nextWeekSends.length > 0 || week3Sends.length > 0) && !filterLinkedPlanner && !filterDeadline;
   if (showAccordion) {
     filteredTasks = filteredTasks.filter(t => !t.linkedSendId);
   }
 
-  if (filterDateFrom || filterDateTo) {
-    filteredTasks = filteredTasks.filter(task => {
-      const isClosed = task.status === 'closed';
-      const dateToCheck = isClosed && task.updatedAt ? task.updatedAt : task.createdAt;
-      return isInDateRange(dateToCheck, filterDateFrom, filterDateTo);
-    });
-  }
-
   const openTasks = visibleTasks.filter(t => t.status === 'open'); const longtermTasks = visibleTasks.filter(t => t.status === 'longterm'); const pausedTasks = visibleTasks.filter(t => t.status === 'paused'); const monitoringTasks = visibleTasks.filter(t => t.status === 'monitoring'); const approvalTasks = visibleTasks.filter(t => t.status === 'approval'); const ideasTasks = visibleTasks.filter(t => t.status === 'ideas'); const closedTasks = visibleTasks.filter(t => t.status === 'closed');
   const withDeadlineCount = visibleTasks.filter(t => !!t.deadline && t.status !== 'closed').length;
-  const hasDateFilter = !!(filterDateFrom || filterDateTo);
 
   const updateTask = async (id, updates, options = {}) => { const old = tasks.find(t => t.id === id); const nt = {...old, ...updates}; setTasks(prev => prev.map(t => t.id === id ? nt : t)); if (selectedTask?.id === id) setSelectedTask(nt); if (updates.status === 'closed' && old?.status !== 'closed' && old?.isExternal && old?.submitterEmail && !options.skipEmail) { const r = await sendCompletedEmail(old, currentMember?.name); const ee = { id: generateId(), type: 'completed', sentAt: new Date().toISOString(), sentBy: currentUser, sentTo: old.submitterEmail, success: r.sent }; updates.emailHistory = [...(old.emailHistory||[]), ee]; nt.emailHistory = updates.emailHistory; setTasks(prev => prev.map(t => t.id === id ? nt : t)); if (selectedTask?.id === id) setSelectedTask(nt); }
     // Sync: when closing a task linked to a planner send, update send status to 'scheduled'
@@ -720,33 +668,10 @@ export default function TaskApp() {
           <div className="flex items-center gap-2 min-w-0"><button onClick={() => setSidebarOpen(true)} className="p-2 rounded-full hover:bg-gray-100 lg:hidden flex-shrink-0" style={{ color: '#80868b' }}><Menu size={20} /></button><div className="min-w-0"><h2 className="text-sm lg:text-base font-medium truncate" style={{ color: '#202124' }}>{showUsersPanel ? t.usersPanel : activeTab === 'pending' ? t.pendingApproval : filterDeadline ? t.withDeadlineTasks : filterStatus === 'active' ? t.activeTasks : filterStatus === 'open' ? t.openTasks : filterStatus === 'longterm' ? t.longtermTasks : filterStatus === 'paused' ? t.pausedTasks : filterStatus === 'monitoring' ? t.monitoringTasks : filterStatus === 'approval' ? t.approvalTasks : filterStatus === 'ideas' ? t.ideasTasks : t.closedTasks}</h2>{filterPerson.length > 0 && !showUsersPanel && <p style={{ fontSize: '11px', color: '#80868b' }}>{t.filter}: {filterPerson.map(fp => teamMembers.find(m => m.id === fp)?.name?.split(' ')[0]).filter(Boolean).join(', ')}</p>}</div></div>
           <div className="flex items-center gap-2 flex-shrink-0">
             <NotificationBell tasks={tasks} currentUser={currentUser} readTimestamps={readTimestamps} teamMembers={teamMembers} onSelectTask={handleSelectTask} onMarkAllRead={async () => { const taskIds = tasks.map(t => t.id); const now = await setAllTasksReadInDb(currentUser, taskIds); const newTs = {}; taskIds.forEach(id => { newTs[id] = now; }); setReadTimestamps(newTs); }} t={t} lang={lang} />
-            {!showUsersPanel && activeTab === 'tasks' && (
-              <DateRangeFilter
-                dateFrom={filterDateFrom}
-                dateTo={filterDateTo}
-                onFromChange={setFilterDateFrom}
-                onToChange={setFilterDateTo}
-                onClear={() => { setFilterDateFrom(''); setFilterDateTo(''); }}
-                t={t}
-              />
-            )}
             {!showUsersPanel && activeTab === 'tasks' && <SortDropdown value={sortBy} onChange={setSortBy} t={t} />}
             {!showUsersPanel && <><button onClick={loadTasks} className="p-2 rounded-full hover:bg-gray-100" style={{ color: '#5f6368' }}><Loader2 size={18} className={loading ? 'animate-spin' : ''} /></button>{activeTab === 'tasks' && <button onClick={() => setShowNewTask(true)} className="flex items-center gap-1.5 px-4 lg:px-5 py-2 rounded-full font-medium text-sm shadow-sm hover:shadow-md transition-shadow" style={{ background: '#1a73e8', color: 'white' }}><Plus size={16} /> <span className="hidden sm:inline">{t.newTask}</span></button>}</>}
           </div>
         </header>
-
-        {hasDateFilter && !showUsersPanel && activeTab === 'tasks' && (
-          <div className="px-4 py-2 flex items-center gap-2 border-b text-xs" style={{ background: '#e8f0fe', borderColor: '#aecbfa' }}>
-            <Calendar size={14} style={{ color: '#1a73e8' }} />
-            <span style={{ color: '#1a73e8' }}>
-              {t.dateFilterActive}:
-              {filterDateFrom && ` ${t.dateFrom} ${filterDateFrom}`}
-              {filterDateTo && ` ${t.dateTo} ${filterDateTo}`}
-              {' '}– {filteredTasks.length} {lang === 'en' ? 'tasks' : 'zadań'}
-            </span>
-            <button onClick={() => { setFilterDateFrom(''); setFilterDateTo(''); }} className="ml-auto flex items-center gap-1 px-2 py-0.5 rounded hover:bg-blue-200 font-medium" style={{ color: '#1a73e8' }}><X size={12} />{t.clearDates}</button>
-          </div>
-        )}
 
         <div className="flex-1 overflow-y-auto p-3 lg:p-4">
           {showUsersPanel ? null : activeTab === 'pending' && isManager ? <PendingView tasks={pendingTasks} approveTask={approveTask} deleteTask={deleteTask} currentUser={currentUser} t={t} lang={lang} teamMembers={teamMembers} /> : (
