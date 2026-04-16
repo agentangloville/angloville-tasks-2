@@ -661,10 +661,10 @@ export default function TaskApp() {
   const withDeadlineCount = visibleTasks.filter(t => !!t.deadline && t.status !== 'closed').length;
 
   const updateTask = async (id, updates, options = {}) => { const old = tasks.find(t => t.id === id); const nt = {...old, ...updates}; setTasks(prev => prev.map(t => t.id === id ? nt : t)); if (selectedTask?.id === id) setSelectedTask(nt); if (updates.status === 'closed' && old?.status !== 'closed' && old?.isExternal && old?.submitterEmail && !options.skipEmail) { const r = await sendCompletedEmail(old, currentMember?.name); const ee = { id: generateId(), type: 'completed', sentAt: new Date().toISOString(), sentBy: currentUser, sentTo: old.submitterEmail, success: r.sent }; updates.emailHistory = [...(old.emailHistory||[]), ee]; nt.emailHistory = updates.emailHistory; setTasks(prev => prev.map(t => t.id === id ? nt : t)); if (selectedTask?.id === id) setSelectedTask(nt); }
-    // Sync: when closing a task linked to a planner send, update send status to 'scheduled'
+    // Sync: when closing a task linked to a planner send, mark send as done
     if (updates.status === 'closed' && old?.linkedSendId) {
       try {
-        await updateScheduledSend(old.linkedSendId, { status: 'scheduled' });
+        await updateScheduledSend(old.linkedSendId, { status: 'done' });
         loadWeeklySends();
       } catch (e) { console.error('Sync send status failed:', e); }
     }
