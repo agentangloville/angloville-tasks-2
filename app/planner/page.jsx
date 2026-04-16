@@ -30,9 +30,9 @@ if (typeof document !== 'undefined') {
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   Plus, X, Check, Edit3, Trash2, ChevronLeft, ChevronRight,
-  Calendar, List, Mail, MessageSquare, Phone, Clock,
+  Calendar, List, Mail, MessageSquare, Phone,
   Filter, Loader2, LogOut, Lock, Menu, Repeat,
-  CheckCircle, Circle, XCircle, ExternalLink, Users, Download
+  CheckCircle, Circle, ExternalLink, Users, Download
 } from 'lucide-react';
 import { getTeamMembers, createTask, updateTask as updateTaskDb } from '../../lib/supabase';
 import {
@@ -70,10 +70,8 @@ const TOOLS = [
 ];
 
 const STATUSES = [
-  { id: 'todo', name: 'Do przygotowania', nameEn: 'To prepare', color: '#80868b', bg: '#f1f3f4', icon: Circle },
-  { id: 'scheduled', name: 'Zaplanowane', nameEn: 'Scheduled', color: '#1a73e8', bg: '#e8f0fe', icon: Clock },
-  { id: 'sent', name: 'Wysłane', nameEn: 'Sent', color: '#16a34a', bg: '#f0fdf4', icon: CheckCircle },
-  { id: 'cancelled', name: 'Anulowane', nameEn: 'Cancelled', color: '#ef4444', bg: '#fef2f2', icon: XCircle },
+  { id: 'todo', name: 'Do zrobienia', nameEn: 'To do', color: '#80868b', bg: '#f1f3f4', icon: Circle },
+  { id: 'done', name: 'Zrobione', nameEn: 'Done', color: '#16a34a', bg: '#f0fdf4', icon: CheckCircle },
 ];
 
 const RECURRENCE_OPTIONS = [
@@ -111,7 +109,7 @@ const T = {
     seriesNamePlaceholder: 'np. Newsletter Junior PL, Follow-up wakacje...',
     groupByDate: 'Po dacie',
     groupBySeries: 'Po serii',
-    bulkMarkSent: 'Oznacz jako wysłane',
+    bulkMarkSent: 'Oznacz jako zrobione',
     bulkSelected: 'zaznaczonych',
     bulkSelectAll: 'Zaznacz wszystkie',
     bulkDeselectAll: 'Odznacz',
@@ -145,7 +143,7 @@ const T = {
     seriesNamePlaceholder: 'e.g. Junior PL Newsletter, Summer follow-up...',
     groupByDate: 'By date',
     groupBySeries: 'By series',
-    bulkMarkSent: 'Mark as sent',
+    bulkMarkSent: 'Mark as done',
     bulkSelected: 'selected',
     bulkSelectAll: 'Select all',
     bulkDeselectAll: 'Deselect',
@@ -357,7 +355,7 @@ function SendFormModal({ send, onSave, onClose, currentUser, teamMembers, t, lan
             <input type="text" value={f.title} onChange={e => sF({...f, title: e.target.value})} className="w-full px-4 py-2.5 border rounded-lg text-sm" style={{ borderColor: '#dadce0' }} autoFocus />
           </div>
 
-          {/* Nazwa serii — opcjonalna */}
+          {/* Nazwa serii – opcjonalna */}
           <div>
             <label className="text-sm font-medium block mb-1.5" style={{ color: '#202124' }}>
               {t.seriesName} <span className="font-normal" style={{ color: '#80868b' }}>({t.optional})</span>
@@ -365,7 +363,7 @@ function SendFormModal({ send, onSave, onClose, currentUser, teamMembers, t, lan
             <input type="text" value={f.seriesName} onChange={e => sF({...f, seriesName: e.target.value})} className="w-full px-3 py-2 border rounded-lg text-sm" style={{ borderColor: '#dadce0' }} placeholder={t.seriesNamePlaceholder} />
           </div>
 
-          {/* Notatki — pod tytułem */}
+          {/* Notatki – pod tytułem */}
           <div>
             <div className="flex items-center justify-between mb-1.5">
               <label className="text-sm font-medium" style={{ color: '#202124' }}>{t.notes}</label>
@@ -514,7 +512,7 @@ function SendDetail({ send, onUpdate, onDelete, onEdit, onClose, onSelectSend, a
           <Row label={t.tools}>
             <div className="flex flex-wrap gap-1 justify-end">
               {tools.map(tl => <span key={tl.id} className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: tl.color+'18', color: tl.color }}>{tl.name}</span>)}
-              {!tools.length && <span className="text-xs" style={{ color: '#80868b' }}>—</span>}
+              {!tools.length && <span className="text-xs" style={{ color: '#80868b' }}>–</span>}
             </div>
           </Row>
           {send.segment && <Row label={t.segment}><span className="text-sm">{send.segment}</span></Row>}
@@ -606,7 +604,7 @@ function SeriesTimeline({ items, currentId, totalCount, onSelect, onUpdate, t, l
         {items.map(item => {
           const isCurrent = item.id === currentId;
           const past = isPast(item.sendDate) && !isToday(item.sendDate);
-          const isSent = item.status === 'sent';
+          const isDone = item.status === 'done';
           const isEditing = editingId === item.id;
 
           return (
@@ -617,10 +615,10 @@ function SeriesTimeline({ items, currentId, totalCount, onSelect, onUpdate, t, l
                 background: isCurrent ? '#f5f3ff' : past ? '#fafafa' : 'white',
                 borderWidth: isCurrent ? '1.5px' : '0.5px',
               }}>
-              {/* Header row — clickable */}
+              {/* Header row – clickable */}
               <div className="flex items-center gap-2 px-3 py-2 cursor-pointer" onClick={() => !isEditing && onSelect(item)}>
                 <div className="flex-shrink-0">
-                  {isSent ? <CheckCircle size={14} style={{ color: '#16a34a' }} /> :
+                  {isDone ? <CheckCircle size={14} style={{ color: '#16a34a' }} /> :
                    isCurrent ? <div className="w-3 h-3 rounded-full" style={{ background: '#7c3aed' }} /> :
                    <div className="w-3 h-3 rounded-full border-2" style={{ borderColor: past ? '#dadce0' : '#7c3aed' }} />}
                 </div>
@@ -639,7 +637,7 @@ function SeriesTimeline({ items, currentId, totalCount, onSelect, onUpdate, t, l
                 )}
               </div>
 
-              {/* Content — subject + notes preview OR edit mode */}
+              {/* Content – subject + notes preview OR edit mode */}
               {isEditing ? (
                 <div className="px-3 pb-3 space-y-2" onClick={e => e.stopPropagation()}>
                   <div>
@@ -718,8 +716,8 @@ function CalendarView({ sends, year, month, onSelectDay, onAddSend, onSelectSend
                   return (
                     <div key={s.id} onClick={e => {e.stopPropagation();onSelectSend(s);}}
                       className="flex items-center gap-1 px-1 py-0.5 rounded text-xs truncate cursor-pointer hover:bg-blue-50"
-                      style={{ color: s.status==='cancelled'?'#80868b':st?.color }}>
-                      <span style={{ fontSize: '10px', textDecoration: s.status==='cancelled'?'line-through':'none' }}>
+                      style={{ color: s.status==='done'?'#80868b':st?.color }}>
+                      <span style={{ fontSize: '10px', textDecoration: s.status==='done'?'line-through':'none' }}>
                         {MARKETS.find(m=>m.id===s.market)?.icon} {s.title}
                       </span>
                     </div>
@@ -756,14 +754,14 @@ function CalendarView({ sends, year, month, onSelectDay, onAddSend, onSelectSend
               return (
                 <button key={s.id} onClick={() => { onSelectSend(s); setPopupDate(null); }}
                   className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg hover:bg-gray-50 text-left"
-                  style={{ opacity: s.status==='cancelled'?0.5:1 }}>
-                  <StI size={15} style={{ color: st?.color }} className={s.status==='sent'?'fill-current':''} />
+                  style={{ opacity: s.status==='done'?0.6:1 }}>
+                  <StI size={15} style={{ color: st?.color }} className={s.status==='done'?'fill-current':''} />
                   <div className="w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0" style={{ background: ch?.bg }}>
                     <ChI size={12} style={{ color: ch?.color }} />
                   </div>
                   <span className="text-sm flex-shrink-0">{mk?.icon}</span>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate" style={{ color: s.status==='cancelled'?'#80868b':'#202124', textDecoration: s.status==='cancelled'?'line-through':'none' }}>{s.title}</p>
+                    <p className="text-sm font-medium truncate" style={{ color: s.status==='done'?'#80868b':'#202124', textDecoration: s.status==='done'?'line-through':'none' }}>{s.title}</p>
                     {s.subjectLine && <p className="text-xs truncate" style={{ color: '#80868b' }}>✉ {s.subjectLine}</p>}
                   </div>
                   <div className="flex items-center gap-1 flex-shrink-0">
@@ -826,8 +824,8 @@ function ListView({ sends, onSelectSend, selectedId, teamMembers, t, lang, onBul
   };
 
   const selectAll = () => {
-    const notSent = sends.filter(s => s.status !== 'sent' && s.status !== 'cancelled').map(s => s.id);
-    setSelected(new Set(notSent));
+    const notDone = sends.filter(s => s.status !== 'done').map(s => s.id);
+    setSelected(new Set(notDone));
   };
 
   const exitBulk = () => { setBulkMode(false); setSelected(new Set()); };
@@ -970,14 +968,14 @@ function ListView({ sends, onSelectSend, selectedId, teamMembers, t, lang, onBul
                 if (ss.length === 0) return null;
                 const mk = MARKETS.find(m => m.id === ss[0]?.market);
                 const futureCount = ss.filter(s => !isPast(s.sendDate) || isToday(s.sendDate)).length;
-                const sentCount = ss.filter(s => s.status === 'sent').length;
+                const doneCount = ss.filter(s => s.status === 'done').length;
                 return (
                   <div key={name}>
                     <div className="flex items-center gap-2 mb-2 px-1">
                       <Repeat size={13} style={{ color: '#7c3aed' }} />
                       <span className="text-xs font-semibold" style={{ color: '#7c3aed' }}>{name}</span>
                       {mk && <span className="text-xs">{mk.icon}</span>}
-                      <span className="text-xs px-1.5 py-0.5 rounded-full" style={{ background: '#f1f3f4', color: '#5f6368' }}>{sentCount}/{allItems.length}</span>
+                      <span className="text-xs px-1.5 py-0.5 rounded-full" style={{ background: '#f1f3f4', color: '#5f6368' }}>{doneCount}/{allItems.length}</span>
                       {futureCount > 0 && <span className="text-xs" style={{ color: '#80868b' }}>{futureCount} {lang==='en'?'upcoming':'nadchodzących'}</span>}
                     </div>
                     <div className="space-y-px">
@@ -1002,7 +1000,7 @@ function SendRow({ s, onSelectSend, selectedId, teamMembers, showDate, lang, bul
   const handleClick = () => { if (bulkMode) { onBulkToggle(s.id); } else { onSelectSend(s); } };
   return (
     <div onClick={handleClick} className="rounded-lg px-3 py-1.5 cursor-pointer flex items-center gap-2 transition-all duration-100"
-      style={{ borderWidth: '0.5px', borderStyle: 'solid', borderColor: bulkSelected?'#16a34a':selectedId===s.id?'#3b82f6':'#e8eaed', background: bulkSelected?'#f0fdf4':selectedId===s.id?'#fafbff':'white', opacity: s.status==='cancelled'?0.5:1, boxShadow: bulkSelected?'0 0 0 1px rgba(22,163,74,0.15)':selectedId===s.id?'0 0 0 1px rgba(59,130,246,0.1)':'none' }}
+      style={{ borderWidth: '0.5px', borderStyle: 'solid', borderColor: bulkSelected?'#16a34a':selectedId===s.id?'#3b82f6':'#e8eaed', background: bulkSelected?'#f0fdf4':selectedId===s.id?'#fafbff':'white', opacity: s.status==='done'?0.6:1, boxShadow: bulkSelected?'0 0 0 1px rgba(22,163,74,0.15)':selectedId===s.id?'0 0 0 1px rgba(59,130,246,0.1)':'none' }}
       onMouseEnter={e => { if (!bulkSelected && selectedId!==s.id) { e.currentTarget.style.borderColor='#dadce0'; e.currentTarget.style.background='#fafbfc'; }}}
       onMouseLeave={e => { if (!bulkSelected && selectedId!==s.id) { e.currentTarget.style.borderColor='#e8eaed'; e.currentTarget.style.background='white'; }}}>
       {bulkMode ? (
@@ -1011,12 +1009,12 @@ function SendRow({ s, onSelectSend, selectedId, teamMembers, showDate, lang, bul
           {bulkSelected && <Check size={10} style={{ color: 'white' }} />}
         </div>
       ) : (
-        <StI size={14} style={{ color: st?.color }} className={s.status==='sent'?'fill-current':''} />
+        <StI size={14} style={{ color: st?.color }} className={s.status==='done'?'fill-current':''} />
       )}
       <div className="w-5 h-5 rounded flex items-center justify-center" style={{ background: ch?.bg }}><ChI size={11} style={{ color: ch?.color }} /></div>
       <span className="text-sm">{mk?.icon}</span>
       <div className="flex-1 min-w-0">
-        <h4 className="truncate" style={{ fontSize: '13px', fontWeight: 450, letterSpacing: '-0.01em', color: s.status==='cancelled'?'#80868b':'#202124', textDecoration: s.status==='cancelled'?'line-through':'none' }}>{s.title}</h4>
+        <h4 className="truncate" style={{ fontSize: '13px', fontWeight: 450, letterSpacing: '-0.01em', color: s.status==='done'?'#80868b':'#202124', textDecoration: s.status==='done'?'line-through':'none' }}>{s.title}</h4>
         {s.subjectLine && <p className="truncate" style={{ fontSize: '11px', color: '#80868b' }}>✉ {s.subjectLine}</p>}
       </div>
       {showDate && <span className="whitespace-nowrap flex-shrink-0" style={{ fontSize: '10.5px', color: isToday(s.sendDate)?'#1a73e8':isPast(s.sendDate)?'#80868b':'#202124' }}>{fmtDisp(s.sendDate,lang)}</span>}
@@ -1054,7 +1052,7 @@ function LoginScreen({ onLogin, teamMembers }) {
 
 function ExportModal({ sends, onClose, t, lang }) {
   const [selMarkets, setSelMarkets] = useState(MARKETS.map(m => m.id));
-  const [selStatuses, setSelStatuses] = useState(['todo', 'scheduled']);
+  const [selStatuses, setSelStatuses] = useState(['todo']);
   const [selChannels, setSelChannels] = useState(CHANNELS.map(c => c.id));
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
@@ -1278,6 +1276,9 @@ export default function PlannerPage() {
             if (data.sendDate) taskUpdates.deadline = data.sendDate;
             if (data.assignees) taskUpdates.assignees = data.assignees;
             if (data.market) taskUpdates.market = data.market;
+            // Status sync: send done ↔ task closed, send todo ↔ task open
+            if (data.status === 'done') taskUpdates.status = 'closed';
+            else if (data.status === 'todo') taskUpdates.status = 'open';
             if (Object.keys(taskUpdates).length > 0) {
               try { await updateTaskDb(up.linkedTaskId, taskUpdates); } catch (e) { console.error('Sync task failed:', e); }
             }
@@ -1316,6 +1317,9 @@ export default function PlannerPage() {
         if (updates.sendDate) taskUpdates.deadline = updates.sendDate;
         if (updates.assignees) taskUpdates.assignees = updates.assignees;
         if (updates.market) taskUpdates.market = updates.market;
+        // Status sync: send done ↔ task closed, send todo ↔ task open
+        if (updates.status === 'done') taskUpdates.status = 'closed';
+        else if (updates.status === 'todo') taskUpdates.status = 'open';
         if (Object.keys(taskUpdates).length > 0) {
           try { await updateTaskDb(up.linkedTaskId, taskUpdates); } catch (e) { console.error('Sync task failed:', e); }
         }
@@ -1373,11 +1377,16 @@ export default function PlannerPage() {
   const goToday = () => { setCalYear(now.getFullYear()); setCalMonth(now.getMonth()); };
 
   const handleBulkMarkSent = async (ids) => {
-    const ok = await bulkUpdateStatus(ids, 'sent');
+    const ok = await bulkUpdateStatus(ids, 'done');
     if (ok) {
-      setSends(p => p.map(s => ids.includes(s.id) ? { ...s, status: 'sent' } : s));
+      // Sync: for each send with a linked task, close the task too
+      const affectedSends = sends.filter(s => ids.includes(s.id) && s.linkedTaskId);
+      for (const s of affectedSends) {
+        try { await updateTaskDb(s.linkedTaskId, { status: 'closed' }); } catch (e) { console.error('Sync task failed:', e); }
+      }
+      setSends(p => p.map(s => ids.includes(s.id) ? { ...s, status: 'done' } : s));
       if (selectedSend && ids.includes(selectedSend.id)) {
-        setSelectedSend(p => ({ ...p, status: 'sent' }));
+        setSelectedSend(p => ({ ...p, status: 'done' }));
       }
     }
   };
@@ -1405,7 +1414,7 @@ export default function PlannerPage() {
         </div>
 
         <div className="flex-1 overflow-y-auto px-2 py-1.5 space-y-0.5">
-          {/* Markets — always visible, compact */}
+          {/* Markets – always visible, compact */}
           <div>
             <p className="text-xs font-medium px-2 mb-0.5 mt-1" style={{ color: '#80868b' }}>{t.market}</p>
             <SideBtn active={filterMarket==='all'} color="#1a73e8" bg="#e8f0fe" onClick={() => setFilterMarket('all')} label={t.allMarkets} count={sends.length} />
@@ -1437,7 +1446,7 @@ export default function PlannerPage() {
 
           <div style={{ height: '0.5px', background: '#dadce0', margin: '4px 8px' }} />
 
-          {/* Status — compact pills */}
+          {/* Status – compact pills */}
           <div>
             <p className="text-xs font-medium px-2 mb-0.5" style={{ color: '#80868b' }}>{t.status}</p>
             <SideBtn active={filterStatus==='all'} color="#1a73e8" bg="#e8f0fe" onClick={() => setFilterStatus('all')} label={lang==='en'?'All':'Wszystkie'} count={sends.length} />
