@@ -51,7 +51,7 @@ function sanitizeHtml(html) {
 }
 
 const FALLBACK_TEAM = [
-  { id: 'edyta', name: 'Edyta Kędzior', email: 'e.kedzior@angloville.pl', isManager: true, color: '#3b82f6', language: 'pl', restrictedToMarket: null, seeOnlyAssigned: false },
+  { id: 'edyta', name: 'Edyta Kędzior', email: 'e.kedzior@angloville.pl', isManager: true, color: '#3b82f6', language: 'pl', restrictedToMarket: null, seeOnlyAssigned: false, defaultTasksView: 'all', defaultSendsView: 'all' },
 ];
 
 const MARKETS = [
@@ -96,10 +96,12 @@ const TRANSLATIONS = {
   pl: {
     marketingTasks: 'Marketing Tasks', loginTitle: 'Zaloguj się do panelu', person: 'Osoba', select: 'Wybierz...', pin: 'PIN', login: 'Zaloguj się', incorrectPin: 'Nieprawidłowy PIN', selectPerson: 'Wybierz osobę', allMarkets: 'Wszystkie rynki', everyone: 'Wszyscy', pending: 'Oczekujące', active: 'Aktywne', open: 'Otwarte', longterm: 'Long-term', paused: 'Wstrzymane', monitoring: 'Do obserwacji', ideas: 'Pomysły', approval: 'Do akceptacji', closed: 'Zamknięte', formEn: 'Formularz EN:', myLinks: '📌 Moje linki', addLink: 'Dodaj link', noLinks: 'Brak linków', manager: 'Manager', pendingApproval: 'Oczekujące na akceptację', activeTasks: 'Aktywne zadania', openTasks: 'Otwarte zadania', longtermTasks: 'Zadania long-term', pausedTasks: 'Wstrzymane', monitoringTasks: 'Do obserwacji', approvalTasks: 'Do akceptacji', ideasTasks: 'Pomysły', closedTasks: 'Zamknięte zadania', allTasks: 'Wszystkie zadania', filter: 'Filtr', newTask: 'Nowe zadanie', noTasksToShow: 'Brak zadań do wyświetlenia', noPending: 'Brak oczekujących', external: 'Zewnętrzne', assignTo: 'Przypisz:', approve: 'Zatwierdź', title: 'Tytuł', description: 'Opis', attachments: 'Załączniki', noAttachments: 'Brak załączników', subtasks: 'Subtaski', add: 'Dodaj', subtaskName: 'Nazwa subtaska...', noAssignment: 'Bez przypisania', cancel: 'Anuluj', status: 'Status', subcategory: 'Podkategoria', none: 'Brak', assigned: 'Przypisani', addPerson: '+ Dodaj', comments: 'Komentarze', markUnread: 'Oznacz nieprzeczytane', edit: 'Edytuj', delete: 'Usuń', writeComment: 'Napisz komentarz... (@ aby oznaczyć, Shift+Enter = nowy wiersz)', emailNotifications: 'Powiadomienia email', submittedBy: 'Zgłaszający', unknown: 'Nieznany', noEmail: 'Brak adresu email', history: 'Historia:', by: 'przez', system: 'System', resend: 'Wyślij ponownie', sendEmail: 'Wyślij email', created: 'Utworzono', byPerson: 'Przez', save: 'Zapisz', taskDetails: 'Szczegóły zadania...', whatToDo: 'Co trzeba zrobić?', market: 'Rynek', type: 'Typ', assignToPerson: 'Przypisz do', createTask: 'Utwórz zadanie', links: 'Linki', copyLink: 'Kopiuj link', copied: 'Skopiowano', from: 'Od', priority: 'Priorytet', clickToAddAttachments: 'Kliknij 📎 aby dodać załączniki', loading: 'Ładowanie...', deleteTask: 'Usunąć zadanie?', lt: 'LT', new: 'Nowy', users: 'Użytkownicy', usersPanel: 'Zarządzanie użytkownikami', addUser: 'Dodaj użytkownika', editUser: 'Edytuj użytkownika', name: 'Imię i nazwisko', email: 'Email', role: 'Rola', language: 'Język', polish: 'Polski', english: 'Angielski', restrictedMarket: 'Ograniczenie do rynku', allMarketsAccess: 'Wszystkie rynki', seeOnlyAssigned: 'Widzi tylko przypisane', seeAll: 'Widzi wszystkie zadania', isManager: 'Administrator', deactivate: 'Dezaktywuj', activate: 'Aktywuj', color: 'Kolor', unread: 'Nieodczytane', newTasks: 'Nowe zadania', sortBy: 'Sortuj', sortNewest: 'Od najnowszych', sortOldest: 'Od najstarszych', sortPriority: 'Po priorytecie', sortActivity: 'Po aktywności', sortDeadline: 'Wg deadline', sortComments: 'Wg komentarzy', onlyLinkedPlanner: 'Z Plannerem', notifications: 'Powiadomienia', noNotifications: 'Brak powiadomień', newComment: 'Nowy komentarz', mentionedYou: 'oznaczył(a) Cię', inTask: 'w zadaniu', markAllRead: 'Oznacz wszystkie jako przeczytane', soundOn: 'Dźwięk włączony', soundOff: 'Dźwięk wyłączony', dashboard: 'Dashboard', dashboardTitle: 'Dashboard zespołu', tasksCreated: 'Utworzone', tasksClosed: 'Zamknięte', tasksOpen: 'Otwarte', period: 'Okres', last7days: 'Ostatnie 7 dni', last14days: 'Ostatnie 14 dni', last30days: 'Ostatnie 30 dni', total: 'Łącznie', perDay: '/dzień', team: 'Zespół', noData: 'Brak danych', editComment: 'Edytuj', saveComment: 'Zapisz', cancelEdit: 'Anuluj', edited: 'edytowano', moveUp: 'W górę', moveDown: 'W dół', tags: 'Tagi', manageTags: 'Zarządzaj', addTag: 'Dodaj tag', tagName: 'Nazwa tagu', noTags: 'Brak tagów', deadline: 'Deadline', withDeadline: 'Z deadline', deadlineToday: 'Dziś!', noDeadline: 'Brak', withDeadlineTasks: 'Z terminem',
     dateFrom: 'Od', dateTo: 'Do', dateFilter: 'Filtr dat', clearDates: 'Wyczyść daty', dateFilterActive: 'Filtr dat aktywny', createdInRange: 'Utworzone w zakresie', closedInRange: 'Zamknięte w zakresie',
+    tasksLabel: 'Taski', sendsLabel: 'Wysyłki', defaultTasksView: 'Domyślnie widzi taski', defaultSendsView: 'Domyślnie widzi wysyłki', viewMine: 'Moje', viewAll: 'Wszystkich',
   },
   en: {
     marketingTasks: 'Marketing Tasks', loginTitle: 'Login to panel', person: 'Person', select: 'Select...', pin: 'PIN', login: 'Login', incorrectPin: 'Incorrect PIN', selectPerson: 'Select person', allMarkets: 'All markets', everyone: 'Everyone', pending: 'Pending', active: 'Active', open: 'Open', longterm: 'Long-term', paused: 'Paused', monitoring: 'Monitoring', approval: 'For approval', ideas: 'Ideas', closed: 'Closed', formEn: 'EN Form:', myLinks: '📌 My links', addLink: 'Add link', noLinks: 'No links', manager: 'Manager', pendingApproval: 'Pending approval', activeTasks: 'Active tasks', openTasks: 'Open tasks', longtermTasks: 'Long-term tasks', pausedTasks: 'Paused', monitoringTasks: 'Monitoring', approvalTasks: 'For approval', ideasTasks: 'Ideas', closedTasks: 'Closed tasks', allTasks: 'All tasks', filter: 'Filter', newTask: 'New task', noTasksToShow: 'No tasks to display', noPending: 'No pending tasks', external: 'External', assignTo: 'Assign to:', approve: 'Approve', title: 'Title', description: 'Description', attachments: 'Attachments', noAttachments: 'No attachments', subtasks: 'Subtasks', add: 'Add', subtaskName: 'Subtask name...', noAssignment: 'Unassigned', cancel: 'Cancel', status: 'Status', subcategory: 'Subcategory', none: 'None', assigned: 'Assigned', addPerson: '+ Add', comments: 'Comments', markUnread: 'Mark as unread', edit: 'Edit', delete: 'Delete', writeComment: 'Write a comment... (@ to mention, Shift+Enter = new line)', emailNotifications: 'Email notifications', submittedBy: 'Submitted by', unknown: 'Unknown', noEmail: 'No email address', history: 'History:', by: 'by', system: 'System', resend: 'Resend', sendEmail: 'Send email', created: 'Created', byPerson: 'By', save: 'Save', taskDetails: 'Task details...', whatToDo: 'What needs to be done?', market: 'Market', type: 'Type', assignToPerson: 'Assign to', createTask: 'Create task', links: 'Links', copyLink: 'Copy link', copied: 'Copied', from: 'From', priority: 'Priority', clickToAddAttachments: 'Click 📎 to add attachments', loading: 'Loading...', deleteTask: 'Delete task?', lt: 'LT', new: 'New', users: 'Users', usersPanel: 'User management', addUser: 'Add user', editUser: 'Edit user', name: 'Full name', email: 'Email', role: 'Role', language: 'Language', polish: 'Polish', english: 'English', restrictedMarket: 'Restricted to market', allMarketsAccess: 'All markets', seeOnlyAssigned: 'See only assigned', seeAll: 'See all tasks', isManager: 'Administrator', deactivate: 'Deactivate', activate: 'Activate', color: 'Color', unread: 'Unread', newTasks: 'New tasks', sortBy: 'Sort', sortNewest: 'Newest first', sortOldest: 'Oldest first', sortPriority: 'By priority', sortActivity: 'By activity', sortDeadline: 'By deadline', sortComments: 'By comments', onlyLinkedPlanner: 'With Planner', notifications: 'Notifications', noNotifications: 'No notifications', newComment: 'New comment', mentionedYou: 'mentioned you', inTask: 'in task', markAllRead: 'Mark all as read', soundOn: 'Sound on', soundOff: 'Sound off', dashboard: 'Dashboard', dashboardTitle: 'Team Dashboard', tasksCreated: 'Created', tasksClosed: 'Closed', tasksOpen: 'Open', period: 'Period', last7days: 'Last 7 days', last14days: 'Last 14 days', last30days: 'Last 30 days', total: 'Total', perDay: '/day', team: 'Team', noData: 'No data', editComment: 'Edit', saveComment: 'Save', cancelEdit: 'Cancel', edited: 'edited', moveUp: 'Move up', moveDown: 'Move down', tags: 'Tags', manageTags: 'Manage', addTag: 'Add tag', tagName: 'Tag name', noTags: 'No tags', deadline: 'Deadline', withDeadline: 'With deadline', deadlineToday: 'Today!', noDeadline: 'None', withDeadlineTasks: 'With deadline',
     dateFrom: 'From', dateTo: 'To', dateFilter: 'Date filter', clearDates: 'Clear dates', dateFilterActive: 'Date filter active', createdInRange: 'Created in range', closedInRange: 'Closed in range',
+    tasksLabel: 'Tasks', sendsLabel: 'Sends', defaultTasksView: 'Default tasks view', defaultSendsView: 'Default sends view', viewMine: 'Mine', viewAll: 'Everyone',
   }
 };
 
@@ -222,7 +224,57 @@ function UsersPanel({ teamMembers, onUpdate, onClose, t }) {
   useEffect(() => { la(); }, []); const la = async () => { setLd(true); setAu(await getAllTeamMembers()); setLd(false); }; const hs = async (d) => { if (eu) await updateTeamMember(eu.id, d); else await createTeamMember(d); await la(); onUpdate(); setEu(null); setSa(false); }; const ht = async (u) => { await updateTeamMember(u.id, { isActive: !u.isActive }); await la(); onUpdate(); };
   return <aside className="w-full lg:w-[500px] bg-white border-l flex flex-col overflow-hidden flex-shrink-0 fixed lg:static inset-0 z-40 lg:z-auto" style={{ borderColor: '#dadce0' }}><div className="p-4 border-b flex items-center justify-between" style={{ borderColor: '#dadce0' }}><div className="flex items-center gap-2"><Users size={20} style={{ color: '#1a73e8' }} /><h2 className="font-medium" style={{ color: '#202124' }}>{t.usersPanel}</h2></div><div className="flex items-center gap-2"><button onClick={() => { setSa(true); setEu(null); }} className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-medium" style={{ background: '#1a73e8', color: 'white' }}><UserPlus size={16} /> {t.addUser}</button><button onClick={onClose} className="p-2 rounded-full hover:bg-gray-100" style={{ color: '#5f6368' }}><X size={18} /></button></div></div><div className="flex-1 overflow-y-auto p-4">{ld ? <div className="flex items-center justify-center py-8"><Loader2 size={24} className="animate-spin" style={{ color: '#1a73e8' }} /></div> : (sa || eu) ? <UserForm user={eu} onSave={hs} onCancel={() => { setSa(false); setEu(null); }} t={t} /> : <div className="space-y-2">{au.map(u => <div key={u.id} className="p-4 rounded-lg border" style={{ borderColor: '#dadce0', opacity: u.isActive ? 1 : 0.7 }}><div className="flex items-start gap-3"><div className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-medium" style={{ background: u.color }}>{getInitials(u.name)}</div><div className="flex-1 min-w-0"><div className="flex items-center gap-2"><h3 className="font-medium" style={{ color: '#202124' }}>{u.name}</h3>{u.isManager && <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: '#e8f0fe', color: '#1a73e8' }}>Admin</span>}{!u.isActive && <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: '#fef2f2', color: '#dc2626' }}>Nieaktywny</span>}</div><p className="text-sm" style={{ color: '#5f6368' }}>{u.email}</p></div><div className="flex items-center gap-1"><button onClick={() => setEu(u)} className="p-2 rounded-full hover:bg-gray-100" style={{ color: '#5f6368' }}><Edit3 size={16} /></button><button onClick={() => ht(u)} className="p-2 rounded-full hover:bg-gray-100" style={{ color: u.isActive ? '#ef4444' : '#16a34a' }}>{u.isActive ? <X size={16} /> : <Check size={16} />}</button></div></div></div>)}</div>}</div></aside>;
 }
-function UserForm({ user, onSave, onCancel, t }) { const ie = !!user?.id; const [f, sF] = useState({ id: user?.id || '', name: user?.name || '', email: user?.email || '', pin: '', color: user?.color || COLORS[Math.floor(Math.random()*COLORS.length)], role: user?.role || '', isManager: user?.isManager || false, language: user?.language || 'pl', restrictedToMarket: user?.restrictedToMarket || null, seeOnlyAssigned: user?.seeOnlyAssigned || false }); const hs = (e) => { e.preventDefault(); const id = f.id || f.name.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, ''); const d = { ...f, id }; if (ie && !f.pin) delete d.pin; onSave(d); }; return <form onSubmit={hs} className="space-y-4"><div><label className="block text-sm font-medium mb-1" style={{ color: '#202124' }}>{t.name} *</label><input type="text" value={f.name} onChange={e => sF({...f, name: e.target.value})} className="w-full px-3 py-2 border rounded-lg text-sm" style={{ borderColor: '#dadce0' }} required /></div><div><label className="block text-sm font-medium mb-1" style={{ color: '#202124' }}>{t.email} *</label><input type="email" value={f.email} onChange={e => sF({...f, email: e.target.value})} className="w-full px-3 py-2 border rounded-lg text-sm" style={{ borderColor: '#dadce0' }} required /></div><div className="grid grid-cols-2 gap-4"><div><label className="block text-sm font-medium mb-1" style={{ color: '#202124' }}>PIN</label><input type="text" value={f.pin} onChange={e => sF({...f, pin: e.target.value.replace(/\D/g,'').slice(0,4)})} className="w-full px-3 py-2 border rounded-lg text-sm text-center tracking-widest" style={{ borderColor: '#dadce0' }} maxLength={4} placeholder={ie ? '••••' : ''} required={!ie} /></div><div><label className="block text-sm font-medium mb-1" style={{ color: '#202124' }}>{t.color}</label><div className="flex gap-1 flex-wrap">{COLORS.map(c => <button key={c} type="button" onClick={() => sF({...f,color:c})} className="w-6 h-6 rounded-full" style={{ background: c, border: f.color === c ? '2px solid #202124' : '2px solid transparent' }} />)}</div></div></div><div><label className="block text-sm font-medium mb-1" style={{ color: '#202124' }}>{t.role}</label><input type="text" value={f.role} onChange={e => sF({...f, role: e.target.value})} className="w-full px-3 py-2 border rounded-lg text-sm" style={{ borderColor: '#dadce0' }} /></div><div className="grid grid-cols-2 gap-4"><div><label className="block text-sm font-medium mb-1" style={{ color: '#202124' }}>{t.language}</label><select value={f.language} onChange={e => sF({...f, language: e.target.value})} className="w-full px-3 py-2 border rounded-lg text-sm" style={{ borderColor: '#dadce0' }}><option value="pl">🇵🇱 {t.polish}</option><option value="en">🇬🇧 {t.english}</option></select></div><div><label className="block text-sm font-medium mb-1" style={{ color: '#202124' }}>{t.restrictedMarket}</label><select value={f.restrictedToMarket || ''} onChange={e => sF({...f, restrictedToMarket: e.target.value || null})} className="w-full px-3 py-2 border rounded-lg text-sm" style={{ borderColor: '#dadce0' }}><option value="">{t.allMarketsAccess}</option>{MARKETS.map(m => <option key={m.id} value={m.id}>{m.icon} {m.name}</option>)}</select></div></div><div className="space-y-3"><label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={f.seeOnlyAssigned} onChange={e => sF({...f, seeOnlyAssigned: e.target.checked})} className="w-4 h-4 rounded" /><span className="text-sm">{t.seeOnlyAssigned}</span></label><label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={f.isManager} onChange={e => sF({...f, isManager: e.target.checked})} className="w-4 h-4 rounded" /><span className="text-sm">{t.isManager}</span></label></div><div className="flex gap-3 pt-4"><button type="submit" className="flex-1 py-2.5 rounded-lg font-medium text-sm" style={{ background: '#1a73e8', color: 'white' }}>{t.save}</button><button type="button" onClick={onCancel} className="flex-1 py-2.5 rounded-lg font-medium text-sm" style={{ background: '#f1f3f4', color: '#5f6368' }}>{t.cancel}</button></div></form>; }
+function UserForm({ user, onSave, onCancel, t }) {
+  const ie = !!user?.id;
+  const [f, sF] = useState({
+    id: user?.id || '',
+    name: user?.name || '',
+    email: user?.email || '',
+    pin: '',
+    color: user?.color || COLORS[Math.floor(Math.random()*COLORS.length)],
+    role: user?.role || '',
+    isManager: user?.isManager || false,
+    language: user?.language || 'pl',
+    restrictedToMarket: user?.restrictedToMarket || null,
+    // Backward-compat: stary seeOnlyAssigned:true → defaultTasksView:'mine'
+    defaultTasksView: user?.defaultTasksView || (user?.seeOnlyAssigned ? 'mine' : 'all'),
+    defaultSendsView: user?.defaultSendsView || 'all',
+  });
+  const hs = (e) => {
+    e.preventDefault();
+    const id = f.id || f.name.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
+    // Zachowuję seeOnlyAssigned zsynchronizowany z defaultTasksView dla zgodności z istniejącą logiką backendu
+    const d = { ...f, id, seeOnlyAssigned: f.defaultTasksView === 'mine' };
+    if (ie && !f.pin) delete d.pin;
+    onSave(d);
+  };
+  return (
+    <form onSubmit={hs} className="space-y-4">
+      <div><label className="block text-sm font-medium mb-1" style={{ color: '#202124' }}>{t.name} *</label><input type="text" value={f.name} onChange={e => sF({...f, name: e.target.value})} className="w-full px-3 py-2 border rounded-lg text-sm" style={{ borderColor: '#dadce0' }} required /></div>
+      <div><label className="block text-sm font-medium mb-1" style={{ color: '#202124' }}>{t.email} *</label><input type="email" value={f.email} onChange={e => sF({...f, email: e.target.value})} className="w-full px-3 py-2 border rounded-lg text-sm" style={{ borderColor: '#dadce0' }} required /></div>
+      <div className="grid grid-cols-2 gap-4">
+        <div><label className="block text-sm font-medium mb-1" style={{ color: '#202124' }}>PIN</label><input type="text" value={f.pin} onChange={e => sF({...f, pin: e.target.value.replace(/\D/g,'').slice(0,4)})} className="w-full px-3 py-2 border rounded-lg text-sm text-center tracking-widest" style={{ borderColor: '#dadce0' }} maxLength={4} placeholder={ie ? '••••' : ''} required={!ie} /></div>
+        <div><label className="block text-sm font-medium mb-1" style={{ color: '#202124' }}>{t.color}</label><div className="flex gap-1 flex-wrap">{COLORS.map(c => <button key={c} type="button" onClick={() => sF({...f,color:c})} className="w-6 h-6 rounded-full" style={{ background: c, border: f.color === c ? '2px solid #202124' : '2px solid transparent' }} />)}</div></div>
+      </div>
+      <div><label className="block text-sm font-medium mb-1" style={{ color: '#202124' }}>{t.role}</label><input type="text" value={f.role} onChange={e => sF({...f, role: e.target.value})} className="w-full px-3 py-2 border rounded-lg text-sm" style={{ borderColor: '#dadce0' }} /></div>
+      <div className="grid grid-cols-2 gap-4">
+        <div><label className="block text-sm font-medium mb-1" style={{ color: '#202124' }}>{t.language}</label><select value={f.language} onChange={e => sF({...f, language: e.target.value})} className="w-full px-3 py-2 border rounded-lg text-sm" style={{ borderColor: '#dadce0' }}><option value="pl">🇵🇱 {t.polish}</option><option value="en">🇬🇧 {t.english}</option></select></div>
+        <div><label className="block text-sm font-medium mb-1" style={{ color: '#202124' }}>{t.restrictedMarket}</label><select value={f.restrictedToMarket || ''} onChange={e => sF({...f, restrictedToMarket: e.target.value || null})} className="w-full px-3 py-2 border rounded-lg text-sm" style={{ borderColor: '#dadce0' }}><option value="">{t.allMarketsAccess}</option>{MARKETS.map(m => <option key={m.id} value={m.id}>{m.icon} {m.name}</option>)}</select></div>
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div><label className="block text-sm font-medium mb-1" style={{ color: '#202124' }}>{t.defaultTasksView}</label><select value={f.defaultTasksView} onChange={e => sF({...f, defaultTasksView: e.target.value})} className="w-full px-3 py-2 border rounded-lg text-sm" style={{ borderColor: '#dadce0' }}><option value="all">{t.viewAll}</option><option value="mine">{t.viewMine}</option></select></div>
+        <div><label className="block text-sm font-medium mb-1" style={{ color: '#202124' }}>{t.defaultSendsView}</label><select value={f.defaultSendsView} onChange={e => sF({...f, defaultSendsView: e.target.value})} className="w-full px-3 py-2 border rounded-lg text-sm" style={{ borderColor: '#dadce0' }}><option value="all">{t.viewAll}</option><option value="mine">{t.viewMine}</option></select></div>
+      </div>
+      <div className="space-y-3">
+        <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={f.isManager} onChange={e => sF({...f, isManager: e.target.checked})} className="w-4 h-4 rounded" /><span className="text-sm">{t.isManager}</span></label>
+      </div>
+      <div className="flex gap-3 pt-4">
+        <button type="submit" className="flex-1 py-2.5 rounded-lg font-medium text-sm" style={{ background: '#1a73e8', color: 'white' }}>{t.save}</button>
+        <button type="button" onClick={onCancel} className="flex-1 py-2.5 rounded-lg font-medium text-sm" style={{ background: '#f1f3f4', color: '#5f6368' }}>{t.cancel}</button>
+      </div>
+    </form>
+  );
+}
 
 // === QUICK LINKS ===
 function QuickLinksSection({ currentUser, t }) { const [lk, setLk] = useState([]); const [ld, setLd] = useState(true); const [sa, setSa] = useState(false); const [nl, setNl] = useState({ name: '', url: '' }); const [ex, setEx] = useState(true); useEffect(() => { ll(); }, [currentUser]); const ll = async () => { setLd(true); setLk(await getQuickLinks(currentUser)); setLd(false); }; const ha = async () => { if (!nl.name.trim() || !nl.url.trim()) return; await createQuickLink({ ...nl, userId: currentUser }); setNl({ name: '', url: '' }); setSa(false); ll(); }; const hd = async (id) => { await deleteQuickLink(id); ll(); }; return <div className="mt-4 mx-2"><button onClick={() => setEx(!ex)} className="w-full flex items-center justify-between px-2 py-1 text-xs font-medium rounded hover:bg-gray-100" style={{ color: '#5f6368' }}><span>{t.myLinks}</span><ChevronDown size={14} className={`transition-transform ${ex ? '' : '-rotate-90'}`} /></button>{ex && <div className="mt-2 space-y-1">{ld ? <Loader2 size={14} className="animate-spin mx-auto" style={{ color: '#5f6368' }} /> : <>{lk.map(l => <div key={l.id} className="flex items-center gap-1 group"><a href={l.url} target="_blank" rel="noopener noreferrer" className="flex-1 text-xs px-2 py-1.5 rounded hover:bg-gray-100 truncate" style={{ color: '#1a73e8' }}>{l.name}</a><button onClick={() => hd(l.id)} className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-red-50" style={{ color: '#ef4444' }}><X size={12} /></button></div>)}{lk.length === 0 && !sa && <p className="text-xs px-2" style={{ color: '#80868b' }}>{t.noLinks}</p>}{sa ? <div className="p-2 rounded-lg" style={{ background: '#f1f3f4' }}><input type="text" value={nl.name} onChange={e => setNl({...nl, name: e.target.value})} className="w-full px-2 py-1 text-xs rounded border mb-1" style={{ borderColor: '#dadce0' }} placeholder="Nazwa" /><input type="url" value={nl.url} onChange={e => setNl({...nl, url: e.target.value})} className="w-full px-2 py-1 text-xs rounded border mb-2" style={{ borderColor: '#dadce0' }} placeholder="https://..." /><div className="flex gap-1"><button onClick={ha} className="flex-1 py-1 rounded text-xs font-medium" style={{ background: '#1a73e8', color: 'white' }}>{t.add}</button><button onClick={() => { setSa(false); setNl({name:'',url:''}); }} className="px-2 py-1 rounded text-xs" style={{ color: '#5f6368' }}>{t.cancel}</button></div></div> : <button onClick={() => setSa(true)} className="w-full text-xs px-2 py-1.5 rounded hover:bg-gray-100 text-left" style={{ color: '#1a73e8' }}>+ {t.addLink}</button>}</>}</div>}</div>; }
@@ -267,8 +319,15 @@ function TaskItem({ task, isSelected, onClick, onStatusChange, currentUser, read
 
 // === WEEKLY SENDS ACCORDION ===
 
-function WeeklySendsAccordion({ sends, tasks, isOpen, onToggle, onSelectTask, onStatusChange, onCreateTaskForSend, currentUser, readTimestamps, seenTaskIds, lang, t, teamMembers, customTags, selectedTask, label, variant = 'default' }) {
-  if (!sends.length) return null;
+function WeeklySendsAccordion({ sends, tasks, isOpen, onToggle, onSelectTask, onStatusChange, onCreateTaskForSend, currentUser, readTimestamps, seenTaskIds, lang, t, teamMembers, customTags, selectedTask, label, variant = 'default', filterSendsPerson = [] }) {
+  // Filtr osób: pokazujemy wysyłkę jeśli przypisano do niej kogokolwiek z wybranych osób.
+  // Pusta lista = brak filtra = wszyscy.
+  const filteredSends = useMemo(() => {
+    if (!filterSendsPerson || filterSendsPerson.length === 0) return sends;
+    return sends.filter(s => filterSendsPerson.some(fp => (s.assignees || []).includes(fp)));
+  }, [sends, filterSendsPerson]);
+
+  if (!filteredSends.length) return null;
 
   const isNext = variant === 'next';
   const isWeek3 = variant === 'week3';
@@ -284,7 +343,7 @@ function WeeklySendsAccordion({ sends, tasks, isOpen, onToggle, onSelectTask, on
     return m;
   }, [tasks]);
 
-  const todoCount = sends.filter(s => s.status === 'todo').length;
+  const todoCount = filteredSends.filter(s => s.status === 'todo').length;
   const fmtD = (ds) => new Date(ds+'T00:00:00').toLocaleDateString(lang==='en'?'en-US':'pl-PL',{weekday:'short',day:'numeric',month:'short'});
 
   const renderSendAsTask = (send) => {
@@ -339,7 +398,7 @@ function WeeklySendsAccordion({ sends, tasks, isOpen, onToggle, onSelectTask, on
         <div className="flex items-center gap-2">
           <CalendarClock size={14} />
           <span>{label}</span>
-          <span className="rounded-full" style={{ fontSize: '10.5px', padding: '1px 7px', background: '#f3f0ff', color: '#7c3aed', fontWeight: 500 }}>{sends.length}</span>
+          <span className="rounded-full" style={{ fontSize: '10.5px', padding: '1px 7px', background: '#f3f0ff', color: '#7c3aed', fontWeight: 500 }}>{filteredSends.length}</span>
           {todoCount > 0 && <span className="rounded-full" style={{ fontSize: '10.5px', padding: '1px 7px', background: '#fef3c7', color: '#b45309' }}>
             {todoCount} {lang === 'en' ? 'to do' : 'do zrobienia'}
           </span>}
@@ -349,7 +408,7 @@ function WeeklySendsAccordion({ sends, tasks, isOpen, onToggle, onSelectTask, on
       {isOpen && (
         <div className="rounded-b-lg overflow-hidden px-2 py-2" style={{ background: bgContent, border: `1px solid ${borderColor}`, borderTop: 'none' }}>
           <div className="space-y-0.5">
-            {sends.map(renderSendAsTask)}
+            {filteredSends.map(renderSendAsTask)}
           </div>
           <a href="/planner" target="_blank" rel="noopener noreferrer"
             className="flex items-center justify-center gap-1.5 px-4 py-1.5 text-xs hover:underline rounded-lg transition-colors mt-1"
@@ -467,18 +526,19 @@ function NewTaskModal({ onClose, onSave, currentUser, restrictedMarket, t, lang,
 }
 
 // === PERSON MULTI-SELECT ===
-function PersonMultiSelect({ selected, onChange, teamMembers, t }) {
+function PersonMultiSelect({ selected, onChange, teamMembers, t, label }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
   useEffect(() => { const h = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); }; document.addEventListener('mousedown', h); return () => document.removeEventListener('mousedown', h); }, []);
   const activeMembers = teamMembers.filter(m => m.isActive !== false);
   const toggle = (id) => { onChange(selected.includes(id) ? selected.filter(x => x !== id) : [...selected, id]); };
   const selectAll = () => onChange([]);
-  const label = selected.length === 0 ? t.everyone : selected.length === 1 ? teamMembers.find(m => m.id === selected[0])?.name || selected[0] : `${selected.length} ${selected.length > 4 ? 'osób' : 'osoby'}`;
+  const displayLabel = selected.length === 0 ? t.everyone : selected.length === 1 ? teamMembers.find(m => m.id === selected[0])?.name || selected[0] : `${selected.length} ${selected.length > 4 ? 'osób' : 'osoby'}`;
   return (
     <div className="relative" ref={ref}>
+      {label && <div style={{ fontSize: '10px', color: '#80868b', marginBottom: '2px', paddingLeft: '2px', fontWeight: 500, letterSpacing: '0.02em' }}>{label}</div>}
       <button onClick={() => setOpen(!open)} className="w-full rounded-md px-2.5 py-1.5 text-xs border text-left flex items-center justify-between" style={{ borderColor: '#dadce0', color: '#3c4043', borderWidth: '0.5px', background: 'white' }}>
-        <span className="truncate">{label}</span>
+        <span className="truncate">{displayLabel}</span>
         <ChevronDown size={12} style={{ color: '#80868b', flexShrink: 0, transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }} />
       </button>
       {open && (
@@ -505,7 +565,7 @@ function PersonMultiSelect({ selected, onChange, teamMembers, t }) {
 
 // === MAIN APP ===
 export default function TaskApp() {
-  const [currentUser, setCurrentUser] = useState(null); const [teamMembers, setTeamMembers] = useState(FALLBACK_TEAM); const [tasks, setTasks] = useState([]); const [loading, setLoading] = useState(true); const [loadingTeam, setLoadingTeam] = useState(true); const [selectedTask, setSelectedTask] = useState(null); const [showNewTask, setShowNewTask] = useState(false); const [showUsersPanel, setShowUsersPanel] = useState(false); const [filterMarket, setFilterMarket] = useState('all'); const [filterPerson, setFilterPerson] = useState([]); const [filterStatus, setFilterStatus] = useState('active'); const [filterDeadline, setFilterDeadline] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null); const [teamMembers, setTeamMembers] = useState(FALLBACK_TEAM); const [tasks, setTasks] = useState([]); const [loading, setLoading] = useState(true); const [loadingTeam, setLoadingTeam] = useState(true); const [selectedTask, setSelectedTask] = useState(null); const [showNewTask, setShowNewTask] = useState(false); const [showUsersPanel, setShowUsersPanel] = useState(false); const [filterMarket, setFilterMarket] = useState('all'); const [filterPerson, setFilterPerson] = useState([]); const [filterSendsPerson, setFilterSendsPerson] = useState([]); const [filterStatus, setFilterStatus] = useState('active'); const [filterDeadline, setFilterDeadline] = useState(false);
   const [filterLinkedPlanner, setFilterLinkedPlanner] = useState(false);
   const [weeklySends, setWeeklySends] = useState([]);
   const [nextWeekSends, setNextWeekSends] = useState([]);
@@ -517,13 +577,38 @@ export default function TaskApp() {
   const [sortBy, setSortBy] = useState('newest'); const [activeTab, setActiveTab] = useState('tasks'); const [copied, setCopied] = useState(false); const [checkingAuth, setCheckingAuth] = useState(true); const [readTimestamps, setReadTimestamps] = useState({}); const [seenTaskIds, setSeenTaskIds] = useState([]); const [sidebarOpen, setSidebarOpen] = useState(false); const [customTags, setCustomTags] = useState([]); const filtersInitialized = useRef(false);
 
   useEffect(() => { (async () => { setLoadingTeam(true); const m = await getTeamMembers(); if (m.length > 0) setTeamMembers(m); setLoadingTeam(false); })(); }, []);
-  const currentMember = teamMembers.find(m => m.id === currentUser); const lang = currentMember?.language || 'pl'; const t = TRANSLATIONS[lang]; const isManager = currentMember?.isManager || false; const restrictedMarket = currentMember?.restrictedToMarket || null; const seeOnlyAssigned = currentMember?.seeOnlyAssigned || false;
+  const currentMember = teamMembers.find(m => m.id === currentUser); const lang = currentMember?.language || 'pl'; const t = TRANSLATIONS[lang]; const isManager = currentMember?.isManager || false; const restrictedMarket = currentMember?.restrictedToMarket || null;
+  // Backward-compat: stary seeOnlyAssigned:true → defaultTasksView:'mine'. Teraz to tylko domyślne ustawienie filtra, nie twarde ograniczenie – user może przełączyć na „wszystkich”.
+  const defaultTasksView = currentMember?.defaultTasksView || (currentMember?.seeOnlyAssigned ? 'mine' : 'all');
+  const defaultSendsView = currentMember?.defaultSendsView || 'all';
   useEffect(() => { if (currentUser) { getReadTimestampsFromDb(currentUser).then(ts => setReadTimestamps(ts)); setSeenTaskIds(getSeenTaskIds(currentUser)); } }, [currentUser]);
   useEffect(() => { const su = sessionStorage.getItem('av_tasks_user'); if (su) { (async () => { const m = await getTeamMembers(); if (m.find(x => x.id === su)) { setCurrentUser(su); setTeamMembers(m); } setCheckingAuth(false); })(); } else setCheckingAuth(false); }, []);
   useEffect(() => { if (restrictedMarket) setFilterMarket(restrictedMarket); }, [restrictedMarket]);
-  useEffect(() => { if (!currentUser || filtersInitialized.current) return; filtersInitialized.current = true; const sm = sessionStorage.getItem(`av_filter_market_${currentUser}`); const sp = sessionStorage.getItem(`av_filter_person_${currentUser}`); if (!restrictedMarket && sm) setFilterMarket(sm); if (sp) { try { const parsed = JSON.parse(sp); setFilterPerson(Array.isArray(parsed) ? parsed : []); } catch { setFilterPerson(!isManager ? [currentUser] : []); } } else if (!isManager) setFilterPerson([currentUser]); else setFilterPerson([]); }, [currentUser, isManager, restrictedMarket]);
+  useEffect(() => {
+    if (!currentUser || filtersInitialized.current) return;
+    filtersInitialized.current = true;
+    const sm = sessionStorage.getItem(`av_filter_market_${currentUser}`);
+    const sp = sessionStorage.getItem(`av_filter_person_${currentUser}`);
+    const ssp = sessionStorage.getItem(`av_filter_sends_person_${currentUser}`);
+    if (!restrictedMarket && sm) setFilterMarket(sm);
+    // Taski – z sesji, a jak brak → zgodnie z defaultTasksView z profilu
+    if (sp) {
+      try { const parsed = JSON.parse(sp); setFilterPerson(Array.isArray(parsed) ? parsed : []); }
+      catch { setFilterPerson(defaultTasksView === 'mine' ? [currentUser] : []); }
+    } else {
+      setFilterPerson(defaultTasksView === 'mine' ? [currentUser] : []);
+    }
+    // Wysyłki – analogicznie
+    if (ssp) {
+      try { const parsed = JSON.parse(ssp); setFilterSendsPerson(Array.isArray(parsed) ? parsed : []); }
+      catch { setFilterSendsPerson(defaultSendsView === 'mine' ? [currentUser] : []); }
+    } else {
+      setFilterSendsPerson(defaultSendsView === 'mine' ? [currentUser] : []);
+    }
+  }, [currentUser, isManager, restrictedMarket, defaultTasksView, defaultSendsView]);
   useEffect(() => { if (currentUser && !restrictedMarket) sessionStorage.setItem(`av_filter_market_${currentUser}`, filterMarket); }, [filterMarket, currentUser, restrictedMarket]);
   useEffect(() => { if (currentUser) sessionStorage.setItem(`av_filter_person_${currentUser}`, JSON.stringify(filterPerson)); }, [filterPerson, currentUser]);
+  useEffect(() => { if (currentUser) sessionStorage.setItem(`av_filter_sends_person_${currentUser}`, JSON.stringify(filterSendsPerson)); }, [filterSendsPerson, currentUser]);
   const loadTasks = async () => { const d = await getTasks(); setTasks(d); setLoading(false); return d; };
   const loadCustomTags = async () => { setCustomTags(await getCustomTags()); };
   const loadWeeklySends = async () => {
@@ -559,7 +644,7 @@ export default function TaskApp() {
   if (!currentUser) return <LoginScreen onLogin={setCurrentUser} teamMembers={teamMembers} />;
 
   const pendingTasks = tasks.filter(t => t.status === 'pending' && (!restrictedMarket || t.market === restrictedMarket));
-  const visibleTasks = tasks.filter(t => { if (t.status === 'pending') return false; if (restrictedMarket && t.market !== restrictedMarket) return false; if (seeOnlyAssigned && !t.assignees?.includes(currentUser)) return false; if (filterMarket !== 'all' && t.market !== filterMarket) return false; if (filterPerson.length > 0 && !filterPerson.some(fp => t.assignees?.includes(fp))) return false; return true; });
+  const visibleTasks = tasks.filter(t => { if (t.status === 'pending') return false; if (restrictedMarket && t.market !== restrictedMarket) return false; if (filterMarket !== 'all' && t.market !== filterMarket) return false; if (filterPerson.length > 0 && !filterPerson.some(fp => t.assignees?.includes(fp))) return false; return true; });
   const getFilteredByStatus = (sf) => { switch(sf) { case 'active': return visibleTasks.filter(t => t.status === 'open' || t.status === 'longterm'); case 'open': return visibleTasks.filter(t => t.status === 'open'); case 'longterm': return visibleTasks.filter(t => t.status === 'longterm'); case 'paused': return visibleTasks.filter(t => t.status === 'paused'); case 'monitoring': return visibleTasks.filter(t => t.status === 'monitoring'); case 'approval': return visibleTasks.filter(t => t.status === 'approval'); case 'ideas': return visibleTasks.filter(t => t.status === 'ideas'); case 'closed': return visibleTasks.filter(t => t.status === 'closed'); default: return visibleTasks; } };
   let filteredTasks = sortTasks(getFilteredByStatus(filterStatus), sortBy);
   if (filterDeadline) filteredTasks = filteredTasks.filter(t => !!t.deadline);
@@ -636,7 +721,11 @@ export default function TaskApp() {
       {sidebarOpen && <div className="fixed inset-0 bg-black/50 z-30 lg:hidden" onClick={() => setSidebarOpen(false)} />}
       <aside className={`w-52 flex flex-col min-h-screen flex-shrink-0 bg-white fixed lg:static z-30 transition-transform lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`} style={{ borderRight: '1px solid #dadce0' }}>
         <div className="px-4 py-3.5 flex items-center justify-between" style={{ borderBottom: '1px solid #dadce0' }}><div><img src="https://angloville.com/wp-content/themes/angloville/assets/images/logo.svg" alt="Angloville" className="h-6" /><p className="mt-0.5 text-xs" style={{ color: '#80868b', letterSpacing: '0.02em' }}>{t.marketingTasks}</p></div><button onClick={() => setSidebarOpen(false)} className="p-1 rounded hover:bg-gray-100 lg:hidden" style={{ color: '#80868b' }}><X size={16} /></button></div>
-        <div className="px-3 py-2.5 space-y-1.5" style={{ borderBottom: '1px solid #dadce0' }}>{!restrictedMarket && <select value={filterMarket} onChange={e => setFilterMarket(e.target.value)} className="w-full rounded-md px-2.5 py-1.5 text-xs border" style={{ borderColor: '#dadce0', color: '#3c4043', borderWidth: '0.5px' }}><option value="all">{t.allMarkets}</option>{MARKETS.map(m => <option key={m.id} value={m.id}>{m.icon} {lang === 'en' ? m.nameEn : m.name}</option>)}</select>}{!seeOnlyAssigned && <PersonMultiSelect selected={filterPerson} onChange={setFilterPerson} teamMembers={teamMembers} t={t} />}</div>
+        <div className="px-3 py-2.5 space-y-1.5" style={{ borderBottom: '1px solid #dadce0' }}>
+          {!restrictedMarket && <select value={filterMarket} onChange={e => setFilterMarket(e.target.value)} className="w-full rounded-md px-2.5 py-1.5 text-xs border" style={{ borderColor: '#dadce0', color: '#3c4043', borderWidth: '0.5px' }}><option value="all">{t.allMarkets}</option>{MARKETS.map(m => <option key={m.id} value={m.id}>{m.icon} {lang === 'en' ? m.nameEn : m.name}</option>)}</select>}
+          <PersonMultiSelect selected={filterPerson} onChange={setFilterPerson} teamMembers={teamMembers} t={t} label={t.tasksLabel} />
+          <PersonMultiSelect selected={filterSendsPerson} onChange={setFilterSendsPerson} teamMembers={teamMembers} t={t} label={t.sendsLabel} />
+        </div>
         <div className="p-2 flex-1 overflow-y-auto"><div className="space-y-0.5">
           {[
             ...(pendingTasks.length > 0 ? [{ key: 'pending', label: t.pending, icon: AlertCircle, color: '#f59e0b', bg: '#fefce8', count: pendingTasks.length, pl: 0 }] : []),
@@ -694,6 +783,7 @@ export default function TaskApp() {
                 selectedTask={selectedTask}
                 label={lang === 'en' ? 'Sends this week' : 'Wysyłki ten tydzień'}
                 variant="default"
+                filterSendsPerson={filterSendsPerson}
               />
               <WeeklySendsAccordion
                 sends={nextWeekSends}
@@ -713,6 +803,7 @@ export default function TaskApp() {
                 selectedTask={selectedTask}
                 label={lang === 'en' ? 'Next week' : 'Następny tydzień'}
                 variant="next"
+                filterSendsPerson={filterSendsPerson}
               />
               <WeeklySendsAccordion
                 sends={week3Sends}
@@ -732,6 +823,7 @@ export default function TaskApp() {
                 selectedTask={selectedTask}
                 label={lang === 'en' ? 'In 2 weeks' : 'Za 2 tygodnie'}
                 variant="week3"
+                filterSendsPerson={filterSendsPerson}
               />
             </>)}
             <div className="max-w-4xl mx-auto">{filteredTasks.length === 0 ? <div className="text-center py-16"><CheckCircle size={48} className="mx-auto mb-4" style={{ color: '#16a34a', opacity: 0.4 }} /><p style={{ color: '#5f6368' }}>{t.noTasksToShow}</p></div> : <div className="space-y-px">{filteredTasks.map(task => <TaskItem key={task.id} task={task} isSelected={selectedTask?.id === task.id} onClick={() => handleSelectTask(task)} onStatusChange={s => updateTask(task.id, { status: s })} currentUser={currentUser} readTimestamps={readTimestamps} seenTaskIds={seenTaskIds} lang={lang} t={t} teamMembers={teamMembers} customTags={customTags} />)}</div>}</div></>
