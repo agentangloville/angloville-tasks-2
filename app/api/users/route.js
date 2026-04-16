@@ -31,9 +31,11 @@ export async function POST(request) {
           language: data.language || 'pl',
           restricted_to_market: data.restrictedToMarket || null,
           see_only_assigned: data.seeOnlyAssigned || false,
+          default_tasks_view: data.defaultTasksView || (data.seeOnlyAssigned ? 'mine' : 'all'),
+          default_sends_view: data.defaultSendsView || 'all',
           is_active: true,
         }])
-        .select('id, name, email, color, role, is_manager, language, restricted_to_market, see_only_assigned, is_active')
+        .select('id, name, email, color, role, is_manager, language, restricted_to_market, see_only_assigned, default_tasks_view, default_sends_view, is_active')
         .single();
 
       if (error) {
@@ -53,6 +55,8 @@ export async function POST(request) {
       if (data.language !== undefined) updates.language = data.language;
       if (data.restrictedToMarket !== undefined) updates.restricted_to_market = data.restrictedToMarket;
       if (data.seeOnlyAssigned !== undefined) updates.see_only_assigned = data.seeOnlyAssigned;
+      if (data.defaultTasksView !== undefined) updates.default_tasks_view = data.defaultTasksView;
+      if (data.defaultSendsView !== undefined) updates.default_sends_view = data.defaultSendsView;
       if (data.isActive !== undefined) updates.is_active = data.isActive;
 
       if (data.pin) {
