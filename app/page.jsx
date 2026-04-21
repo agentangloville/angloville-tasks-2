@@ -31,7 +31,7 @@ if (typeof document !== 'undefined') {
 
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { Plus, Check, X, Edit3, Trash2, CheckCircle, Circle, Send, MessageSquare, ChevronDown, ChevronRight, Clock, AlertCircle, ExternalLink, Copy, Languages, Loader2, ListTodo, Square, CheckSquare, Bold, Italic, List, ListOrdered, LogOut, Lock, Filter, Underline, Link2, Undo, Redo, Inbox, Sparkles, Mail, MailCheck, MailX, RefreshCw, Paperclip, File, FileText, Image, FileSpreadsheet, Download, Flag, Users, UserPlus, Globe, EyeOff, ArrowUpDown, ArrowDown, ArrowUp, Activity, Bell, AtSign, Volume2, Pause, Eye, Menu, ThumbsUp, BarChart3, TrendingUp, TrendingDown, Calendar, ChevronUp, Tag, Lightbulb, CalendarClock, ClipboardCheck, Phone } from 'lucide-react';
+import { Plus, Check, X, Edit3, Trash2, CheckCircle, Circle, Send, MessageSquare, ChevronDown, ChevronRight, Clock, AlertCircle, ExternalLink, Copy, Languages, Loader2, ListTodo, Square, CheckSquare, Bold, Italic, List, ListOrdered, LogOut, Lock, Filter, Underline, Link2, Undo, Redo, Inbox, Sparkles, Mail, MailCheck, MailX, RefreshCw, Paperclip, File, FileText, Image, FileSpreadsheet, Download, Flag, Users, UserPlus, Globe, EyeOff, ArrowUpDown, ArrowDown, ArrowUp, Activity, Bell, AtSign, Volume2, Pause, Eye, Menu, ThumbsUp, BarChart3, TrendingUp, TrendingDown, Calendar, ChevronUp, Tag, Lightbulb, CalendarClock, ClipboardCheck, Phone, Search } from 'lucide-react';
 import { getTasks, createTask, updateTask as updateTaskDb, deleteTask as deleteTaskDb, getQuickLinks, createQuickLink, deleteQuickLink, uploadFile, getTeamMembers, getAllTeamMembers, createTeamMember, updateTeamMember, getCustomTags, createCustomTag, updateCustomTag, deleteCustomTag as deleteCustomTagDb, getReadTimestampsFromDb, setTaskReadInDb, setTaskUnreadInDb, setAllTasksReadInDb } from '../lib/supabase';
 import { getScheduledSends, updateScheduledSend, createScheduledSend } from '../lib/supabase-planner';
 
@@ -97,11 +97,13 @@ const TRANSLATIONS = {
     marketingTasks: 'Marketing Tasks', loginTitle: 'Zaloguj się do panelu', person: 'Osoba', select: 'Wybierz...', pin: 'PIN', login: 'Zaloguj się', incorrectPin: 'Nieprawidłowy PIN', selectPerson: 'Wybierz osobę', allMarkets: 'Wszystkie rynki', everyone: 'Wszyscy', pending: 'Oczekujące', active: 'Aktywne', open: 'Otwarte', longterm: 'Long-term', paused: 'Wstrzymane', monitoring: 'Do obserwacji', ideas: 'Pomysły', approval: 'Do akceptacji', closed: 'Zamknięte', formEn: 'Formularz EN:', myLinks: '📌 Moje linki', addLink: 'Dodaj link', noLinks: 'Brak linków', manager: 'Manager', pendingApproval: 'Oczekujące na akceptację', activeTasks: 'Aktywne zadania', openTasks: 'Otwarte zadania', longtermTasks: 'Zadania long-term', pausedTasks: 'Wstrzymane', monitoringTasks: 'Do obserwacji', approvalTasks: 'Do akceptacji', ideasTasks: 'Pomysły', closedTasks: 'Zamknięte zadania', allTasks: 'Wszystkie zadania', filter: 'Filtr', newTask: 'Nowe zadanie', noTasksToShow: 'Brak zadań do wyświetlenia', noPending: 'Brak oczekujących', external: 'Zewnętrzne', assignTo: 'Przypisz:', approve: 'Zatwierdź', title: 'Tytuł', description: 'Opis', attachments: 'Załączniki', noAttachments: 'Brak załączników', subtasks: 'Subtaski', add: 'Dodaj', subtaskName: 'Nazwa subtaska...', noAssignment: 'Bez przypisania', cancel: 'Anuluj', status: 'Status', subcategory: 'Podkategoria', none: 'Brak', assigned: 'Przypisani', addPerson: '+ Dodaj', comments: 'Komentarze', markUnread: 'Oznacz nieprzeczytane', edit: 'Edytuj', delete: 'Usuń', writeComment: 'Napisz komentarz... (@ aby oznaczyć, Shift+Enter = nowy wiersz)', emailNotifications: 'Powiadomienia email', submittedBy: 'Zgłaszający', unknown: 'Nieznany', noEmail: 'Brak adresu email', history: 'Historia:', by: 'przez', system: 'System', resend: 'Wyślij ponownie', sendEmail: 'Wyślij email', created: 'Utworzono', byPerson: 'Przez', save: 'Zapisz', taskDetails: 'Szczegóły zadania...', whatToDo: 'Co trzeba zrobić?', market: 'Rynek', type: 'Typ', assignToPerson: 'Przypisz do', createTask: 'Utwórz zadanie', links: 'Linki', copyLink: 'Kopiuj link', copied: 'Skopiowano', from: 'Od', priority: 'Priorytet', clickToAddAttachments: 'Kliknij 📎 aby dodać załączniki', loading: 'Ładowanie...', deleteTask: 'Usunąć zadanie?', lt: 'LT', new: 'Nowy', users: 'Użytkownicy', usersPanel: 'Zarządzanie użytkownikami', addUser: 'Dodaj użytkownika', editUser: 'Edytuj użytkownika', name: 'Imię i nazwisko', email: 'Email', role: 'Rola', language: 'Język', polish: 'Polski', english: 'Angielski', restrictedMarket: 'Ograniczenie do rynku', allMarketsAccess: 'Wszystkie rynki', seeOnlyAssigned: 'Widzi tylko przypisane', seeAll: 'Widzi wszystkie zadania', isManager: 'Administrator', deactivate: 'Dezaktywuj', activate: 'Aktywuj', color: 'Kolor', unread: 'Nieodczytane', newTasks: 'Nowe zadania', sortBy: 'Sortuj', sortNewest: 'Od najnowszych', sortOldest: 'Od najstarszych', sortPriority: 'Po priorytecie', sortActivity: 'Po aktywności', sortDeadline: 'Wg deadline', sortComments: 'Wg komentarzy', onlyLinkedPlanner: 'Z Plannerem', notifications: 'Powiadomienia', noNotifications: 'Brak powiadomień', newComment: 'Nowy komentarz', mentionedYou: 'oznaczył(a) Cię', inTask: 'w zadaniu', markAllRead: 'Oznacz wszystkie jako przeczytane', soundOn: 'Dźwięk włączony', soundOff: 'Dźwięk wyłączony', dashboard: 'Dashboard', dashboardTitle: 'Dashboard zespołu', tasksCreated: 'Utworzone', tasksClosed: 'Zamknięte', tasksOpen: 'Otwarte', period: 'Okres', last7days: 'Ostatnie 7 dni', last14days: 'Ostatnie 14 dni', last30days: 'Ostatnie 30 dni', total: 'Łącznie', perDay: '/dzień', team: 'Zespół', noData: 'Brak danych', editComment: 'Edytuj', saveComment: 'Zapisz', cancelEdit: 'Anuluj', edited: 'edytowano', moveUp: 'W górę', moveDown: 'W dół', tags: 'Tagi', manageTags: 'Zarządzaj', addTag: 'Dodaj tag', tagName: 'Nazwa tagu', noTags: 'Brak tagów', deadline: 'Deadline', withDeadline: 'Z deadline', deadlineToday: 'Dziś!', noDeadline: 'Brak', withDeadlineTasks: 'Z terminem',
     dateFrom: 'Od', dateTo: 'Do', dateFilter: 'Filtr dat', clearDates: 'Wyczyść daty', dateFilterActive: 'Filtr dat aktywny', createdInRange: 'Utworzone w zakresie', closedInRange: 'Zamknięte w zakresie',
     tasksLabel: 'Taski', sendsLabel: 'Wysyłki', defaultTasksView: 'Domyślnie widzi taski', defaultSendsView: 'Domyślnie widzi wysyłki', viewMine: 'Moje', viewAll: 'Wszystkich',
+    search: 'Szukaj', searchPlaceholder: 'Szukaj w taskach...', searchNoResults: 'Brak wyników', searchInTitle: 'tytuł', searchInDescription: 'opis', searchInComment: 'komentarz', searchInSubtask: 'subtask', searchResults: 'wyników',
   },
   en: {
     marketingTasks: 'Marketing Tasks', loginTitle: 'Login to panel', person: 'Person', select: 'Select...', pin: 'PIN', login: 'Login', incorrectPin: 'Incorrect PIN', selectPerson: 'Select person', allMarkets: 'All markets', everyone: 'Everyone', pending: 'Pending', active: 'Active', open: 'Open', longterm: 'Long-term', paused: 'Paused', monitoring: 'Monitoring', approval: 'For approval', ideas: 'Ideas', closed: 'Closed', formEn: 'EN Form:', myLinks: '📌 My links', addLink: 'Add link', noLinks: 'No links', manager: 'Manager', pendingApproval: 'Pending approval', activeTasks: 'Active tasks', openTasks: 'Open tasks', longtermTasks: 'Long-term tasks', pausedTasks: 'Paused', monitoringTasks: 'Monitoring', approvalTasks: 'For approval', ideasTasks: 'Ideas', closedTasks: 'Closed tasks', allTasks: 'All tasks', filter: 'Filter', newTask: 'New task', noTasksToShow: 'No tasks to display', noPending: 'No pending tasks', external: 'External', assignTo: 'Assign to:', approve: 'Approve', title: 'Title', description: 'Description', attachments: 'Attachments', noAttachments: 'No attachments', subtasks: 'Subtasks', add: 'Add', subtaskName: 'Subtask name...', noAssignment: 'Unassigned', cancel: 'Cancel', status: 'Status', subcategory: 'Subcategory', none: 'None', assigned: 'Assigned', addPerson: '+ Add', comments: 'Comments', markUnread: 'Mark as unread', edit: 'Edit', delete: 'Delete', writeComment: 'Write a comment... (@ to mention, Shift+Enter = new line)', emailNotifications: 'Email notifications', submittedBy: 'Submitted by', unknown: 'Unknown', noEmail: 'No email address', history: 'History:', by: 'by', system: 'System', resend: 'Resend', sendEmail: 'Send email', created: 'Created', byPerson: 'By', save: 'Save', taskDetails: 'Task details...', whatToDo: 'What needs to be done?', market: 'Market', type: 'Type', assignToPerson: 'Assign to', createTask: 'Create task', links: 'Links', copyLink: 'Copy link', copied: 'Copied', from: 'From', priority: 'Priority', clickToAddAttachments: 'Click 📎 to add attachments', loading: 'Loading...', deleteTask: 'Delete task?', lt: 'LT', new: 'New', users: 'Users', usersPanel: 'User management', addUser: 'Add user', editUser: 'Edit user', name: 'Full name', email: 'Email', role: 'Role', language: 'Language', polish: 'Polish', english: 'English', restrictedMarket: 'Restricted to market', allMarketsAccess: 'All markets', seeOnlyAssigned: 'See only assigned', seeAll: 'See all tasks', isManager: 'Administrator', deactivate: 'Deactivate', activate: 'Activate', color: 'Color', unread: 'Unread', newTasks: 'New tasks', sortBy: 'Sort', sortNewest: 'Newest first', sortOldest: 'Oldest first', sortPriority: 'By priority', sortActivity: 'By activity', sortDeadline: 'By deadline', sortComments: 'By comments', onlyLinkedPlanner: 'With Planner', notifications: 'Notifications', noNotifications: 'No notifications', newComment: 'New comment', mentionedYou: 'mentioned you', inTask: 'in task', markAllRead: 'Mark all as read', soundOn: 'Sound on', soundOff: 'Sound off', dashboard: 'Dashboard', dashboardTitle: 'Team Dashboard', tasksCreated: 'Created', tasksClosed: 'Closed', tasksOpen: 'Open', period: 'Period', last7days: 'Last 7 days', last14days: 'Last 14 days', last30days: 'Last 30 days', total: 'Total', perDay: '/day', team: 'Team', noData: 'No data', editComment: 'Edit', saveComment: 'Save', cancelEdit: 'Cancel', edited: 'edited', moveUp: 'Move up', moveDown: 'Move down', tags: 'Tags', manageTags: 'Manage', addTag: 'Add tag', tagName: 'Tag name', noTags: 'No tags', deadline: 'Deadline', withDeadline: 'With deadline', deadlineToday: 'Today!', noDeadline: 'None', withDeadlineTasks: 'With deadline',
     dateFrom: 'From', dateTo: 'To', dateFilter: 'Date filter', clearDates: 'Clear dates', dateFilterActive: 'Date filter active', createdInRange: 'Created in range', closedInRange: 'Closed in range',
     tasksLabel: 'Tasks', sendsLabel: 'Sends', defaultTasksView: 'Default tasks view', defaultSendsView: 'Default sends view', viewMine: 'Mine', viewAll: 'Everyone',
+    search: 'Search', searchPlaceholder: 'Search tasks...', searchNoResults: 'No results', searchInTitle: 'title', searchInDescription: 'description', searchInComment: 'comment', searchInSubtask: 'subtask', searchResults: 'results',
   }
 };
 
@@ -563,6 +565,238 @@ function PersonMultiSelect({ selected, onChange, teamMembers, t, label }) {
   );
 }
 
+// === GLOBAL SEARCH ===
+// Strip HTML tags from rich text to get plain text for searching
+const stripHtml = (html) => {
+  if (!html) return '';
+  if (typeof document === 'undefined') return html.replace(/<[^>]*>/g, ' ');
+  const tmp = document.createElement('div');
+  tmp.innerHTML = html;
+  return (tmp.textContent || tmp.innerText || '').replace(/\s+/g, ' ').trim();
+};
+
+// Escape regex special chars
+const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+// Extract short snippet around match, with bolded match
+const getSnippet = (text, query, maxLen = 80) => {
+  if (!text) return '';
+  const lower = text.toLowerCase();
+  const idx = lower.indexOf(query.toLowerCase());
+  if (idx === -1) return text.slice(0, maxLen) + (text.length > maxLen ? '…' : '');
+  const ctx = Math.floor((maxLen - query.length) / 2);
+  const start = Math.max(0, idx - ctx);
+  const end = Math.min(text.length, idx + query.length + ctx);
+  const prefix = start > 0 ? '…' : '';
+  const suffix = end < text.length ? '…' : '';
+  return prefix + text.slice(start, end) + suffix;
+};
+
+// Render text with highlighted query occurrences
+function HighlightedText({ text, query }) {
+  if (!query || !text) return <>{text}</>;
+  const parts = text.split(new RegExp(`(${escapeRegex(query)})`, 'gi'));
+  return <>{parts.map((p, i) => p.toLowerCase() === query.toLowerCase()
+    ? <mark key={i} style={{ background: '#fef08a', color: '#202124', padding: '0 1px', borderRadius: '2px' }}>{p}</mark>
+    : <span key={i}>{p}</span>)}</>;
+}
+
+function GlobalSearch({ tasks, onSelectTask, teamMembers, customTags, t, lang }) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const [debouncedQuery, setDebouncedQuery] = useState('');
+  const [activeIdx, setActiveIdx] = useState(0);
+  const inputRef = useRef(null);
+  const containerRef = useRef(null);
+  const resultsRef = useRef(null);
+
+  // Debounce query to avoid re-filtering on every keystroke
+  useEffect(() => {
+    const tm = setTimeout(() => setDebouncedQuery(query.trim()), 150);
+    return () => clearTimeout(tm);
+  }, [query]);
+
+  // Close on outside click
+  useEffect(() => {
+    const h = (e) => { if (containerRef.current && !containerRef.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, []);
+
+  // Focus input when opened
+  useEffect(() => { if (open) setTimeout(() => inputRef.current?.focus(), 50); }, [open]);
+
+  // Global Ctrl/Cmd+K shortcut to open search
+  useEffect(() => {
+    const h = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') { e.preventDefault(); setOpen(true); }
+      if (e.key === 'Escape' && open) setOpen(false);
+    };
+    window.addEventListener('keydown', h);
+    return () => window.removeEventListener('keydown', h);
+  }, [open]);
+
+  // Build search index – memoized, only rebuilds when tasks change
+  // Each task gets searchable text blobs for: title, description, comments, subtasks
+  const searchIndex = useMemo(() => tasks.map(task => ({
+    task,
+    title: (task.title || '').toLowerCase(),
+    description: stripHtml(task.description || '').toLowerCase(),
+    comments: (task.comments || []).map(c => ({ text: stripHtml(c.text || '').toLowerCase(), raw: stripHtml(c.text || ''), author: c.author, id: c.id })),
+    subtasks: (task.subtasks || []).map(s => ({ text: (s.title || s.name || '').toLowerCase(), raw: s.title || s.name || '', status: s.status })),
+  })), [tasks]);
+
+  // Run search – each result carries WHERE the match was found (title/description/comment/subtask)
+  const results = useMemo(() => {
+    if (debouncedQuery.length < 2) return [];
+    const q = debouncedQuery.toLowerCase();
+    const out = [];
+    for (const entry of searchIndex) {
+      const matches = [];
+      if (entry.title.includes(q)) matches.push({ type: 'title', text: entry.task.title });
+      if (entry.description.includes(q)) matches.push({ type: 'description', text: stripHtml(entry.task.description) });
+      for (const c of entry.comments) {
+        if (c.text.includes(q)) { matches.push({ type: 'comment', text: c.raw, author: c.author }); break; } // only first comment match
+      }
+      for (const s of entry.subtasks) {
+        if (s.text.includes(q)) { matches.push({ type: 'subtask', text: s.raw }); break; }
+      }
+      if (matches.length > 0) {
+        // Priority: title matches first, then active tasks, then closed
+        const titleMatch = matches.some(m => m.type === 'title') ? 0 : 1;
+        const closedPenalty = entry.task.status === 'closed' ? 1 : 0;
+        out.push({ task: entry.task, matches, sortKey: titleMatch * 10 + closedPenalty });
+      }
+    }
+    out.sort((a, b) => a.sortKey - b.sortKey);
+    return out.slice(0, 20);
+  }, [searchIndex, debouncedQuery]);
+
+  // Reset active index when results change
+  useEffect(() => { setActiveIdx(0); }, [debouncedQuery]);
+
+  // Scroll active result into view
+  useEffect(() => {
+    if (!resultsRef.current) return;
+    const el = resultsRef.current.querySelector(`[data-idx="${activeIdx}"]`);
+    if (el) el.scrollIntoView({ block: 'nearest' });
+  }, [activeIdx]);
+
+  const handleSelect = (task) => {
+    onSelectTask(task);
+    setOpen(false);
+    setQuery('');
+  };
+
+  const handleKey = (e) => {
+    if (e.key === 'ArrowDown') { e.preventDefault(); setActiveIdx(i => Math.min(i + 1, results.length - 1)); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); setActiveIdx(i => Math.max(i - 1, 0)); }
+    else if (e.key === 'Enter' && results[activeIdx]) { e.preventDefault(); handleSelect(results[activeIdx].task); }
+    else if (e.key === 'Escape') { setOpen(false); setQuery(''); }
+  };
+
+  const labelFor = (type) => {
+    if (type === 'title') return t.searchInTitle;
+    if (type === 'description') return t.searchInDescription;
+    if (type === 'comment') return t.searchInComment;
+    if (type === 'subtask') return t.searchInSubtask;
+    return '';
+  };
+
+  return (
+    <div className="relative" ref={containerRef}>
+      <button onClick={() => setOpen(o => !o)} className="p-2 rounded-full hover:bg-gray-100" style={{ color: open ? '#1a73e8' : '#5f6368' }} title={`${t.search} (Ctrl+K)`}>
+        <Search size={18} />
+      </button>
+      {open && (
+        <div className="absolute right-0 top-full mt-2 w-[420px] max-w-[calc(100vw-2rem)] bg-white rounded-xl overflow-hidden" style={{ boxShadow: '0 1px 2px 0 rgba(60,64,67,.3), 0 2px 6px 2px rgba(60,64,67,.15)', border: '1px solid #dadce0', zIndex: 9999 }}>
+          <div className="px-3 py-2 flex items-center gap-2" style={{ borderBottom: '1px solid #dadce0' }}>
+            <Search size={16} style={{ color: '#5f6368', flexShrink: 0 }} />
+            <input
+              ref={inputRef}
+              type="text"
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              onKeyDown={handleKey}
+              placeholder={t.searchPlaceholder}
+              className="flex-1 text-sm outline-none"
+              style={{ color: '#202124', border: 'none', background: 'transparent' }}
+            />
+            {query && <button onClick={() => { setQuery(''); inputRef.current?.focus(); }} className="p-0.5 rounded hover:bg-gray-100" style={{ color: '#80868b' }}><X size={14} /></button>}
+          </div>
+          <div ref={resultsRef} className="overflow-y-auto" style={{ maxHeight: '420px' }}>
+            {debouncedQuery.length < 2 ? (
+              <div className="py-8 text-center text-xs" style={{ color: '#80868b' }}>
+                {lang === 'en' ? 'Type at least 2 characters…' : 'Wpisz min. 2 znaki…'}
+              </div>
+            ) : results.length === 0 ? (
+              <div className="py-8 text-center text-xs" style={{ color: '#80868b' }}>{t.searchNoResults}</div>
+            ) : (
+              <>
+                <div className="px-3 py-1.5 text-xs" style={{ color: '#80868b', background: '#f8f9fa', borderBottom: '1px solid #f1f3f4' }}>
+                  {results.length} {t.searchResults}
+                </div>
+                {results.map((r, idx) => {
+                  const mk = MARKETS.find(m => m.id === r.task.market);
+                  const st = STATUSES.find(s => s.id === r.task.status);
+                  const StIcon = st?.icon || Circle;
+                  const isActive = idx === activeIdx;
+                  const primaryMatch = r.matches[0];
+                  const snippet = primaryMatch.type === 'title' ? '' : getSnippet(primaryMatch.text, debouncedQuery);
+                  return (
+                    <button
+                      key={r.task.id}
+                      data-idx={idx}
+                      onClick={() => handleSelect(r.task)}
+                      onMouseEnter={() => setActiveIdx(idx)}
+                      className="w-full px-3 py-2 flex gap-2 text-left"
+                      style={{ background: isActive ? '#f1f3f4' : 'white', borderBottom: '1px solid #f1f3f4' }}
+                    >
+                      <div className="flex-shrink-0 pt-0.5">
+                        <span style={{ fontSize: '14px' }}>{mk?.icon || '📋'}</span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5 mb-0.5">
+                          <StIcon size={11} style={{ color: st?.color || '#80868b', flexShrink: 0 }} />
+                          <span className="text-xs" style={{ color: st?.color || '#80868b', fontWeight: 500 }}>
+                            {lang === 'en' ? st?.nameEn : st?.name}
+                          </span>
+                          {r.task.priority && <PriorityBadge priority={r.task.priority} size="small" lang={lang} />}
+                          {r.matches.length > 1 && (
+                            <span className="text-xs px-1.5 rounded-full" style={{ background: '#e8f0fe', color: '#1a73e8', fontSize: '10px' }}>
+                              +{r.matches.length - 1}
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-sm truncate" style={{ color: '#202124', fontWeight: primaryMatch.type === 'title' ? 500 : 400 }}>
+                          <HighlightedText text={r.task.title} query={debouncedQuery} />
+                        </div>
+                        {snippet && (
+                          <div className="text-xs mt-0.5 truncate" style={{ color: '#5f6368' }}>
+                            <span style={{ color: '#80868b', fontStyle: 'italic' }}>{labelFor(primaryMatch.type)}: </span>
+                            <HighlightedText text={snippet} query={debouncedQuery} />
+                          </div>
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
+              </>
+            )}
+          </div>
+          {results.length > 0 && (
+            <div className="px-3 py-1.5 text-xs flex items-center gap-3" style={{ color: '#80868b', background: '#f8f9fa', borderTop: '1px solid #f1f3f4' }}>
+              <span>↑↓ {lang === 'en' ? 'navigate' : 'nawiguj'}</span>
+              <span>↵ {lang === 'en' ? 'open' : 'otwórz'}</span>
+              <span>Esc {lang === 'en' ? 'close' : 'zamknij'}</span>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // === MAIN APP ===
 export default function TaskApp() {
   const [currentUser, setCurrentUser] = useState(null); const [teamMembers, setTeamMembers] = useState(FALLBACK_TEAM); const [tasks, setTasks] = useState([]); const [loading, setLoading] = useState(true); const [loadingTeam, setLoadingTeam] = useState(true); const [selectedTask, setSelectedTask] = useState(null); const [showNewTask, setShowNewTask] = useState(false); const [showUsersPanel, setShowUsersPanel] = useState(false); const [filterMarket, setFilterMarket] = useState('all'); const [filterPerson, setFilterPerson] = useState([]); const [filterSendsPerson, setFilterSendsPerson] = useState([]); const [filterStatus, setFilterStatus] = useState('active'); const [filterDeadline, setFilterDeadline] = useState(false);
@@ -757,6 +991,7 @@ export default function TaskApp() {
           <div className="flex items-center gap-2 min-w-0"><button onClick={() => setSidebarOpen(true)} className="p-2 rounded-full hover:bg-gray-100 lg:hidden flex-shrink-0" style={{ color: '#80868b' }}><Menu size={20} /></button><div className="min-w-0"><h2 className="text-sm lg:text-base font-medium truncate" style={{ color: '#202124' }}>{showUsersPanel ? t.usersPanel : activeTab === 'pending' ? t.pendingApproval : filterDeadline ? t.withDeadlineTasks : filterStatus === 'active' ? t.activeTasks : filterStatus === 'open' ? t.openTasks : filterStatus === 'longterm' ? t.longtermTasks : filterStatus === 'paused' ? t.pausedTasks : filterStatus === 'monitoring' ? t.monitoringTasks : filterStatus === 'approval' ? t.approvalTasks : filterStatus === 'ideas' ? t.ideasTasks : t.closedTasks}</h2>{filterPerson.length > 0 && !showUsersPanel && <p style={{ fontSize: '11px', color: '#80868b' }}>{t.filter}: {filterPerson.map(fp => teamMembers.find(m => m.id === fp)?.name?.split(' ')[0]).filter(Boolean).join(', ')}</p>}</div></div>
           <div className="flex items-center gap-2 flex-shrink-0">
             <NotificationBell tasks={tasks} currentUser={currentUser} readTimestamps={readTimestamps} teamMembers={teamMembers} onSelectTask={handleSelectTask} onMarkAllRead={async () => { const taskIds = tasks.map(t => t.id); const now = await setAllTasksReadInDb(currentUser, taskIds); const newTs = {}; taskIds.forEach(id => { newTs[id] = now; }); setReadTimestamps(newTs); }} t={t} lang={lang} />
+            {!showUsersPanel && <GlobalSearch tasks={tasks} onSelectTask={handleSelectTask} teamMembers={teamMembers} customTags={customTags} t={t} lang={lang} />}
             {!showUsersPanel && activeTab === 'tasks' && <SortDropdown value={sortBy} onChange={setSortBy} t={t} />}
             {!showUsersPanel && <><button onClick={loadTasks} className="p-2 rounded-full hover:bg-gray-100" style={{ color: '#5f6368' }}><Loader2 size={18} className={loading ? 'animate-spin' : ''} /></button>{activeTab === 'tasks' && <button onClick={() => setShowNewTask(true)} className="flex items-center gap-1.5 px-4 lg:px-5 py-2 rounded-full font-medium text-sm shadow-sm hover:shadow-md transition-shadow" style={{ background: '#1a73e8', color: 'white' }}><Plus size={16} /> <span className="hidden sm:inline">{t.newTask}</span></button>}</>}
           </div>
