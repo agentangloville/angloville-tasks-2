@@ -878,7 +878,8 @@ export default function TaskApp() {
   if (!currentUser) return <LoginScreen onLogin={setCurrentUser} teamMembers={teamMembers} />;
 
   const pendingTasks = tasks.filter(t => t.status === 'pending' && (!restrictedMarket || t.market === restrictedMarket));
-  const seeOnlyAssigned = currentMember?.seeOnlyAssigned || false;
+  const canSeeAllTasks = currentMember?.canSeeAllTasks !== false;
+  const seeOnlyAssigned = !canSeeAllTasks;
   const visibleTasks = tasks.filter(t => { if (t.status === 'pending') return false; if (restrictedMarket && t.market !== restrictedMarket) return false; if (seeOnlyAssigned && !t.assignees?.includes(currentUser)) return false; if (filterMarket !== 'all' && t.market !== filterMarket) return false; if (filterPerson.length > 0 && !filterPerson.some(fp => t.assignees?.includes(fp))) return false; return true; });
   const visibleWeeklySends = weeklySends.filter(s => !restrictedMarket || s.market === restrictedMarket);
   const visibleNextWeekSends = nextWeekSends.filter(s => !restrictedMarket || s.market === restrictedMarket);
