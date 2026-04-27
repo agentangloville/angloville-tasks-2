@@ -843,13 +843,11 @@ export default function TaskApp() {
   useEffect(() => { if (currentUser && !restrictedMarket) sessionStorage.setItem(`av_filter_market_${currentUser}`, filterMarket); }, [filterMarket, currentUser, restrictedMarket]);
   useEffect(() => { if (currentUser) sessionStorage.setItem(`av_filter_person_${currentUser}`, JSON.stringify(filterPerson)); }, [filterPerson, currentUser]);
   useEffect(() => { if (currentUser) sessionStorage.setItem(`av_filter_sends_person_${currentUser}`, JSON.stringify(filterSendsPerson)); }, [filterSendsPerson, currentUser]);
-  const teamMembersRef = useRef(teamMembers);
-  useEffect(() => { teamMembersRef.current = teamMembers; }, [teamMembers]);
-  const loadTasks = useCallback(async () => { const member = teamMembersRef.current.find(m => m.id === currentUser) || null; const d = await getTasks(member); setTasks(d); setLoading(false); return d; }, [currentUser]);
+  const loadTasks = useCallback(async () => { const d = await getTasks(); setTasks(d); setLoading(false); return d; }, []);
   const loadCustomTags = async () => { setCustomTags(await getCustomTags()); };
   const loadWeeklySends = useCallback(async () => {
     try {
-      const member = teamMembersRef.current.find(m => m.id === currentUser) || null; const all = await getScheduledSends(member);
+      const all = await getScheduledSends();
       setAllSends(all);
       const now = new Date();
       const day = now.getDay();
@@ -868,9 +866,9 @@ export default function TaskApp() {
       setNextWeekSends(all.filter(s => s.sendDate >= m2 && s.sendDate <= s2 && notCancelled(s)).sort(sort));
       setWeek3Sends(all.filter(s => s.sendDate >= m3 && s.sendDate <= s3 && notCancelled(s)).sort(sort));
     } catch (e) { console.error('Failed to load weekly sends:', e); }
-  }, [currentUser]);
-  useEffect(() => { if (currentUser) { loadTasks(); loadCustomTags(); loadWeeklySends(); } }, [currentUser, loadTasks, loadWeeklySends]);
-  useEffect(() => { if (!currentUser) return; const iv = setInterval(() => { loadTasks(); loadWeeklySends(); }, 30000); return () => clearInterval(iv); }, [currentUser, loadTasks, loadWeeklySends]);
+  }, []);
+  useEffect(() => { if (currentUser) { loadTasks(); loadCustomTags(); loadWeeklySends(); } }, [currentUser]);
+  useEffect(() => { if (!currentUser) return; const iv = setInterval(() => { loadTasks(); loadWeeklySends(); }, 30000); return () => clearInterval(iv); }, [currentUser]);
   const handleLogout = () => { sessionStorage.removeItem('av_tasks_user'); setCurrentUser(null); setTasks([]); setSelectedTask(null); setShowUsersPanel(false); filtersInitialized.current = false; };
   const handleSelectTask = useCallback((task) => { setSelectedTask(task); setShowUsersPanel(false); setSidebarOpen(false); if (currentUser && task) { const now = new Date().toISOString(); setReadTimestamps(prev => ({...prev, [task.id]: now})); markTaskAsSeen(task.id, currentUser); setSeenTaskIds(prev => prev.includes(task.id) ? prev : [...prev, task.id]); setTaskReadInDb(currentUser, task.id); } }, [currentUser]);
   const handleMarkUnread = useCallback((taskId) => { if (currentUser) { setReadTimestamps(prev => { const n = {...prev}; delete n[taskId]; return n; }); setTaskUnreadInDb(currentUser, taskId); } }, [currentUser]);
@@ -880,7 +878,11 @@ export default function TaskApp() {
   if (!currentUser) return <LoginScreen onLogin={setCurrentUser} teamMembers={teamMembers} />;
 
   const pendingTasks = tasks.filter(t => t.status === 'pending' && (!restrictedMarket || t.market === restrictedMarket));
-  const visibleTasks = tasks.filter(t => { if (t.status === 'pending') return false; if (restrictedMarket && t.market !== restrictedMarket) return false; if (filterMarket !== 'all' && t.market !== filterMarket) return false; if (filterPerson.length > 0 && !filterPerson.some(fp => t.assignees?.includes(fp))) return false; return true; });
+  const seeOnlyAssigned = currentMember?.seeOnlyAssigned || false;
+  const visibleTasks = tasks.filter(t => { if (t.status === 'pending') return false; if (restrictedMarket && t.market !== restrictedMarket) return false; if (seeOnlyAssigned && !t.assignees?.includes(currentUser)) return false; if (filterMarket !== 'all' && t.market !== filterMarket) return false; if (filterPerson.length > 0 && !filterPerson.some(fp => t.assignees?.includes(fp))) return false; return true; });
+  const visibleWeeklySends = weeklySends.filter(s => !restrictedMarket || s.market === restrictedMarket);
+  const visibleNextWeekSends = nextWeekSends.filter(s => !restrictedMarket || s.market === restrictedMarket);
+  const visibleWeek3Sends = week3Sends.filter(s => !restrictedMarket || s.market === restrictedMarket);
   const getFilteredByStatus = (sf) => { switch(sf) { case 'active': return visibleTasks.filter(t => t.status === 'open' || t.status === 'longterm'); case 'open': return visibleTasks.filter(t => t.status === 'open'); case 'longterm': return visibleTasks.filter(t => t.status === 'longterm'); case 'paused': return visibleTasks.filter(t => t.status === 'paused'); case 'monitoring': return visibleTasks.filter(t => t.status === 'monitoring'); case 'approval': return visibleTasks.filter(t => t.status === 'approval'); case 'ideas': return visibleTasks.filter(t => t.status === 'ideas'); case 'closed': return visibleTasks.filter(t => t.status === 'closed'); default: return visibleTasks; } };
   let filteredTasks = sortTasks(getFilteredByStatus(filterStatus), sortBy);
   if (filterDeadline) filteredTasks = filteredTasks.filter(t => !!t.deadline);
@@ -888,7 +890,7 @@ export default function TaskApp() {
   
   // Hide all planner-linked tasks from the main list when accordion is visible
   // (this week's are in the accordion, future ones will appear when their week comes)
-  const showAccordion = (filterStatus === 'active' || filterStatus === 'open') && (weeklySends.length > 0 || nextWeekSends.length > 0 || week3Sends.length > 0) && !filterLinkedPlanner && !filterDeadline;
+  const showAccordion = (filterStatus === 'active' || filterStatus === 'open') && (visibleWeeklySends.length > 0 || visibleNextWeekSends.length > 0 || visibleWeek3Sends.length > 0) && !filterLinkedPlanner && !filterDeadline;
   if (showAccordion) {
     filteredTasks = filteredTasks.filter(t => !t.linkedSendId);
   }
@@ -1003,7 +1005,7 @@ export default function TaskApp() {
           {showUsersPanel ? null : activeTab === 'pending' && isManager ? <PendingView tasks={pendingTasks} approveTask={approveTask} deleteTask={deleteTask} currentUser={currentUser} t={t} lang={lang} teamMembers={teamMembers} /> : (
             <>{showAccordion && (<>
               <WeeklySendsAccordion
-                sends={weeklySends}
+                sends={visibleWeeklySends}
                 tasks={tasks}
                 isOpen={weekSendsOpen}
                 onToggle={() => setWeekSendsOpen(o => !o)}
@@ -1023,7 +1025,7 @@ export default function TaskApp() {
                 filterSendsPerson={filterSendsPerson}
               />
               <WeeklySendsAccordion
-                sends={nextWeekSends}
+                sends={visibleNextWeekSends}
                 tasks={tasks}
                 isOpen={nextWeekSendsOpen}
                 onToggle={() => setNextWeekSendsOpen(o => !o)}
@@ -1043,7 +1045,7 @@ export default function TaskApp() {
                 filterSendsPerson={filterSendsPerson}
               />
               <WeeklySendsAccordion
-                sends={week3Sends}
+                sends={visibleWeek3Sends}
                 tasks={tasks}
                 isOpen={week3SendsOpen}
                 onToggle={() => setWeek3SendsOpen(o => !o)}
