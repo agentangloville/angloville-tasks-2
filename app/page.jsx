@@ -843,11 +843,13 @@ export default function TaskApp() {
   useEffect(() => { if (currentUser && !restrictedMarket) sessionStorage.setItem(`av_filter_market_${currentUser}`, filterMarket); }, [filterMarket, currentUser, restrictedMarket]);
   useEffect(() => { if (currentUser) sessionStorage.setItem(`av_filter_person_${currentUser}`, JSON.stringify(filterPerson)); }, [filterPerson, currentUser]);
   useEffect(() => { if (currentUser) sessionStorage.setItem(`av_filter_sends_person_${currentUser}`, JSON.stringify(filterSendsPerson)); }, [filterSendsPerson, currentUser]);
-  const loadTasks = useCallback(async () => { const member = teamMembers.find(m => m.id === currentUser) || null; const d = await getTasks(member); setTasks(d); setLoading(false); return d; }, [currentUser, teamMembers]);
+  const teamMembersRef = useRef(teamMembers);
+  useEffect(() => { teamMembersRef.current = teamMembers; }, [teamMembers]);
+  const loadTasks = useCallback(async () => { const member = teamMembersRef.current.find(m => m.id === currentUser) || null; const d = await getTasks(member); setTasks(d); setLoading(false); return d; }, [currentUser]);
   const loadCustomTags = async () => { setCustomTags(await getCustomTags()); };
   const loadWeeklySends = useCallback(async () => {
     try {
-      const member = teamMembers.find(m => m.id === currentUser) || null; const all = await getScheduledSends(member);
+      const member = teamMembersRef.current.find(m => m.id === currentUser) || null; const all = await getScheduledSends(member);
       setAllSends(all);
       const now = new Date();
       const day = now.getDay();
@@ -866,9 +868,9 @@ export default function TaskApp() {
       setNextWeekSends(all.filter(s => s.sendDate >= m2 && s.sendDate <= s2 && notCancelled(s)).sort(sort));
       setWeek3Sends(all.filter(s => s.sendDate >= m3 && s.sendDate <= s3 && notCancelled(s)).sort(sort));
     } catch (e) { console.error('Failed to load weekly sends:', e); }
-  }, [currentUser, teamMembers]);
-  useEffect(() => { if (currentUser) { loadTasks(); loadCustomTags(); loadWeeklySends(); } }, [currentUser]);
-  useEffect(() => { if (!currentUser) return; const iv = setInterval(() => { loadTasks(); loadWeeklySends(); }, 30000); return () => clearInterval(iv); }, [currentUser]);
+  }, [currentUser]);
+  useEffect(() => { if (currentUser) { loadTasks(); loadCustomTags(); loadWeeklySends(); } }, [currentUser, loadTasks, loadWeeklySends]);
+  useEffect(() => { if (!currentUser) return; const iv = setInterval(() => { loadTasks(); loadWeeklySends(); }, 30000); return () => clearInterval(iv); }, [currentUser, loadTasks, loadWeeklySends]);
   const handleLogout = () => { sessionStorage.removeItem('av_tasks_user'); setCurrentUser(null); setTasks([]); setSelectedTask(null); setShowUsersPanel(false); filtersInitialized.current = false; };
   const handleSelectTask = useCallback((task) => { setSelectedTask(task); setShowUsersPanel(false); setSidebarOpen(false); if (currentUser && task) { const now = new Date().toISOString(); setReadTimestamps(prev => ({...prev, [task.id]: now})); markTaskAsSeen(task.id, currentUser); setSeenTaskIds(prev => prev.includes(task.id) ? prev : [...prev, task.id]); setTaskReadInDb(currentUser, task.id); } }, [currentUser]);
   const handleMarkUnread = useCallback((taskId) => { if (currentUser) { setReadTimestamps(prev => { const n = {...prev}; delete n[taskId]; return n; }); setTaskUnreadInDb(currentUser, taskId); } }, [currentUser]);
