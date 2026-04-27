@@ -338,6 +338,13 @@ function WeeklySendsAccordion({ sends, tasks, isOpen, onToggle, onSelectTask, on
 
   if (!filteredSends.length) return null;
 
+  const isNext = variant === 'next';
+  const isWeek3 = variant === 'week3';
+  const bgHeader = 'white';
+  const bgContent = 'white';
+  const borderColor = '#ddd6fe';
+  const accentColor = '#7c3aed';
+
   const todoCount = filteredSends.filter(s => s.status === 'todo').length;
   const fmtD = (ds) => new Date(ds+'T00:00:00').toLocaleDateString(lang==='en'?'en-US':'pl-PL',{weekday:'short',day:'numeric',month:'short'});
 
