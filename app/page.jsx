@@ -329,21 +329,14 @@ function WeeklySendsAccordion({ sends, tasks, isOpen, onToggle, onSelectTask, on
     return sends.filter(s => filterSendsPerson.some(fp => (s.assignees || []).includes(fp)));
   }, [sends, filterSendsPerson]);
 
-  if (!filteredSends.length) return null;
-
-  const isNext = variant === 'next';
-  const isWeek3 = variant === 'week3';
-  const bgHeader = 'white';
-  const bgContent = 'white';
-  const borderColor = '#ddd6fe';
-  const accentColor = '#7c3aed';
-
   // Build a map: sendId → task (task.linkedSendId = send.id)
   const taskBySendId = useMemo(() => {
     const m = {};
     tasks.forEach(tk => { if (tk.linkedSendId) m[tk.linkedSendId] = tk; });
     return m;
   }, [tasks]);
+
+  if (!filteredSends.length) return null;
 
   const todoCount = filteredSends.filter(s => s.status === 'todo').length;
   const fmtD = (ds) => new Date(ds+'T00:00:00').toLocaleDateString(lang==='en'?'en-US':'pl-PL',{weekday:'short',day:'numeric',month:'short'});
