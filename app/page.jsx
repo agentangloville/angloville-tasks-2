@@ -843,9 +843,9 @@ export default function TaskApp() {
   useEffect(() => { if (currentUser && !restrictedMarket) sessionStorage.setItem(`av_filter_market_${currentUser}`, filterMarket); }, [filterMarket, currentUser, restrictedMarket]);
   useEffect(() => { if (currentUser) sessionStorage.setItem(`av_filter_person_${currentUser}`, JSON.stringify(filterPerson)); }, [filterPerson, currentUser]);
   useEffect(() => { if (currentUser) sessionStorage.setItem(`av_filter_sends_person_${currentUser}`, JSON.stringify(filterSendsPerson)); }, [filterSendsPerson, currentUser]);
-  const loadTasks = async () => { const member = teamMembers.find(m => m.id === currentUser) || null; const d = await getTasks(member); setTasks(d); setLoading(false); return d; };
+  const loadTasks = useCallback(async () => { const member = teamMembers.find(m => m.id === currentUser) || null; const d = await getTasks(member); setTasks(d); setLoading(false); return d; }, [currentUser, teamMembers]);
   const loadCustomTags = async () => { setCustomTags(await getCustomTags()); };
-  const loadWeeklySends = async () => {
+  const loadWeeklySends = useCallback(async () => {
     try {
       const member = teamMembers.find(m => m.id === currentUser) || null; const all = await getScheduledSends(member);
       setAllSends(all);
@@ -866,7 +866,7 @@ export default function TaskApp() {
       setNextWeekSends(all.filter(s => s.sendDate >= m2 && s.sendDate <= s2 && notCancelled(s)).sort(sort));
       setWeek3Sends(all.filter(s => s.sendDate >= m3 && s.sendDate <= s3 && notCancelled(s)).sort(sort));
     } catch (e) { console.error('Failed to load weekly sends:', e); }
-  };
+  }, [currentUser, teamMembers]);
   useEffect(() => { if (currentUser) { loadTasks(); loadCustomTags(); loadWeeklySends(); } }, [currentUser]);
   useEffect(() => { if (!currentUser) return; const iv = setInterval(() => { loadTasks(); loadWeeklySends(); }, 30000); return () => clearInterval(iv); }, [currentUser]);
   const handleLogout = () => { sessionStorage.removeItem('av_tasks_user'); setCurrentUser(null); setTasks([]); setSelectedTask(null); setShowUsersPanel(false); filtersInitialized.current = false; };
