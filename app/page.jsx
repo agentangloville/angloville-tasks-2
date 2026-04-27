@@ -843,11 +843,11 @@ export default function TaskApp() {
   useEffect(() => { if (currentUser && !restrictedMarket) sessionStorage.setItem(`av_filter_market_${currentUser}`, filterMarket); }, [filterMarket, currentUser, restrictedMarket]);
   useEffect(() => { if (currentUser) sessionStorage.setItem(`av_filter_person_${currentUser}`, JSON.stringify(filterPerson)); }, [filterPerson, currentUser]);
   useEffect(() => { if (currentUser) sessionStorage.setItem(`av_filter_sends_person_${currentUser}`, JSON.stringify(filterSendsPerson)); }, [filterSendsPerson, currentUser]);
-  const loadTasks = async () => { const d = await getTasks(); setTasks(d); setLoading(false); return d; };
+  const loadTasks = async () => { const member = teamMembers.find(m => m.id === currentUser) || null; const d = await getTasks(member); setTasks(d); setLoading(false); return d; };
   const loadCustomTags = async () => { setCustomTags(await getCustomTags()); };
   const loadWeeklySends = async () => {
     try {
-      const all = await getScheduledSends();
+      const member = teamMembers.find(m => m.id === currentUser) || null; const all = await getScheduledSends(member);
       setAllSends(all);
       const now = new Date();
       const day = now.getDay();
