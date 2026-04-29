@@ -513,145 +513,6 @@ function WorkloadButton({ tasks, teamMembers, currentUser, filterPerson, setFilt
   );
 }
 
-// === FORGOTTEN BUTTON + POPOVER ===
-// Button w headerze. Klik = popover z listą osób i liczbą "zapomnianych" tasków każdej.
-// "Zapomniany" = brak deadline + priorytet null/low/medium + wiek 7d+ + status != closed/pending.
-// Manager widzi wszystkich, zwykły user tylko siebie. Pomarańczowa kropka jeśli są jakieś zapomniane.
-function ForgottenButton({ tasks, teamMembers, currentUser, filterPerson, setFilterPerson, setFilterForgotten, setFilterStatus, lang }) {
-  const me = teamMembers.find(m => m.id === currentUser);
-  const isManager = me?.isManager || false;
-  const [open, setOpen] = useState(false);
-  const ref = useRef(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e) => {
-      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [open]);
-
-  const restrictedMarket = me?.restrictedToMarket;
-
-  const isForgotten = (task) => {
-    if (task.status === 'closed' || task.status === 'pending') return false;
-    if (task.deadline) return false;
-    if (task.priority === 'high' || task.priority === 'urgent') return false;
-    if (!task.createdAt) return false;
-    const days = Math.floor((Date.now() - new Date(task.createdAt).getTime()) / 86400000);
-    return days >= 7;
-  };
-
-  const forgottenTasks = tasks.filter(t =>
-    isForgotten(t) && (!restrictedMarket || t.market === restrictedMarket)
-  );
-
-  const counts = {};
-  teamMembers.filter(m => m.isActive !== false).forEach(m => {
-    counts[m.id] = forgottenTasks.filter(t => t.assignees?.includes(m.id)).length;
-  });
-
-  let displayMembers;
-  if (isManager) {
-    displayMembers = teamMembers
-      .filter(m => m.isActive !== false && counts[m.id] > 0)
-      .sort((a, b) => counts[b.id] - counts[a.id]);
-  } else {
-    displayMembers = (me && counts[me.id] > 0) ? [me] : [];
-  }
-
-  if (displayMembers.length === 0) return null;
-
-  const totalCount = displayMembers.reduce((sum, m) => sum + counts[m.id], 0);
-
-  const showForPerson = (memberId) => {
-    setFilterPerson([memberId]);
-    setFilterForgotten(true);
-    setFilterStatus('active');
-    setOpen(false);
-  };
-
-  return (
-    <div className="relative" ref={ref}>
-      <button
-        onClick={() => setOpen(o => !o)}
-        className="p-2 rounded-full hover:bg-gray-100 relative"
-        style={{ color: open ? '#1a73e8' : '#5f6368' }}
-        title={lang === 'en' ? 'Forgotten tasks' : 'Zapomniane taski'}
-      >
-        <CalendarClock size={18} />
-      </button>
-
-      {open && (
-        <div
-          className="absolute right-0 mt-1 rounded-lg shadow-lg z-50"
-          style={{
-            background: 'white',
-            border: '0.5px solid #dadce0',
-            boxShadow: '0 4px 12px rgba(60,64,67,.15)',
-            minWidth: '260px',
-            maxWidth: '340px',
-          }}
-        >
-          <div className="px-3 py-2 border-b" style={{ borderColor: '#e8eaed' }}>
-            <div className="flex items-center justify-between">
-              <span style={{ fontSize: '11px', color: '#80868b', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.3px' }}>
-                {lang === 'en' ? 'Forgotten' : 'Zapomniane'}
-              </span>
-              <span style={{ fontSize: '10.5px', color: '#b45309', fontWeight: 600 }}>
-                {totalCount} {lang === 'en' ? 'total' : 'łącznie'}
-              </span>
-            </div>
-            <div style={{ fontSize: '10.5px', color: '#80868b', marginTop: '2px' }}>
-              {lang === 'en' ? 'No deadline · low/no priority · 7d+' : 'Bez deadline · niski/brak prio · 7d+'}
-            </div>
-          </div>
-          <div className="py-1 max-h-96 overflow-y-auto">
-            {displayMembers.map(m => {
-              const count = counts[m.id];
-              return (
-                <button
-                  key={m.id}
-                  onClick={() => showForPerson(m.id)}
-                  className="w-full flex items-center gap-2.5 px-3 py-1.5 hover:bg-gray-50 transition-colors"
-                >
-                  <span
-                    className="inline-flex items-center justify-center rounded-full text-white flex-shrink-0"
-                    style={{ background: m.color, width: '22px', height: '22px', fontSize: '10px', fontWeight: 600 }}
-                  >
-                    {getInitials(m.name)}
-                  </span>
-                  <span
-                    className="flex-1 text-left truncate"
-                    style={{ fontSize: '13px', color: '#202124' }}
-                  >
-                    {m.name}
-                  </span>
-                  <span
-                    style={{
-                      fontSize: '12px',
-                      fontWeight: 600,
-                      color: '#b45309',
-                      minWidth: '20px',
-                      textAlign: 'right',
-                    }}
-                  >
-                    {count}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-          <div className="px-3 py-2 border-t" style={{ borderColor: '#e8eaed', fontSize: '11px', color: '#80868b' }}>
-            {lang === 'en' ? 'Click person to see their list' : 'Kliknij osobę żeby zobaczyć listę'}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
 // === WEEKLY SENDS ACCORDION ===
 
 function WeeklySendsAccordion({ sends, tasks, isOpen, onToggle, onSelectTask, onStatusChange, onCreateTaskForSend, currentUser, readTimestamps, seenTaskIds, lang, t, teamMembers, customTags, selectedTask, label, variant = 'default', filterSendsPerson = [] }) {
@@ -1132,7 +993,7 @@ function GlobalSearch({ tasks, onSelectTask, teamMembers, customTags, t, lang })
 
 // === MAIN APP ===
 export default function TaskApp() {
-  const [currentUser, setCurrentUser] = useState(null); const [teamMembers, setTeamMembers] = useState(FALLBACK_TEAM); const [tasks, setTasks] = useState([]); const [loading, setLoading] = useState(true); const [loadingTeam, setLoadingTeam] = useState(true); const [selectedTask, setSelectedTask] = useState(null); const [showNewTask, setShowNewTask] = useState(false); const [showUsersPanel, setShowUsersPanel] = useState(false); const [filterMarket, setFilterMarket] = useState('all'); const [filterPerson, setFilterPerson] = useState([]); const [filterSendsPerson, setFilterSendsPerson] = useState([]); const [filterStatus, setFilterStatus] = useState('active'); const [filterDeadline, setFilterDeadline] = useState(false); const [filterForgotten, setFilterForgotten] = useState(false); const [filterStale, setFilterStale] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null); const [teamMembers, setTeamMembers] = useState(FALLBACK_TEAM); const [tasks, setTasks] = useState([]); const [loading, setLoading] = useState(true); const [loadingTeam, setLoadingTeam] = useState(true); const [selectedTask, setSelectedTask] = useState(null); const [showNewTask, setShowNewTask] = useState(false); const [showUsersPanel, setShowUsersPanel] = useState(false); const [filterMarket, setFilterMarket] = useState('all'); const [filterPerson, setFilterPerson] = useState([]); const [filterSendsPerson, setFilterSendsPerson] = useState([]); const [filterStatus, setFilterStatus] = useState('active'); const [filterDeadline, setFilterDeadline] = useState(false); const [filterStale, setFilterStale] = useState(false);
   const [filterLinkedPlanner, setFilterLinkedPlanner] = useState(false);
   const [weeklySends, setWeeklySends] = useState([]);
   const [nextWeekSends, setNextWeekSends] = useState([]);
@@ -1213,7 +1074,7 @@ export default function TaskApp() {
   const pendingTasks = tasks.filter(t => t.status === 'pending' && (!restrictedMarket || t.market === restrictedMarket));
   const canSeeAllTasks = currentMember?.canSeeAllTasks !== false;
   const seeOnlyAssigned = !canSeeAllTasks;
-  const visibleTasks = tasks.filter(t => { if (t.status === 'pending') return false; if (restrictedMarket && t.market !== restrictedMarket) return false; if (seeOnlyAssigned && !t.assignees?.includes(currentUser)) return false; if (filterMarket !== 'all' && t.market !== filterMarket) return false; if (filterPerson.length > 0 && !filterPerson.some(fp => t.assignees?.includes(fp))) return false; if (filterForgotten) { if (t.status === 'closed') return false; if (t.deadline) return false; if (t.priority === 'high' || t.priority === 'urgent') return false; if (!t.createdAt) return false; const days = Math.floor((Date.now() - new Date(t.createdAt).getTime()) / 86400000); if (days < 7) return false; } if (filterStale) { if (t.status === 'closed') return false; if (!t.createdAt) return false; const days = Math.floor((Date.now() - new Date(t.createdAt).getTime()) / 86400000); if (days < 4) return false; } return true; });
+  const visibleTasks = tasks.filter(t => { if (t.status === 'pending') return false; if (restrictedMarket && t.market !== restrictedMarket) return false; if (seeOnlyAssigned && !t.assignees?.includes(currentUser)) return false; if (filterMarket !== 'all' && t.market !== filterMarket) return false; if (filterPerson.length > 0 && !filterPerson.some(fp => t.assignees?.includes(fp))) return false; if (filterStale) { if (t.status === 'closed') return false; if (!t.createdAt) return false; const days = Math.floor((Date.now() - new Date(t.createdAt).getTime()) / 86400000); if (days < 4) return false; } return true; });
   const visibleWeeklySends = weeklySends.filter(s => !restrictedMarket || s.market === restrictedMarket);
   const visibleNextWeekSends = nextWeekSends.filter(s => !restrictedMarket || s.market === restrictedMarket);
   const visibleWeek3Sends = week3Sends.filter(s => !restrictedMarket || s.market === restrictedMarket);
@@ -1333,7 +1194,6 @@ export default function TaskApp() {
           const showStaleFilter = () => {
             setFilterStale(true);
             setFilterPerson([currentUser]);
-            setFilterForgotten(false);
             setFilterStatus('active');
             setShowUsersPanel(false);
             setSidebarOpen(false);
@@ -1378,13 +1238,12 @@ export default function TaskApp() {
 
       <main className="flex-1 flex flex-col overflow-hidden min-w-0">
         <header className="bg-white px-4 lg:px-6 py-2.5 flex items-center justify-between gap-2" style={{ borderBottom: '1px solid #dadce0' }}>
-          <div className="flex items-center gap-2 min-w-0"><button onClick={() => setSidebarOpen(true)} className="p-2 rounded-full hover:bg-gray-100 lg:hidden flex-shrink-0" style={{ color: '#80868b' }}><Menu size={20} /></button><div className="min-w-0"><h2 className="text-sm lg:text-base font-medium truncate flex items-center gap-2" style={{ color: '#202124' }}>{showUsersPanel ? t.usersPanel : activeTab === 'pending' ? t.pendingApproval : filterStale ? <><span style={{ color: '#b45309' }}>{lang === 'en' ? 'Waiting >4d' : 'Wiszą >4d'}</span><button onClick={() => { setFilterStale(false); setFilterPerson([]); }} className="p-0.5 rounded-full hover:bg-gray-100" style={{ color: '#80868b' }} title={lang === 'en' ? 'Clear filter' : 'Wyczyść filtr'}><X size={14} /></button></> : filterForgotten ? <><span style={{ color: '#b45309' }}>{t.forgottenTasks}</span><button onClick={() => setFilterForgotten(false)} className="p-0.5 rounded-full hover:bg-gray-100" style={{ color: '#80868b' }} title={lang === 'en' ? 'Clear filter' : 'Wyczyść filtr'}><X size={14} /></button></> : filterDeadline ? t.withDeadlineTasks : filterStatus === 'active' ? t.activeTasks : filterStatus === 'open' ? t.openTasks : filterStatus === 'longterm' ? t.longtermTasks : filterStatus === 'paused' ? t.pausedTasks : filterStatus === 'monitoring' ? t.monitoringTasks : filterStatus === 'approval' ? t.approvalTasks : filterStatus === 'ideas' ? t.ideasTasks : t.closedTasks}</h2>{filterPerson.length > 0 && !showUsersPanel && <p style={{ fontSize: '11px', color: '#80868b' }}>{t.filter}: {filterPerson.map(fp => teamMembers.find(m => m.id === fp)?.name?.split(' ')[0]).filter(Boolean).join(', ')}</p>}</div></div>
+          <div className="flex items-center gap-2 min-w-0"><button onClick={() => setSidebarOpen(true)} className="p-2 rounded-full hover:bg-gray-100 lg:hidden flex-shrink-0" style={{ color: '#80868b' }}><Menu size={20} /></button><div className="min-w-0"><h2 className="text-sm lg:text-base font-medium truncate flex items-center gap-2" style={{ color: '#202124' }}>{showUsersPanel ? t.usersPanel : activeTab === 'pending' ? t.pendingApproval : filterStale ? <><span style={{ color: '#b45309' }}>{lang === 'en' ? 'Waiting >4d' : 'Wiszą >4d'}</span><button onClick={() => { setFilterStale(false); setFilterPerson([]); }} className="p-0.5 rounded-full hover:bg-gray-100" style={{ color: '#80868b' }} title={lang === 'en' ? 'Clear filter' : 'Wyczyść filtr'}><X size={14} /></button></> : filterDeadline ? t.withDeadlineTasks : filterStatus === 'active' ? t.activeTasks : filterStatus === 'open' ? t.openTasks : filterStatus === 'longterm' ? t.longtermTasks : filterStatus === 'paused' ? t.pausedTasks : filterStatus === 'monitoring' ? t.monitoringTasks : filterStatus === 'approval' ? t.approvalTasks : filterStatus === 'ideas' ? t.ideasTasks : t.closedTasks}</h2>{filterPerson.length > 0 && !showUsersPanel && <p style={{ fontSize: '11px', color: '#80868b' }}>{t.filter}: {filterPerson.map(fp => teamMembers.find(m => m.id === fp)?.name?.split(' ')[0]).filter(Boolean).join(', ')}</p>}</div></div>
           <div className="flex items-center gap-2 flex-shrink-0">
             <NotificationBell tasks={tasks} currentUser={currentUser} readTimestamps={readTimestamps} teamMembers={teamMembers} onSelectTask={handleSelectTask} onMarkAllRead={async () => { const taskIds = tasks.map(t => t.id); const now = await setAllTasksReadInDb(currentUser, taskIds); const newTs = {}; taskIds.forEach(id => { newTs[id] = now; }); setReadTimestamps(newTs); }} t={t} lang={lang} />
             {!showUsersPanel && <GlobalSearch tasks={tasks} onSelectTask={handleSelectTask} teamMembers={teamMembers} customTags={customTags} t={t} lang={lang} />}
             {!showUsersPanel && activeTab === 'tasks' && <SortDropdown value={sortBy} onChange={setSortBy} t={t} />}
             {!showUsersPanel && activeTab === 'tasks' && <WorkloadButton tasks={tasks} teamMembers={teamMembers} currentUser={currentUser} filterPerson={filterPerson} setFilterPerson={setFilterPerson} lang={lang} />}
-            {!showUsersPanel && activeTab === 'tasks' && <ForgottenButton tasks={tasks} teamMembers={teamMembers} currentUser={currentUser} filterPerson={filterPerson} setFilterPerson={setFilterPerson} setFilterForgotten={setFilterForgotten} setFilterStatus={setFilterStatus} lang={lang} />}
             {!showUsersPanel && <><button onClick={loadTasks} className="p-2 rounded-full hover:bg-gray-100" style={{ color: '#5f6368' }}><Loader2 size={18} className={loading ? 'animate-spin' : ''} /></button>{activeTab === 'tasks' && <button onClick={() => setShowNewTask(true)} className="flex items-center gap-1.5 px-4 lg:px-5 py-2 rounded-full font-medium text-sm shadow-sm hover:shadow-md transition-shadow" style={{ background: '#1a73e8', color: 'white' }}><Plus size={16} /> <span className="hidden sm:inline">{t.newTask}</span></button>}</>}
           </div>
         </header>
