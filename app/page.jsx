@@ -364,24 +364,24 @@ function TaskItem({ task, isSelected, onClick, onStatusChange, currentUser, read
   </div></div>;
 }
 
-// === WORKLOAD BAR ===
-// Pokazuje ile aktywnych (nie closed/pending) tasków ma każda osoba.
-// Domyślnie zwinięty do małego buttona — klik rozwija pełen pasek.
-// Stan zapisany w sessionStorage żeby się nie resetował.
+// === WORKLOAD BUTTON + POPOVER ===
+// Button w headerze. Klik = otwiera dropdown z listą osób i ich obciążeniem.
+// Czerwona kropka na buttonie jeśli ktoś jest przeciążony.
 // Klik na osobę = filtruje listę po niej (toggle).
 // Schowane dla userów z seeOnlyAssigned (bo i tak widzą tylko swoje).
-function WorkloadBar({ tasks, teamMembers, currentUser, filterPerson, setFilterPerson, lang }) {
+function WorkloadButton({ tasks, teamMembers, currentUser, filterPerson, setFilterPerson, lang }) {
   const me = teamMembers.find(m => m.id === currentUser);
-  const [expanded, setExpanded] = useState(() => {
-    if (typeof window === 'undefined') return false;
-    return sessionStorage.getItem('av_workload_expanded') === '1';
-  });
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      sessionStorage.setItem('av_workload_expanded', expanded ? '1' : '0');
-    }
-  }, [expanded]);
+    if (!open) return;
+    const handler = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
 
   if (me?.seeOnlyAssigned) return null;
 
@@ -416,83 +416,113 @@ function WorkloadBar({ tasks, teamMembers, currentUser, filterPerson, setFilterP
     } else {
       setFilterPerson([memberId]);
     }
+    setOpen(false);
   };
 
-  if (!expanded) {
-    return (
-      <div className="max-w-4xl mx-auto mb-1.5 px-1 flex justify-end">
-        <button
-          onClick={() => setExpanded(true)}
-          className="inline-flex items-center gap-1.5 rounded-full hover:bg-gray-100 transition-colors"
-          style={{
-            padding: '3px 10px 3px 8px',
-            fontSize: '11px',
-            color: '#5f6368',
-            border: '0.5px solid #e8eaed',
-            background: 'white',
-          }}
-          title={lang === 'en' ? 'Show team workload' : 'Pokaż obciążenie zespołu'}
-        >
-          <Users size={11} style={{ color: '#80868b' }} />
-          <span>{lang === 'en' ? 'Workload' : 'Obciążenie'}</span>
-          {overloadedCount > 0 && (
-            <span style={{ color: '#b91c1c', fontWeight: 600 }}>
-              · {overloadedCount} {lang === 'en' ? 'overloaded' : 'przeciążonych'}
-            </span>
-          )}
-          <ChevronDown size={11} style={{ color: '#80868b' }} />
-        </button>
-      </div>
-    );
-  }
-
   return (
-    <div className="max-w-4xl mx-auto mb-2 px-1">
-      <div className="rounded-lg px-2.5 py-1.5 flex items-center gap-1.5 flex-wrap" style={{ background: 'white', border: '0.5px solid #e8eaed' }}>
-        <button
-          onClick={() => setExpanded(false)}
-          className="inline-flex items-center gap-1 rounded hover:bg-gray-100 transition-colors"
-          style={{ padding: '2px 6px', fontSize: '11px', color: '#80868b', fontWeight: 500 }}
-          title={lang === 'en' ? 'Hide workload' : 'Ukryj obciążenie'}
+    <div className="relative" ref={ref}>
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="p-2 rounded-full hover:bg-gray-100 relative"
+        style={{ color: open ? '#1a73e8' : '#5f6368' }}
+        title={lang === 'en' ? 'Team workload' : 'Obciążenie zespołu'}
+      >
+        <Users size={18} />
+        {overloadedCount > 0 && (
+          <span
+            className="absolute"
+            style={{
+              top: '5px',
+              right: '5px',
+              width: '8px',
+              height: '8px',
+              borderRadius: '50%',
+              background: '#ef4444',
+              border: '1.5px solid white',
+            }}
+          />
+        )}
+      </button>
+
+      {open && (
+        <div
+          className="absolute right-0 mt-1 rounded-lg shadow-lg z-50"
+          style={{
+            background: 'white',
+            border: '0.5px solid #dadce0',
+            boxShadow: '0 4px 12px rgba(60,64,67,.15)',
+            minWidth: '240px',
+            maxWidth: '320px',
+          }}
         >
-          <Users size={11} />
-          <span>{lang === 'en' ? 'Workload' : 'Obciążenie'}</span>
-          <ChevronUp size={11} />
-        </button>
-        {sortedMembers.map(m => {
-          const count = counts[m.id];
-          const isFiltered = filterPerson.includes(m.id);
-          const isOverloaded = count >= overloadThreshold;
-          const bg = isFiltered ? '#e8f0fe' : isOverloaded ? '#fef2f2' : '#f6f8fc';
-          const borderColor = isFiltered ? '#1a73e8' : isOverloaded ? '#f5c6cb' : 'transparent';
-          const txtColor = isFiltered ? '#1a73e8' : isOverloaded ? '#b91c1c' : '#5f6368';
-          return (
-            <button
-              key={m.id}
-              onClick={() => toggleFilter(m.id)}
-              className="inline-flex items-center gap-1.5 rounded-full transition-all"
-              style={{
-                padding: '2px 9px 2px 2px',
-                fontSize: '11.5px',
-                background: bg,
-                border: `0.5px solid ${borderColor}`,
-                color: txtColor,
-                cursor: 'pointer',
-              }}
-              title={`${m.name}: ${count} ${lang === 'en' ? 'active tasks' : 'aktywnych zadań'}`}
-            >
-              <span
-                className="inline-flex items-center justify-center rounded-full text-white"
-                style={{ background: m.color, width: '18px', height: '18px', fontSize: '9px', fontWeight: 600 }}
-              >
-                {getInitials(m.name)}
+          <div className="px-3 py-2 border-b flex items-center justify-between" style={{ borderColor: '#e8eaed' }}>
+            <span style={{ fontSize: '11px', color: '#80868b', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.3px' }}>
+              {lang === 'en' ? 'Workload' : 'Obciążenie'}
+            </span>
+            {overloadedCount > 0 && (
+              <span style={{ fontSize: '10.5px', color: '#b91c1c', fontWeight: 600 }}>
+                {overloadedCount} {lang === 'en' ? 'overloaded' : 'przeciążonych'}
               </span>
-              <span className="hidden sm:inline">{m.name.split(' ')[0]}</span>
-              <span style={{ fontWeight: 600 }}>{count}</span>
-            </button>
-          );
-        })}
-      </div>
+            )}
+          </div>
+          <div className="py-1 max-h-96 overflow-y-auto">
+            {sortedMembers.map(m => {
+              const count = counts[m.id];
+              const isFiltered = filterPerson.includes(m.id);
+              const isOverloaded = count >= overloadThreshold;
+              return (
+                <button
+                  key={m.id}
+                  onClick={() => toggleFilter(m.id)}
+                  className="w-full flex items-center gap-2.5 px-3 py-1.5 hover:bg-gray-50 transition-colors"
+                  style={{
+                    background: isFiltered ? '#e8f0fe' : 'transparent',
+                  }}
+                >
+                  <span
+                    className="inline-flex items-center justify-center rounded-full text-white flex-shrink-0"
+                    style={{ background: m.color, width: '22px', height: '22px', fontSize: '10px', fontWeight: 600 }}
+                  >
+                    {getInitials(m.name)}
+                  </span>
+                  <span
+                    className="flex-1 text-left truncate"
+                    style={{
+                      fontSize: '13px',
+                      color: isFiltered ? '#1a73e8' : '#202124',
+                      fontWeight: isFiltered ? 500 : 400,
+                    }}
+                  >
+                    {m.name}
+                  </span>
+                  <span
+                    style={{
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      color: isOverloaded ? '#b91c1c' : '#5f6368',
+                      minWidth: '20px',
+                      textAlign: 'right',
+                    }}
+                  >
+                    {count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          {filterPerson.length > 0 && (
+            <div className="px-3 py-2 border-t" style={{ borderColor: '#e8eaed' }}>
+              <button
+                onClick={() => { setFilterPerson([]); setOpen(false); }}
+                className="text-xs hover:underline"
+                style={{ color: '#5f6368' }}
+              >
+                {lang === 'en' ? 'Clear filter' : 'Wyczyść filtr'}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -1176,6 +1206,7 @@ export default function TaskApp() {
             <NotificationBell tasks={tasks} currentUser={currentUser} readTimestamps={readTimestamps} teamMembers={teamMembers} onSelectTask={handleSelectTask} onMarkAllRead={async () => { const taskIds = tasks.map(t => t.id); const now = await setAllTasksReadInDb(currentUser, taskIds); const newTs = {}; taskIds.forEach(id => { newTs[id] = now; }); setReadTimestamps(newTs); }} t={t} lang={lang} />
             {!showUsersPanel && <GlobalSearch tasks={tasks} onSelectTask={handleSelectTask} teamMembers={teamMembers} customTags={customTags} t={t} lang={lang} />}
             {!showUsersPanel && activeTab === 'tasks' && <SortDropdown value={sortBy} onChange={setSortBy} t={t} />}
+            {!showUsersPanel && activeTab === 'tasks' && <WorkloadButton tasks={tasks} teamMembers={teamMembers} currentUser={currentUser} filterPerson={filterPerson} setFilterPerson={setFilterPerson} lang={lang} />}
             {!showUsersPanel && <><button onClick={loadTasks} className="p-2 rounded-full hover:bg-gray-100" style={{ color: '#5f6368' }}><Loader2 size={18} className={loading ? 'animate-spin' : ''} /></button>{activeTab === 'tasks' && <button onClick={() => setShowNewTask(true)} className="flex items-center gap-1.5 px-4 lg:px-5 py-2 rounded-full font-medium text-sm shadow-sm hover:shadow-md transition-shadow" style={{ background: '#1a73e8', color: 'white' }}><Plus size={16} /> <span className="hidden sm:inline">{t.newTask}</span></button>}</>}
           </div>
         </header>
@@ -1244,7 +1275,6 @@ export default function TaskApp() {
                 filterSendsPerson={filterSendsPerson}
               />
             </>)}
-            <WorkloadBar tasks={tasks} teamMembers={teamMembers} currentUser={currentUser} filterPerson={filterPerson} setFilterPerson={setFilterPerson} lang={lang} />
             <div className="max-w-4xl mx-auto">{filteredTasks.length === 0 ? <div className="text-center py-16"><CheckCircle size={48} className="mx-auto mb-4" style={{ color: '#16a34a', opacity: 0.4 }} /><p style={{ color: '#5f6368' }}>{t.noTasksToShow}</p></div> : <div className="space-y-px">{filteredTasks.map(task => <TaskItem key={task.id} task={task} isSelected={selectedTask?.id === task.id} onClick={() => handleSelectTask(task)} onStatusChange={s => updateTask(task.id, { status: s })} currentUser={currentUser} readTimestamps={readTimestamps} seenTaskIds={seenTaskIds} lang={lang} t={t} teamMembers={teamMembers} customTags={customTags} />)}</div>}</div></>
           )}
         </div>
