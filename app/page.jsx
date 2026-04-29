@@ -366,11 +366,23 @@ function TaskItem({ task, isSelected, onClick, onStatusChange, currentUser, read
 
 // === WORKLOAD BAR ===
 // Pokazuje ile aktywnych (nie closed/pending) tasków ma każda osoba.
-// Klik = filtruje listę po osobie (toggle).
-// Osoby z liczbą >= 1.5x mediany (min 12) podświetlone na czerwono jako "przeciążone".
+// Domyślnie zwinięty do małego buttona — klik rozwija pełen pasek.
+// Stan zapisany w sessionStorage żeby się nie resetował.
+// Klik na osobę = filtruje listę po niej (toggle).
 // Schowane dla userów z seeOnlyAssigned (bo i tak widzą tylko swoje).
 function WorkloadBar({ tasks, teamMembers, currentUser, filterPerson, setFilterPerson, lang }) {
   const me = teamMembers.find(m => m.id === currentUser);
+  const [expanded, setExpanded] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return sessionStorage.getItem('av_workload_expanded') === '1';
+  });
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('av_workload_expanded', expanded ? '1' : '0');
+    }
+  }, [expanded]);
+
   if (me?.seeOnlyAssigned) return null;
 
   const restrictedMarket = me?.restrictedToMarket;
@@ -396,6 +408,7 @@ function WorkloadBar({ tasks, teamMembers, currentUser, filterPerson, setFilterP
   const allCounts = sortedMembers.map(m => counts[m.id]).sort((a, b) => a - b);
   const median = allCounts[Math.floor(allCounts.length / 2)] || 0;
   const overloadThreshold = Math.max(12, Math.ceil(median * 1.5));
+  const overloadedCount = sortedMembers.filter(m => counts[m.id] >= overloadThreshold).length;
 
   const toggleFilter = (memberId) => {
     if (filterPerson.length === 1 && filterPerson[0] === memberId) {
@@ -405,12 +418,47 @@ function WorkloadBar({ tasks, teamMembers, currentUser, filterPerson, setFilterP
     }
   };
 
+  if (!expanded) {
+    return (
+      <div className="max-w-4xl mx-auto mb-1.5 px-1 flex justify-end">
+        <button
+          onClick={() => setExpanded(true)}
+          className="inline-flex items-center gap-1.5 rounded-full hover:bg-gray-100 transition-colors"
+          style={{
+            padding: '3px 10px 3px 8px',
+            fontSize: '11px',
+            color: '#5f6368',
+            border: '0.5px solid #e8eaed',
+            background: 'white',
+          }}
+          title={lang === 'en' ? 'Show team workload' : 'Pokaż obciążenie zespołu'}
+        >
+          <Users size={11} style={{ color: '#80868b' }} />
+          <span>{lang === 'en' ? 'Workload' : 'Obciążenie'}</span>
+          {overloadedCount > 0 && (
+            <span style={{ color: '#b91c1c', fontWeight: 600 }}>
+              · {overloadedCount} {lang === 'en' ? 'overloaded' : 'przeciążonych'}
+            </span>
+          )}
+          <ChevronDown size={11} style={{ color: '#80868b' }} />
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-4xl mx-auto mb-2 px-1">
       <div className="rounded-lg px-2.5 py-1.5 flex items-center gap-1.5 flex-wrap" style={{ background: 'white', border: '0.5px solid #e8eaed' }}>
-        <span style={{ fontSize: '11px', color: '#80868b', marginRight: '4px', fontWeight: 500 }}>
-          {lang === 'en' ? 'Workload' : 'Obciążenie'}
-        </span>
+        <button
+          onClick={() => setExpanded(false)}
+          className="inline-flex items-center gap-1 rounded hover:bg-gray-100 transition-colors"
+          style={{ padding: '2px 6px', fontSize: '11px', color: '#80868b', fontWeight: 500 }}
+          title={lang === 'en' ? 'Hide workload' : 'Ukryj obciążenie'}
+        >
+          <Users size={11} />
+          <span>{lang === 'en' ? 'Workload' : 'Obciążenie'}</span>
+          <ChevronUp size={11} />
+        </button>
         {sortedMembers.map(m => {
           const count = counts[m.id];
           const isFiltered = filterPerson.includes(m.id);
