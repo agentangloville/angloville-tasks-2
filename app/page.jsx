@@ -140,6 +140,38 @@ function DeadlineBadge({ deadline, size = 'normal', lang = 'pl', t }) {
   </span>;
 }
 
+// === TASK AGE BADGE ===
+// Pokazuje ile dni minęło od utworzenia zadania.
+// Eskalacja koloru: 0–6d niewidoczny, 7–13d szary, 14–29d amber,
+// 30–59d czerwony, 60+ mocna czerwień (format "Xmo" / "Xy").
+function TaskAge({ createdAt, size = 'small', lang = 'pl' }) {
+  if (!createdAt) return null;
+  const days = Math.floor((Date.now() - new Date(createdAt).getTime()) / 86400000);
+  if (days < 0) return null;
+
+  let label;
+  if (days < 60) label = `${days}d`;
+  else if (days < 365) label = `${Math.floor(days / 30)}mo`;
+  else label = `${Math.floor(days / 365)}y`;
+
+  let color, bg, showBg;
+  if (days < 7) { color = '#b0b5bc'; bg = 'transparent'; showBg = false; }
+  else if (days < 14) { color = '#5f6368'; bg = '#f1f3f4'; showBg = true; }
+  else if (days < 30) { color = '#854F0B'; bg = '#FAEEDA'; showBg = true; }
+  else if (days < 60) { color = '#791F1F'; bg = '#FCEBEB'; showBg = true; }
+  else { color = '#501313'; bg = '#F09595'; showBg = true; }
+
+  const isSmall = size === 'small';
+  const tooltipText = lang === 'en'
+    ? `Created ${days} ${days === 1 ? 'day' : 'days'} ago`
+    : `Utworzone ${days} ${days === 1 ? 'dzień' : 'dni'} temu`;
+
+  return <span title={tooltipText} className="inline-flex items-center gap-0.5 rounded-full" style={{ padding: showBg ? (isSmall ? '1px 7px' : '3px 10px') : '1px 4px', fontSize: isSmall ? '10.5px' : '12px', fontWeight: 500, background: bg, color }}>
+    <Clock size={isSmall ? 9 : 12} />
+    {label}
+  </span>;
+}
+
 // === DATE FILTER UI (removed) ===
 
 // === NOTIFICATION SYSTEM (server-backed via Supabase) ===
@@ -302,6 +334,7 @@ function TaskItem({ task, isSelected, onClick, onStatusChange, currentUser, read
     <div className="flex items-center gap-1 flex-shrink-0 flex-wrap justify-end">
       <PriorityBadge priority={task.priority} size="small" lang={lang} />
       <DeadlineBadge deadline={task.deadline} size="small" lang={lang} t={t} />
+      {task.status !== 'closed' && <TaskAge createdAt={task.createdAt} size="small" lang={lang} />}
       {tTags.map(tg => <span key={tg.id} className="rounded-full" style={{ fontSize: '10.5px', padding: '1px 7px', background: tg.color + '15', color: tg.color, fontWeight: 500 }}>{tg.name}</span>)}
       {isNew && <span className="flex items-center gap-0.5 rounded-full" style={{ fontSize: '10.5px', padding: '1px 7px', background: '#1a73e8', color: 'white', fontWeight: 500 }}><Sparkles size={9} />{t.new}</span>}
       {mc > 0 && <span className="flex items-center gap-0.5 rounded-full" style={{ fontSize: '10.5px', padding: '1px 7px', background: '#ef4444', color: 'white', fontWeight: 500 }}><AtSign size={9} />{mc}</span>}
