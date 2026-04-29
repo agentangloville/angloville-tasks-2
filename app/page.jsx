@@ -364,6 +364,91 @@ function TaskItem({ task, isSelected, onClick, onStatusChange, currentUser, read
   </div></div>;
 }
 
+// === WORKLOAD BAR ===
+// Pokazuje ile aktywnych (nie closed/pending) tasków ma każda osoba.
+// Klik = filtruje listę po osobie (toggle).
+// Osoby z liczbą >= 1.5x mediany (min 12) podświetlone na czerwono jako "przeciążone".
+// Schowane dla userów z seeOnlyAssigned (bo i tak widzą tylko swoje).
+function WorkloadBar({ tasks, teamMembers, currentUser, filterPerson, setFilterPerson, lang }) {
+  const me = teamMembers.find(m => m.id === currentUser);
+  if (me?.seeOnlyAssigned) return null;
+
+  const restrictedMarket = me?.restrictedToMarket;
+  const activeMembers = teamMembers.filter(m => m.isActive !== false);
+
+  const activeTasks = tasks.filter(task =>
+    task.status !== 'closed' &&
+    task.status !== 'pending' &&
+    (!restrictedMarket || task.market === restrictedMarket)
+  );
+
+  const counts = {};
+  activeMembers.forEach(m => {
+    counts[m.id] = activeTasks.filter(t => t.assignees?.includes(m.id)).length;
+  });
+
+  const sortedMembers = activeMembers
+    .filter(m => counts[m.id] > 0)
+    .sort((a, b) => counts[b.id] - counts[a.id]);
+
+  if (sortedMembers.length === 0) return null;
+
+  const allCounts = sortedMembers.map(m => counts[m.id]).sort((a, b) => a - b);
+  const median = allCounts[Math.floor(allCounts.length / 2)] || 0;
+  const overloadThreshold = Math.max(12, Math.ceil(median * 1.5));
+
+  const toggleFilter = (memberId) => {
+    if (filterPerson.length === 1 && filterPerson[0] === memberId) {
+      setFilterPerson([]);
+    } else {
+      setFilterPerson([memberId]);
+    }
+  };
+
+  return (
+    <div className="max-w-4xl mx-auto mb-2 px-1">
+      <div className="rounded-lg px-2.5 py-1.5 flex items-center gap-1.5 flex-wrap" style={{ background: 'white', border: '0.5px solid #e8eaed' }}>
+        <span style={{ fontSize: '11px', color: '#80868b', marginRight: '4px', fontWeight: 500 }}>
+          {lang === 'en' ? 'Workload' : 'Obciążenie'}
+        </span>
+        {sortedMembers.map(m => {
+          const count = counts[m.id];
+          const isFiltered = filterPerson.includes(m.id);
+          const isOverloaded = count >= overloadThreshold;
+          const bg = isFiltered ? '#e8f0fe' : isOverloaded ? '#fef2f2' : '#f6f8fc';
+          const borderColor = isFiltered ? '#1a73e8' : isOverloaded ? '#f5c6cb' : 'transparent';
+          const txtColor = isFiltered ? '#1a73e8' : isOverloaded ? '#b91c1c' : '#5f6368';
+          return (
+            <button
+              key={m.id}
+              onClick={() => toggleFilter(m.id)}
+              className="inline-flex items-center gap-1.5 rounded-full transition-all"
+              style={{
+                padding: '2px 9px 2px 2px',
+                fontSize: '11.5px',
+                background: bg,
+                border: `0.5px solid ${borderColor}`,
+                color: txtColor,
+                cursor: 'pointer',
+              }}
+              title={`${m.name}: ${count} ${lang === 'en' ? 'active tasks' : 'aktywnych zadań'}`}
+            >
+              <span
+                className="inline-flex items-center justify-center rounded-full text-white"
+                style={{ background: m.color, width: '18px', height: '18px', fontSize: '9px', fontWeight: 600 }}
+              >
+                {getInitials(m.name)}
+              </span>
+              <span className="hidden sm:inline">{m.name.split(' ')[0]}</span>
+              <span style={{ fontWeight: 600 }}>{count}</span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // === WEEKLY SENDS ACCORDION ===
 
 function WeeklySendsAccordion({ sends, tasks, isOpen, onToggle, onSelectTask, onStatusChange, onCreateTaskForSend, currentUser, readTimestamps, seenTaskIds, lang, t, teamMembers, customTags, selectedTask, label, variant = 'default', filterSendsPerson = [] }) {
@@ -1111,6 +1196,7 @@ export default function TaskApp() {
                 filterSendsPerson={filterSendsPerson}
               />
             </>)}
+            <WorkloadBar tasks={tasks} teamMembers={teamMembers} currentUser={currentUser} filterPerson={filterPerson} setFilterPerson={setFilterPerson} lang={lang} />
             <div className="max-w-4xl mx-auto">{filteredTasks.length === 0 ? <div className="text-center py-16"><CheckCircle size={48} className="mx-auto mb-4" style={{ color: '#16a34a', opacity: 0.4 }} /><p style={{ color: '#5f6368' }}>{t.noTasksToShow}</p></div> : <div className="space-y-px">{filteredTasks.map(task => <TaskItem key={task.id} task={task} isSelected={selectedTask?.id === task.id} onClick={() => handleSelectTask(task)} onStatusChange={s => updateTask(task.id, { status: s })} currentUser={currentUser} readTimestamps={readTimestamps} seenTaskIds={seenTaskIds} lang={lang} t={t} teamMembers={teamMembers} customTags={customTags} />)}</div>}</div></>
           )}
         </div>
