@@ -383,7 +383,7 @@ function WorkloadButton({ tasks, teamMembers, currentUser, filterPerson, setFilt
     return () => document.removeEventListener('mousedown', handler);
   }, [open]);
 
-  if (me?.seeOnlyAssigned) return null;
+  if (!me?.isManager) return null;
 
   const restrictedMarket = me?.restrictedToMarket;
   const activeMembers = teamMembers.filter(m => m.isActive !== false);
