@@ -993,7 +993,7 @@ function GlobalSearch({ tasks, onSelectTask, teamMembers, customTags, t, lang })
 
 // === MAIN APP ===
 export default function TaskApp() {
-  const [currentUser, setCurrentUser] = useState(null); const [teamMembers, setTeamMembers] = useState(FALLBACK_TEAM); const [tasks, setTasks] = useState([]); const [loading, setLoading] = useState(true); const [loadingTeam, setLoadingTeam] = useState(true); const [selectedTask, setSelectedTask] = useState(null); const [showNewTask, setShowNewTask] = useState(false); const [showUsersPanel, setShowUsersPanel] = useState(false); const [filterMarket, setFilterMarket] = useState('all'); const [filterPerson, setFilterPerson] = useState([]); const [filterSendsPerson, setFilterSendsPerson] = useState([]); const [filterStatus, setFilterStatus] = useState('active'); const [filterDeadline, setFilterDeadline] = useState(false); const [filterStale, setFilterStale] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null); const [teamMembers, setTeamMembers] = useState(FALLBACK_TEAM); const [tasks, setTasks] = useState([]); const [loading, setLoading] = useState(true); const [loadingTeam, setLoadingTeam] = useState(true); const [selectedTask, setSelectedTask] = useState(null); const [showNewTask, setShowNewTask] = useState(false); const [showUsersPanel, setShowUsersPanel] = useState(false); const [filterMarket, setFilterMarket] = useState('all'); const [filterPerson, setFilterPerson] = useState([]); const [filterSendsPerson, setFilterSendsPerson] = useState([]); const [filterStatus, setFilterStatus] = useState('active'); const [filterDeadline, setFilterDeadline] = useState(false);
   const [filterLinkedPlanner, setFilterLinkedPlanner] = useState(false);
   const [weeklySends, setWeeklySends] = useState([]);
   const [nextWeekSends, setNextWeekSends] = useState([]);
@@ -1074,7 +1074,7 @@ export default function TaskApp() {
   const pendingTasks = tasks.filter(t => t.status === 'pending' && (!restrictedMarket || t.market === restrictedMarket));
   const canSeeAllTasks = currentMember?.canSeeAllTasks !== false;
   const seeOnlyAssigned = !canSeeAllTasks;
-  const visibleTasks = tasks.filter(t => { if (t.status === 'pending') return false; if (restrictedMarket && t.market !== restrictedMarket) return false; if (seeOnlyAssigned && !t.assignees?.includes(currentUser)) return false; if (filterMarket !== 'all' && t.market !== filterMarket) return false; if (filterPerson.length > 0 && !filterPerson.some(fp => t.assignees?.includes(fp))) return false; if (filterStale) { if (t.status === 'closed') return false; if (!t.createdAt) return false; const days = Math.floor((Date.now() - new Date(t.createdAt).getTime()) / 86400000); if (days < 4) return false; } return true; });
+  const visibleTasks = tasks.filter(t => { if (t.status === 'pending') return false; if (restrictedMarket && t.market !== restrictedMarket) return false; if (seeOnlyAssigned && !t.assignees?.includes(currentUser)) return false; if (filterMarket !== 'all' && t.market !== filterMarket) return false; if (filterPerson.length > 0 && !filterPerson.some(fp => t.assignees?.includes(fp))) return false; return true; });
   const visibleWeeklySends = weeklySends.filter(s => !restrictedMarket || s.market === restrictedMarket);
   const visibleNextWeekSends = nextWeekSends.filter(s => !restrictedMarket || s.market === restrictedMarket);
   const visibleWeek3Sends = week3Sends.filter(s => !restrictedMarket || s.market === restrictedMarket);
@@ -1182,63 +1182,12 @@ export default function TaskApp() {
           <div className="mt-4 mx-2 p-3 rounded-lg text-xs hidden lg:block" style={{ background: '#f1f3f4' }}><p className="mb-1.5" style={{ color: '#5f6368' }}>{t.formEn}</p><button onClick={copyLink} className="w-full flex items-center gap-2 px-2 py-1.5 rounded hover:bg-gray-200"><code className="flex-1 text-xs truncate" style={{ color: '#1a73e8' }}>/request</code>{copied ? <Check size={14} style={{ color: '#16a34a' }} /> : <Copy size={14} style={{ color: '#5f6368' }} />}</button></div>
           <QuickLinksSection currentUser={currentUser} t={t} />
         </div>
-        {(() => {
-          if (!currentUser) return null;
-          const myActive = tasks.filter(t => t.assignees?.includes(currentUser) && t.status !== 'closed' && t.status !== 'pending' && (!restrictedMarket || t.market === restrictedMarket));
-          const myStale = myActive.filter(t => {
-            if (!t.createdAt) return false;
-            const days = Math.floor((Date.now() - new Date(t.createdAt).getTime()) / 86400000);
-            return days >= 4;
-          });
-          if (myActive.length === 0) return null;
-          const showStaleFilter = () => {
-            setFilterStale(true);
-            setFilterPerson([currentUser]);
-            setFilterStatus('active');
-            setShowUsersPanel(false);
-            setSidebarOpen(false);
-          };
-          return (
-            <div className="px-3 py-2" style={{ borderTop: '0.5px solid #dadce0' }}>
-              <div style={{ fontSize: '10px', color: '#80868b', fontWeight: 500, letterSpacing: '0.3px', marginBottom: '4px', textTransform: 'uppercase' }}>
-                {lang === 'en' ? 'You' : 'Ty'}
-              </div>
-              <div className="flex items-center gap-3">
-                <div style={{ fontSize: '11px', color: '#5f6368' }}>
-                  <span style={{ fontWeight: 600, color: '#202124', fontSize: '13px' }}>{myActive.length}</span>
-                  <span style={{ marginLeft: '4px' }}>{lang === 'en' ? 'tasks' : 'zadań'}</span>
-                </div>
-                {myStale.length > 0 && (
-                  <button
-                    onClick={showStaleFilter}
-                    className="rounded hover:bg-gray-100 transition-colors"
-                    style={{ padding: '1px 6px', fontSize: '11px', color: filterStale ? '#1a73e8' : '#b45309', cursor: 'pointer', background: filterStale ? '#e8f0fe' : 'transparent' }}
-                    title={lang === 'en' ? 'Click to filter' : 'Kliknij żeby filtrować'}
-                  >
-                    <span style={{ fontWeight: 600, fontSize: '13px' }}>{myStale.length}</span>
-                    <span style={{ marginLeft: '4px' }}>{lang === 'en' ? 'wait >4d' : 'wisi >4d'}</span>
-                  </button>
-                )}
-                {filterStale && filterPerson[0] === currentUser && (
-                  <button
-                    onClick={() => { setFilterStale(false); setFilterPerson([]); }}
-                    className="p-0.5 rounded-full hover:bg-gray-100"
-                    style={{ color: '#80868b' }}
-                    title={lang === 'en' ? 'Clear filter' : 'Wyczyść filtr'}
-                  >
-                    <X size={12} />
-                  </button>
-                )}
-              </div>
-            </div>
-          );
-        })()}
         <div className="px-3 py-2.5" style={{ borderTop: '0.5px solid #dadce0' }}><div className="flex items-center gap-2"><div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-medium" style={{ background: currentMember?.color, fontSize: '9px' }}>{getInitials(currentMember?.name || '')}</div><div className="flex-1 min-w-0"><div className="text-xs font-medium truncate" style={{ color: '#3c4043' }}>{currentMember?.name?.split(' ')[0]}</div>{isManager && <div style={{ fontSize: '10px', color: '#80868b' }}>{t.manager}</div>}</div><button onClick={handleLogout} className="p-1 rounded-full hover:bg-gray-100" style={{ color: '#80868b' }}><LogOut size={15} /></button></div></div>
       </aside>
 
       <main className="flex-1 flex flex-col overflow-hidden min-w-0">
         <header className="bg-white px-4 lg:px-6 py-2.5 flex items-center justify-between gap-2" style={{ borderBottom: '1px solid #dadce0' }}>
-          <div className="flex items-center gap-2 min-w-0"><button onClick={() => setSidebarOpen(true)} className="p-2 rounded-full hover:bg-gray-100 lg:hidden flex-shrink-0" style={{ color: '#80868b' }}><Menu size={20} /></button><div className="min-w-0"><h2 className="text-sm lg:text-base font-medium truncate flex items-center gap-2" style={{ color: '#202124' }}>{showUsersPanel ? t.usersPanel : activeTab === 'pending' ? t.pendingApproval : filterStale ? <><span style={{ color: '#b45309' }}>{lang === 'en' ? 'Waiting >4d' : 'Wiszą >4d'}</span><button onClick={() => { setFilterStale(false); setFilterPerson([]); }} className="p-0.5 rounded-full hover:bg-gray-100" style={{ color: '#80868b' }} title={lang === 'en' ? 'Clear filter' : 'Wyczyść filtr'}><X size={14} /></button></> : filterDeadline ? t.withDeadlineTasks : filterStatus === 'active' ? t.activeTasks : filterStatus === 'open' ? t.openTasks : filterStatus === 'longterm' ? t.longtermTasks : filterStatus === 'paused' ? t.pausedTasks : filterStatus === 'monitoring' ? t.monitoringTasks : filterStatus === 'approval' ? t.approvalTasks : filterStatus === 'ideas' ? t.ideasTasks : t.closedTasks}</h2>{filterPerson.length > 0 && !showUsersPanel && <p style={{ fontSize: '11px', color: '#80868b' }}>{t.filter}: {filterPerson.map(fp => teamMembers.find(m => m.id === fp)?.name?.split(' ')[0]).filter(Boolean).join(', ')}</p>}</div></div>
+          <div className="flex items-center gap-2 min-w-0"><button onClick={() => setSidebarOpen(true)} className="p-2 rounded-full hover:bg-gray-100 lg:hidden flex-shrink-0" style={{ color: '#80868b' }}><Menu size={20} /></button><div className="min-w-0"><h2 className="text-sm lg:text-base font-medium truncate" style={{ color: '#202124' }}>{showUsersPanel ? t.usersPanel : activeTab === 'pending' ? t.pendingApproval : filterDeadline ? t.withDeadlineTasks : filterStatus === 'active' ? t.activeTasks : filterStatus === 'open' ? t.openTasks : filterStatus === 'longterm' ? t.longtermTasks : filterStatus === 'paused' ? t.pausedTasks : filterStatus === 'monitoring' ? t.monitoringTasks : filterStatus === 'approval' ? t.approvalTasks : filterStatus === 'ideas' ? t.ideasTasks : t.closedTasks}</h2>{filterPerson.length > 0 && !showUsersPanel && <p style={{ fontSize: '11px', color: '#80868b' }}>{t.filter}: {filterPerson.map(fp => teamMembers.find(m => m.id === fp)?.name?.split(' ')[0]).filter(Boolean).join(', ')}</p>}</div></div>
           <div className="flex items-center gap-2 flex-shrink-0">
             <NotificationBell tasks={tasks} currentUser={currentUser} readTimestamps={readTimestamps} teamMembers={teamMembers} onSelectTask={handleSelectTask} onMarkAllRead={async () => { const taskIds = tasks.map(t => t.id); const now = await setAllTasksReadInDb(currentUser, taskIds); const newTs = {}; taskIds.forEach(id => { newTs[id] = now; }); setReadTimestamps(newTs); }} t={t} lang={lang} />
             {!showUsersPanel && <GlobalSearch tasks={tasks} onSelectTask={handleSelectTask} teamMembers={teamMembers} customTags={customTags} t={t} lang={lang} />}
