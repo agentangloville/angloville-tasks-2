@@ -141,33 +141,45 @@ function DeadlineBadge({ deadline, size = 'normal', lang = 'pl', t }) {
 }
 
 // === TASK AGE BADGE ===
-// Pokazuje ile dni minęło od utworzenia zadania.
-// Eskalacja koloru: 0–6d niewidoczny, 7–13d szary, 14–29d amber,
-// 30–59d czerwony, 60+ mocna czerwień (format "Xmo" / "Xy").
+// Pokazuje wiek zadania – ale tylko jak coś jest naprawdę nie tak.
+// 0–6d   → ukryty (świeże, nie potrzeba badge)
+// 7–13d  → bardzo blady szary tekst
+// 14–29d → amber tekst
+// 30–59d → czerwony tekst
+// 60+    → czerwony pill z tłem (zombie alert)
+// Bez ikony, żeby nie zaśmiecać wiersza.
+// Aby pokazać wiek dla wszystkich zadań, zmień próg HIDE_AGE_BELOW_DAYS na 0.
+const HIDE_AGE_BELOW_DAYS = 7;
 function TaskAge({ createdAt, size = 'small', lang = 'pl' }) {
   if (!createdAt) return null;
   const days = Math.floor((Date.now() - new Date(createdAt).getTime()) / 86400000);
-  if (days < 0) return null;
+  if (days < HIDE_AGE_BELOW_DAYS) return null;
 
   let label;
   if (days < 60) label = `${days}d`;
   else if (days < 365) label = `${Math.floor(days / 30)}mo`;
   else label = `${Math.floor(days / 365)}y`;
 
-  let color, bg, showBg;
-  if (days < 7) { color = '#b0b5bc'; bg = 'transparent'; showBg = false; }
-  else if (days < 14) { color = '#5f6368'; bg = '#f1f3f4'; showBg = true; }
-  else if (days < 30) { color = '#854F0B'; bg = '#FAEEDA'; showBg = true; }
-  else if (days < 60) { color = '#791F1F'; bg = '#FCEBEB'; showBg = true; }
-  else { color = '#501313'; bg = '#F09595'; showBg = true; }
+  let color, bg, showBg = false;
+  if (days < 14) { color = '#9aa0a6'; }
+  else if (days < 30) { color = '#b45309'; }
+  else if (days < 60) { color = '#b91c1c'; }
+  else { color = '#501313'; bg = '#FCEBEB'; showBg = true; }
 
   const isSmall = size === 'small';
   const tooltipText = lang === 'en'
     ? `Created ${days} ${days === 1 ? 'day' : 'days'} ago`
     : `Utworzone ${days} ${days === 1 ? 'dzień' : 'dni'} temu`;
 
-  return <span title={tooltipText} className="inline-flex items-center gap-0.5 rounded-full" style={{ padding: showBg ? (isSmall ? '1px 7px' : '3px 10px') : '1px 4px', fontSize: isSmall ? '10.5px' : '12px', fontWeight: 500, background: bg, color }}>
-    <Clock size={isSmall ? 9 : 12} />
+  return <span title={tooltipText} style={{
+    padding: showBg ? (isSmall ? '1px 7px' : '3px 10px') : '0 3px',
+    fontSize: isSmall ? '10.5px' : '12px',
+    fontWeight: showBg ? 500 : 450,
+    background: showBg ? bg : 'transparent',
+    color,
+    borderRadius: showBg ? '999px' : '0',
+    whiteSpace: 'nowrap',
+  }}>
     {label}
   </span>;
 }
