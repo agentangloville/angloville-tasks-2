@@ -22,7 +22,8 @@ CREATE TABLE IF NOT EXISTS tasks (
   approved_by TEXT,
   approved_at TIMESTAMP WITH TIME ZONE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  closed_at TIMESTAMP WITH TIME ZONE
 );
 
 -- Indexes
@@ -30,6 +31,7 @@ CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
 CREATE INDEX IF NOT EXISTS idx_tasks_market ON tasks(market);
 CREATE INDEX IF NOT EXISTS idx_tasks_language ON tasks(language);
 CREATE INDEX IF NOT EXISTS idx_tasks_created_at ON tasks(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_tasks_closed_at ON tasks(closed_at DESC);
 
 -- Auto-update updated_at
 CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -61,3 +63,12 @@ CREATE TRIGGER tasks_updated_at
 
 -- Jeśli tabela już istnieje, dodaj kolumnę:
 -- ALTER TABLE tasks ADD COLUMN IF NOT EXISTS subtasks JSONB DEFAULT '[]';
+
+-- =============================================
+-- MIGRACJA: closed_at (data zamknięcia zadania)
+-- Uruchom jednorazowo jeśli tabela już istnieje bez tej kolumny:
+-- =============================================
+-- ALTER TABLE tasks ADD COLUMN IF NOT EXISTS closed_at TIMESTAMP WITH TIME ZONE;
+-- CREATE INDEX IF NOT EXISTS idx_tasks_closed_at ON tasks(closed_at DESC);
+-- -- Backfill historycznych zamknięć (przybliżenie z updated_at):
+-- UPDATE tasks SET closed_at = updated_at WHERE status = 'closed' AND closed_at IS NULL;

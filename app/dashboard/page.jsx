@@ -72,12 +72,23 @@ export default function DashboardPage() {
     setTo(today);
   };
 
+  // Use closedAt if present, fall back to updatedAt for tasks closed before the closed_at migration
+  const closedDate = (t) => t.closedAt || t.updatedAt;
+
   const data = useMemo(() => {
     const tCreated = tasks.filter(t => inR(t.createdAt));
-    const tClosed = tasks.filter(t => t.status === 'closed' && t.updatedAt && inR(t.updatedAt));
+    const tClosed = tasks.filter(t => t.status === 'closed' && closedDate(t) && inR(closedDate(t)));
     const tActive = tasks.filter(t => !['closed', 'pending'].includes(t.status));
     const overdue = tActive.filter(t => t.deadline && t.deadline < today);
     const daysInRange = Math.max(1, Math.ceil((new Date(to) - new Date(from)) / 86400000));
+
+    // Build list of days in range (YYYY-MM-DD), oldest → newest
+    const days = [];
+    const dStart = new Date(from);
+    const dEnd = new Date(to);
+    for (let d = new Date(dStart); d <= dEnd; d.setDate(d.getDate() + 1)) {
+      days.push(d.toISOString().split('T')[0]);
+    }
 
     // Sends in range
     const sendsInRange = sends.filter(s => inR(s.sendDate));
@@ -89,7 +100,7 @@ export default function DashboardPage() {
 
     // Avg close time
     let totalClose = 0, closeN = 0;
-    tClosed.forEach(t => { const d = (new Date(t.updatedAt) - new Date(t.createdAt)) / 86400000; if (d >= 0) { totalClose += d; closeN++; } });
+    tClosed.forEach(t => { const d = (new Date(closedDate(t)) - new Date(t.createdAt)) / 86400000; if (d >= 0) { totalClose += d; closeN++; } });
 
     // Priority active
     const priorities = [
@@ -104,13 +115,26 @@ export default function DashboardPage() {
     const people = am.map(member => {
       const id = member.id;
 
-      // Tasks
+      // Tasks where this person is an assignee
       const pt = tasks.filter(t => (t.assignees || []).includes(id));
-      const pClosed = pt.filter(t => t.status === 'closed' && t.updatedAt && inR(t.updatedAt));
+      const pClosed = pt.filter(t => t.status === 'closed' && closedDate(t) && inR(closedDate(t)));
       const pActive = pt.filter(t => !['closed', 'pending'].includes(t.status));
-      const pCreated = pt.filter(t => inR(t.createdAt));
+      // Tasks this person CREATED in range (for "utworzone" credit) — separate from assignee tasks
+      const pCreated = tasks.filter(t => t.createdBy === id && inR(t.createdAt));
 
-      const closeTimes = pClosed.map(t => Math.max(0, (new Date(t.updatedAt) - new Date(t.createdAt)) / 86400000));
+      // Daily breakdown: created (by this person) and closed (where this person was an assignee)
+      const byDay = {};
+      days.forEach(d => { byDay[d] = { c: 0, z: 0 }; });
+      pCreated.forEach(t => {
+        const d = t.createdAt?.split('T')[0];
+        if (d && byDay[d]) byDay[d].c++;
+      });
+      pClosed.forEach(t => {
+        const d = closedDate(t)?.split('T')[0];
+        if (d && byDay[d]) byDay[d].z++;
+      });
+
+      const closeTimes = pClosed.map(t => Math.max(0, (new Date(closedDate(t)) - new Date(t.createdAt)) / 86400000));
       const sorted = [...closeTimes].sort((a, b) => a - b);
       const avgDays = sorted.length > 0 ? sorted.reduce((a, b) => a + b, 0) / sorted.length : 0;
       const medianDays = sorted.length > 0 ? sorted[Math.floor(sorted.length / 2)] : 0;
@@ -137,6 +161,7 @@ export default function DashboardPage() {
         // Tasks
         totalTasks: pt.length, closedTasks: pClosed.length, activeTasks: pActive.length, createdTasks: pCreated.length,
         avgDays, medianDays,
+        byDay,
         // Sends
         totalSends: pSends.length, sendsInRange: pSendsInRange.length,
         sendsSent: pSendsSent.length, sendsTodo: pSendsTodo.length,
@@ -147,7 +172,7 @@ export default function DashboardPage() {
         // Other
         comments, markets,
       };
-    }).filter(p => p.totalItems > 0).sort((a, b) => b.totalItems - a.totalItems);
+    }).filter(p => p.totalItems > 0 || p.createdTasks > 0).sort((a, b) => (b.createdTasks + b.closedTasks) - (a.createdTasks + a.closedTasks));
 
     // Markets
     const byMarket = MARKETS.map(m => ({
@@ -163,7 +188,7 @@ export default function DashboardPage() {
       tCreated: tCreated.length, tClosed: tClosed.length, tActive: tActive.length,
       overdue: overdue.length,
       avgClose: closeN > 0 ? totalClose / closeN : 0,
-      daysInRange, priorities,
+      daysInRange, priorities, days,
       sendsInRange: sendsInRange.length, sendsSent: sendsSent.length, sendsTodo: sendsTodo.length,
       sendsUpcoming: sendsUpcoming.length,
       people, byMarket,
@@ -241,66 +266,134 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* Team */}
+        {/* Team — daily activity (created / closed per day, per person) */}
         <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e8eaed', marginBottom: 16, overflow: 'hidden' }}>
-          <div style={{ padding: '14px 18px', borderBottom: '1px solid #e8eaed', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: 14, fontWeight: 500, color: '#202124' }}>Zespół</span>
+          <div style={{ padding: '14px 18px', borderBottom: '1px solid #e8eaed', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 500, color: '#202124' }}>Zespół — dzienna aktywność</div>
+              <div style={{ fontSize: 11, color: '#80868b', marginTop: 2 }}>Utworzone (kto utworzył) i zamknięte (kto był przypisany), per dzień</div>
+            </div>
             <div style={{ display: 'flex', gap: 12, fontSize: 11, color: '#5f6368' }}>
-              <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><span style={{ width: 8, height: 8, borderRadius: '50%', background: '#1e8e3e', display: 'inline-block' }} />Zamknięte</span>
-              <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><span style={{ width: 8, height: 8, borderRadius: '50%', background: '#1a73e8', display: 'inline-block' }} />Aktywne</span>
-              <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><span style={{ width: 8, height: 8, borderRadius: '50%', background: '#7c3aed', display: 'inline-block' }} />Wysyłki</span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><span style={{ width: 8, height: 8, borderRadius: 2, background: '#1a73e8', display: 'inline-block' }} />Utworzone</span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><span style={{ width: 8, height: 8, borderRadius: 2, background: '#1e8e3e', display: 'inline-block' }} />Zamknięte</span>
             </div>
           </div>
-          {data.people.map((p, i) => {
-            const isExpanded = expandedPerson === p.id;
-            const maxVal = Math.max(...data.people.flatMap(x => [x.closedTasks, x.activeTasks, x.sendsInRange]), 1);
-            return (
-              <div key={p.id} style={{ borderBottom: i < data.people.length - 1 ? '1px solid #f1f3f4' : 'none' }}>
-                <div onClick={() => setExpandedPerson(isExpanded ? null : p.id)}
-                  style={{ padding: '10px 18px', display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer', background: isExpanded ? '#f8f9fa' : '#fff', transition: 'background 0.15s' }}>
-                  <div style={{ width: 32, height: 32, borderRadius: '50%', background: p.color, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    color: '#fff', fontSize: 11, fontWeight: 500, flexShrink: 0 }}>
-                    {getInitials(p.name)}
+          <div style={{ overflowX: 'auto' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: `200px repeat(${data.days.length}, 36px)`, alignItems: 'stretch' }}>
+              {/* Day header row */}
+              <div style={{ position: 'sticky', left: 0, zIndex: 2, background: '#f8f9fa', borderBottom: '1px solid #e8eaed', padding: '8px 12px', fontSize: 11, color: '#5f6368', fontWeight: 500 }}>Σ utw. / zam.</div>
+              {data.days.map(d => {
+                const dt = new Date(d);
+                const dow = dt.getDay(); // 0=Nd..6=Sb
+                const isWeekend = dow === 0 || dow === 6;
+                const isToday = d === today;
+                const wkLabels = ['Nd','Pn','Wt','Śr','Cz','Pt','Sb'];
+                return (
+                  <div key={d} style={{
+                    borderBottom: '1px solid #e8eaed',
+                    borderLeft: isToday ? '2px solid #1a73e8' : '1px solid #f1f3f4',
+                    background: isToday ? '#e8f0fe' : isWeekend ? '#fafbfc' : '#f8f9fa',
+                    padding: '4px 0', textAlign: 'center', fontSize: 10, lineHeight: 1.15,
+                    color: isToday ? '#1a73e8' : '#5f6368', fontWeight: isToday ? 600 : 500,
+                  }}>
+                    <div>{wkLabels[dow]}</div>
+                    <div>{dt.getDate()}.{String(dt.getMonth() + 1).padStart(2, '0')}</div>
                   </div>
-                  <div style={{ width: 80, flexShrink: 0 }}>
-                    <div style={{ fontSize: 13, fontWeight: 500, color: '#202124' }}>{p.short}</div>
-                    <div style={{ fontSize: 10, color: '#80868b' }}>{p.totalItems} łącznie</div>
-                  </div>
-                  <div style={{ flex: 1, display: 'flex', gap: 4 }}>
-                    <div style={{ flex: 1 }}><Bar value={p.closedTasks} max={maxVal} color="#1e8e3e" /></div>
-                    <div style={{ flex: 1 }}><Bar value={p.activeTasks} max={maxVal} color="#1a73e8" /></div>
-                    <div style={{ flex: 1 }}><Bar value={p.sendsInRange} max={maxVal} color="#7c3aed" /></div>
-                  </div>
-                  <div style={{ width: 24, display: 'flex', justifyContent: 'center', flexShrink: 0 }}>
-                    {isExpanded ? <ChevronUp size={14} style={{ color: '#80868b' }} /> : <ChevronDown size={14} style={{ color: '#80868b' }} />}
-                  </div>
-                </div>
+                );
+              })}
 
-                {isExpanded && (
-                  <div style={{ padding: '0 18px 14px', paddingLeft: 62 }}>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 8, marginTop: 4 }}>
-                      {/* Tasks */}
-                      <Chip label="Zamknięte taski" value={p.closedTasks} color="#1e8e3e" />
-                      <Chip label="Aktywne taski" value={p.activeTasks} color="#1a73e8" />
-                      {p.medianDays > 0 && <Chip label="⌀ Czas zamknięcia" value={`${p.medianDays.toFixed(1)}d`} color={p.medianDays <= 7 ? '#1e8e3e' : p.medianDays <= 14 ? '#f9ab00' : '#d93025'} />}
-                      {/* Sends */}
-                      <Chip label="Wysyłki (okres)" value={p.sendsInRange} color="#7c3aed" />
-                      <Chip label="Wysłane" value={p.sendsSent} color="#1e8e3e" />
-                      <Chip label="Nadchodzące" value={p.sendsUpcoming} color="#f9ab00" />
-                      {/* Other */}
-                      <Chip label="Wszystkie taski" value={p.totalTasks} color="#5f6368" />
-                      <Chip label="Wszystkie wysyłki" value={p.totalSends} color="#5f6368" />
-                      {p.comments > 0 && <Chip label="Komentarze" value={p.comments} color="#5f6368" />}
-                    </div>
-                    {p.markets.length > 0 && (
-                      <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
-                        {p.markets.map(m => (
-                          <span key={m.id} style={{ fontSize: 11, padding: '2px 8px', borderRadius: 12, background: '#f1f3f4', color: '#3c4043', fontWeight: 500 }}>
-                            {m.icon} {m.count}
-                          </span>
-                        ))}
+              {/* Person rows */}
+              {data.people.length === 0 && (
+                <div style={{ gridColumn: '1 / -1', padding: '24px', textAlign: 'center', fontSize: 12, color: '#80868b' }}>
+                  Brak aktywności w wybranym okresie.
+                </div>
+              )}
+              {data.people.map((p, i) => {
+                const isExpanded = expandedPerson === p.id;
+                const isLast = i === data.people.length - 1;
+                return (
+                  <React.Fragment key={p.id}>
+                    {/* Name + summary cell (sticky left) */}
+                    <div
+                      onClick={() => setExpandedPerson(isExpanded ? null : p.id)}
+                      style={{
+                        position: 'sticky', left: 0, zIndex: 1,
+                        background: isExpanded ? '#f8f9fa' : '#fff',
+                        borderBottom: isLast && !isExpanded ? 'none' : '1px solid #f1f3f4',
+                        padding: '8px 12px', display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer',
+                      }}
+                    >
+                      <div style={{ width: 28, height: 28, borderRadius: '50%', background: p.color, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 10, fontWeight: 500, flexShrink: 0 }}>
+                        {getInitials(p.name)}
                       </div>
-                    )}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 13, fontWeight: 500, color: '#202124' }}>{p.short}</div>
+                        <div style={{ fontSize: 10, color: '#80868b' }}>
+                          <span style={{ color: '#1a73e8' }}>{p.createdTasks}</span>
+                          {' / '}
+                          <span style={{ color: '#1e8e3e' }}>{p.closedTasks}</span>
+                        </div>
+                      </div>
+                      {isExpanded ? <ChevronUp size={12} style={{ color: '#80868b' }} /> : <ChevronDown size={12} style={{ color: '#80868b' }} />}
+                    </div>
+
+                    {/* Daily cells */}
+                    {data.days.map(d => {
+                      const dt = new Date(d);
+                      const dow = dt.getDay();
+                      const isWeekend = dow === 0 || dow === 6;
+                      const isToday = d === today;
+                      const x = p.byDay[d] || { c: 0, z: 0 };
+                      const empty = x.c === 0 && x.z === 0;
+                      return (
+                        <div key={d} style={{
+                          borderBottom: isLast && !isExpanded ? 'none' : '1px solid #f1f3f4',
+                          borderLeft: isToday ? '2px solid #1a73e8' : '1px solid #f1f3f4',
+                          background: isExpanded ? '#f8f9fa' : isToday ? '#f3f8fe' : isWeekend ? '#fafbfc' : '#fff',
+                          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                          fontSize: 11, fontWeight: 600, lineHeight: 1.2, padding: '4px 0',
+                        }}>
+                          {empty ? (
+                            <span style={{ color: '#dadce0', fontSize: 10, fontWeight: 400 }}>·</span>
+                          ) : (
+                            <>
+                              <span style={{ color: x.c > 0 ? '#1a73e8' : '#dadce0' }}>{x.c || '·'}</span>
+                              <span style={{ color: x.z > 0 ? '#1e8e3e' : '#dadce0' }}>{x.z || '·'}</span>
+                            </>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </React.Fragment>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Expanded details (rendered outside grid to keep layout clean) */}
+          {data.people.map(p => {
+            if (expandedPerson !== p.id) return null;
+            return (
+              <div key={`${p.id}-exp`} style={{ borderTop: '1px solid #e8eaed', background: '#f8f9fa', padding: '12px 18px' }}>
+                <div style={{ fontSize: 11, color: '#5f6368', marginBottom: 8, fontWeight: 500 }}>{p.short} — szczegóły w okresie</div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 8 }}>
+                  <Chip label="Utworzone taski" value={p.createdTasks} color="#1a73e8" />
+                  <Chip label="Zamknięte taski" value={p.closedTasks} color="#1e8e3e" />
+                  <Chip label="Aktywne taski" value={p.activeTasks} color="#5f6368" />
+                  {p.medianDays > 0 && <Chip label="⌀ Czas zamknięcia" value={`${p.medianDays.toFixed(1)}d`} color={p.medianDays <= 7 ? '#1e8e3e' : p.medianDays <= 14 ? '#f9ab00' : '#d93025'} />}
+                  <Chip label="Wysyłki (okres)" value={p.sendsInRange} color="#7c3aed" />
+                  <Chip label="Wysłane" value={p.sendsSent} color="#1e8e3e" />
+                  <Chip label="Nadchodzące" value={p.sendsUpcoming} color="#f9ab00" />
+                  <Chip label="Wszystkie taski" value={p.totalTasks} color="#5f6368" />
+                  {p.comments > 0 && <Chip label="Komentarze" value={p.comments} color="#5f6368" />}
+                </div>
+                {p.markets.length > 0 && (
+                  <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
+                    {p.markets.map(m => (
+                      <span key={m.id} style={{ fontSize: 11, padding: '2px 8px', borderRadius: 12, background: '#f1f3f4', color: '#3c4043', fontWeight: 500 }}>
+                        {m.icon} {m.count}
+                      </span>
+                    ))}
                   </div>
                 )}
               </div>
