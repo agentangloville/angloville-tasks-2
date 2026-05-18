@@ -279,13 +279,13 @@ export default function RequestPage() {
   return (
     <div className="min-h-screen" style={{ background: '#f8f9fa' }}>
       <header className="bg-white border-b px-6 py-2.5" style={{ borderColor: '#e8eaed' }}>
-        <div className="max-w-3xl mx-auto flex items-center gap-3">
+        <div className="max-w-5xl mx-auto flex items-center gap-3">
           <img src="https://angloville.com/wp-content/themes/angloville/assets/images/logo.svg" alt="Angloville" className="h-6" />
           <span className="text-xs font-medium px-2.5 py-0.5 rounded-full" style={{ background: '#e8f0fe', color: '#1a73e8' }}>Marketing Request</span>
         </div>
       </header>
 
-      <main className="max-w-3xl mx-auto py-5 px-4">
+      <main className="max-w-5xl mx-auto py-5 px-4">
         <form onSubmit={handleSubmit} className="bg-white rounded-lg overflow-hidden" style={{ boxShadow: '0 1px 2px 0 rgba(60,64,67,.3), 0 1px 3px 1px rgba(60,64,67,.15)' }}>
 
           {error && (
@@ -380,7 +380,7 @@ export default function RequestPage() {
                 required
               />
             </div>
-            <div className="w-44">
+            <div className="w-56">
               <label className="text-xs font-medium block mb-1" style={{ color: '#5f6368' }}>Market</label>
               <div className="relative">
                 <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-base pointer-events-none">{selectedMarket?.icon}</span>
