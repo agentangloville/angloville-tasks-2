@@ -86,7 +86,7 @@ const T = {
     planner: 'Planner wysyłek', calendar: 'Kalendarz', list: 'Lista', newSend: 'Nowa wysyłka',
     title: 'Tytuł', channel: 'Typ', tools: 'Narzędzia', market: 'Rynek',
     segment: 'Segment', sendDate: 'Data', sendTime: 'Godzina', recurrence: 'Powtarzanie',
-    recurrenceEnd: 'Powtarzaj do', status: 'Status', subjectLine: 'Temat', notes: 'Notatki',
+    recurrenceEnd: 'Powtarzaj do', status: 'Status', subjectLine: 'Temat', notes: 'Opis',
     save: 'Zapisz', cancel: 'Anuluj', delete: 'Usuń', edit: 'Edytuj',
     today: 'Dziś', allMarkets: 'Wszystkie rynki', noSends: 'Brak wysyłek',
     markSent: 'Oznacz wysłane', restore: 'Przywróć', markScheduled: 'Zaplanuj',
@@ -120,7 +120,7 @@ const T = {
     planner: 'Send Planner', calendar: 'Calendar', list: 'List', newSend: 'New send',
     title: 'Title', channel: 'Type', tools: 'Tools', market: 'Market',
     segment: 'Segment', sendDate: 'Date', sendTime: 'Time', recurrence: 'Recurrence',
-    recurrenceEnd: 'Repeat until', status: 'Status', subjectLine: 'Subject', notes: 'Notes',
+    recurrenceEnd: 'Repeat until', status: 'Status', subjectLine: 'Subject', notes: 'Description',
     save: 'Save', cancel: 'Cancel', delete: 'Delete', edit: 'Edit',
     today: 'Today', allMarkets: 'All markets', noSends: 'No sends',
     markSent: 'Mark sent', restore: 'Restore', markScheduled: 'Schedule',
@@ -367,13 +367,11 @@ function SendFormModal({ send, onSave, onClose, currentUser, teamMembers, t, lan
           <div>
             <div className="flex items-center justify-between mb-1.5">
               <label className="text-sm font-medium" style={{ color: '#202124' }}>{t.notes}</label>
-              {f.channel === 'sms' && <span className="text-xs font-medium" style={{ color: f.description.length > 160 ? '#ef4444' : f.description.length > 140 ? '#f59e0b' : '#80868b' }}>{f.description.length}/160</span>}
             </div>
             <textarea value={f.description} onChange={e => sF({...f, description: e.target.value})}
               className="w-full px-3 py-2 border rounded-lg text-sm resize-none"
-              style={{ borderColor: f.channel === 'sms' && f.description.length > 160 ? '#ef4444' : '#dadce0' }}
-              rows={3} placeholder={f.channel === 'sms' ? (lang === 'en' ? 'SMS text (max 160 chars)...' : 'Treść SMS (max 160 znaków)...') : t.notesPlaceholder} />
-            {f.channel === 'sms' && f.description.length > 160 && <p className="text-xs mt-1" style={{ color: '#ef4444' }}>{lang === 'en' ? `⚠ ${f.description.length - 160} chars over` : `⚠ ${f.description.length - 160} znaków ponad limit`}</p>}
+              style={{ borderColor: '#dadce0' }}
+              rows={3} placeholder={t.notesPlaceholder} />
           </div>
 
           {/* Typ */}
@@ -545,10 +543,8 @@ function SendDetail({ send, onUpdate, onDelete, onEdit, onClose, onSelectSend, a
         {send.description && <div>
           <div className="flex items-center justify-between mb-1">
             <label className="text-xs font-medium" style={{ color: '#5f6368' }}>{t.notes}</label>
-            {send.channel === 'sms' && <span className="text-xs font-medium" style={{ color: send.description.length > 160 ? '#ef4444' : send.description.length > 140 ? '#f59e0b' : '#80868b' }}>{send.description.length}/160</span>}
           </div>
-          <div className="px-3 py-2 rounded-lg text-sm whitespace-pre-wrap" style={{ background: send.channel === 'sms' && send.description.length > 160 ? '#fef2f2' : '#f1f3f4', color: send.channel === 'sms' && send.description.length > 160 ? '#ef4444' : '#3c4043' }}>{send.description}</div>
-          {send.channel === 'sms' && send.description.length > 160 && <p className="text-xs mt-1" style={{ color: '#ef4444' }}>⚠ {send.description.length - 160} {lang==='en' ? 'chars over limit' : 'znaków ponad limit'}</p>}
+          <div className="px-3 py-2 rounded-lg text-sm whitespace-pre-wrap" style={{ background: '#f1f3f4', color: '#3c4043' }}>{send.description}</div>
         </div>}
 
         {/* Series Timeline */}
