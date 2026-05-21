@@ -34,7 +34,7 @@ import {
   Filter, Loader2, LogOut, Lock, Menu, Repeat,
   CheckCircle, Circle, ExternalLink, Users, Download, Copy, ClipboardPaste
 } from 'lucide-react';
-import { getTeamMembers, createTask, updateTask as updateTaskDb } from '../../lib/supabase';
+import { getTeamMembers } from '../../lib/supabase';
 import {
   getScheduledSends, createScheduledSend, updateScheduledSend,
   deleteScheduledSend, generateRecurrences, updateSeries, deleteSeries,
@@ -292,6 +292,7 @@ function AssigneeSelector({ assignees, teamMembers, onChange, t }) {
 
 function SendFormModal({ send, onSave, onClose, currentUser, teamMembers, t, lang }) {
   const isEdit = !!send?.id;
+  const [saving, setSaving] = useState(false);
   const [f, sF] = useState({
     title: send?.title || '', description: send?.description || '',
     channel: send?.channel || 'email', tools: send?.tools || [],
@@ -314,31 +315,20 @@ function SendFormModal({ send, onSave, onClose, currentUser, teamMembers, t, lan
   };
 
   const save = async () => {
-    if (!f.title.trim() || !f.sendDate) return;
-    let linkedTaskId = f.linkedTaskId;
-
-    if (!linkedTaskId) {
-      const newTask = await createTask({
-        title: f.title,
-        description: f.description || '',
-        market: f.market,
-        status: 'open',
-        deadline: f.sendDate || null,
-        assignees: f.assignees || [],
-        createdBy: f.createdBy || currentUser,
-        language: 'pl',
+    if (!f.title.trim() || !f.sendDate || saving) return;
+    setSaving(true);
+    try {
+      await onSave({
+        ...f,
+        sendTime: f.sendTime || '10:00',
+        recurrence: f.recurrence || null,
+        recurrenceEndDate: f.recurrenceEndDate || null,
+        links: f.links.filter(l => l.url.trim()),
+        createdBy: send?.createdBy || currentUser,
       });
-      if (newTask) { linkedTaskId = newTask.id; }
+    } finally {
+      setSaving(false);
     }
-
-    onSave({
-      ...f, linkedTaskId,
-      sendTime: f.sendTime || '10:00',
-      recurrence: f.recurrence || null,
-      recurrenceEndDate: f.recurrenceEndDate || null,
-      links: f.links.filter(l => l.url.trim()),
-      createdBy: send?.createdBy || currentUser,
-    });
   };
 
   return (
@@ -440,7 +430,7 @@ function SendFormModal({ send, onSave, onClose, currentUser, teamMembers, t, lan
         </div>
         <div className="p-5 border-t flex justify-end gap-3" style={{ borderColor: '#dadce0' }}>
           <button onClick={onClose} className="px-5 py-2.5 rounded-lg text-sm font-medium hover:bg-gray-100" style={{ color: '#5f6368' }}>{t.cancel}</button>
-          <button onClick={save} disabled={!f.title.trim()||!f.sendDate} className="px-5 py-2.5 rounded-lg text-sm font-medium disabled:opacity-50" style={{ background: '#1a73e8', color: 'white' }}>{t.save}</button>
+          <button onClick={save} disabled={!f.title.trim()||!f.sendDate||saving} className="px-5 py-2.5 rounded-lg text-sm font-medium disabled:opacity-50" style={{ background: '#1a73e8', color: 'white' }}>{saving ? (lang==='en'?'Saving...':'Zapisuję...') : t.save}</button>
         </div>
       </div>
     </div>
@@ -1288,39 +1278,12 @@ export default function PlannerPage() {
       } else {
         const up = await updateScheduledSend(editSend.id, data);
         if (up) {
-          // 2-way link: if task was just created during edit, update it with send id
-          if (up.linkedTaskId && !editSend.linkedTaskId) {
-            try {
-              await updateTaskDb(up.linkedTaskId, { linkedSendId: up.id });
-            } catch (e) { console.error('Failed to update task with send link:', e); }
-          }
-          // Sync: update linked task with edited send data
-          if (up.linkedTaskId) {
-            const taskUpdates = {};
-            if (data.title) taskUpdates.title = data.title;
-            if (data.description !== undefined) taskUpdates.description = data.description;
-            if (data.sendDate) taskUpdates.deadline = data.sendDate;
-            if (data.assignees) taskUpdates.assignees = data.assignees;
-            if (data.market) taskUpdates.market = data.market;
-            // Status sync: send done ↔ task closed, send todo ↔ task open
-            if (data.status === 'done') taskUpdates.status = 'closed';
-            else if (data.status === 'todo') taskUpdates.status = 'open';
-            if (Object.keys(taskUpdates).length > 0) {
-              try { await updateTaskDb(up.linkedTaskId, taskUpdates); } catch (e) { console.error('Sync task failed:', e); }
-            }
-          }
           setSends(p => p.map(s => s.id === up.id ? up : s)); setSelectedSend(p => p?.id === up.id ? up : p);
         }
       }
     } else {
       const cr = await createScheduledSend(data);
       if (cr) {
-        // 2-way link: update task with linked_send_id
-        if (cr.linkedTaskId) {
-          try {
-            await updateTaskDb(cr.linkedTaskId, { linkedSendId: cr.id });
-          } catch (e) { console.error('Failed to update task with send link:', e); }
-        }
         setSends(p => [...p, cr]);
         if (cr.recurrence) {
           const occ = await generateRecurrences(cr);
@@ -1341,16 +1304,6 @@ export default function PlannerPage() {
   const handlePasteSend = async (date) => {
     if (!copiedSend) return;
     const src = copiedSend;
-    const newTask = await createTask({
-      title: src.title,
-      description: src.description || '',
-      market: src.market,
-      status: 'open',
-      deadline: date || null,
-      assignees: src.assignees || [],
-      createdBy: currentUser,
-      language: 'pl',
-    });
     const cr = await createScheduledSend({
       title: src.title,
       description: src.description || '',
@@ -1369,13 +1322,9 @@ export default function PlannerPage() {
       taskLink: src.taskLink || null,
       createdBy: currentUser,
       assignees: src.assignees || [],
-      linkedTaskId: newTask?.id || null,
       seriesName: null,
     });
     if (cr) {
-      if (cr.linkedTaskId) {
-        try { await updateTaskDb(cr.linkedTaskId, { linkedSendId: cr.id }); } catch (e) { console.error('Failed to link task:', e); }
-      }
       setSends(p => [...p, cr]);
     }
   };
@@ -1384,21 +1333,6 @@ export default function PlannerPage() {
     const up = await updateScheduledSend(id, updates);
     if (up) {
       setSends(p => p.map(s => s.id === up.id ? up : s)); setSelectedSend(p => p?.id === up.id ? up : p);
-      // Sync: update linked task when send is edited
-      if (up.linkedTaskId) {
-        const taskUpdates = {};
-        if (updates.title) taskUpdates.title = updates.title;
-        if (updates.description !== undefined) taskUpdates.description = updates.description;
-        if (updates.sendDate) taskUpdates.deadline = updates.sendDate;
-        if (updates.assignees) taskUpdates.assignees = updates.assignees;
-        if (updates.market) taskUpdates.market = updates.market;
-        // Status sync: send done ↔ task closed, send todo ↔ task open
-        if (updates.status === 'done') taskUpdates.status = 'closed';
-        else if (updates.status === 'todo') taskUpdates.status = 'open';
-        if (Object.keys(taskUpdates).length > 0) {
-          try { await updateTaskDb(up.linkedTaskId, taskUpdates); } catch (e) { console.error('Sync task failed:', e); }
-        }
-      }
     }
   };
 
@@ -1454,11 +1388,6 @@ export default function PlannerPage() {
   const handleBulkMarkSent = async (ids) => {
     const ok = await bulkUpdateStatus(ids, 'done');
     if (ok) {
-      // Sync: for each send with a linked task, close the task too
-      const affectedSends = sends.filter(s => ids.includes(s.id) && s.linkedTaskId);
-      for (const s of affectedSends) {
-        try { await updateTaskDb(s.linkedTaskId, { status: 'closed' }); } catch (e) { console.error('Sync task failed:', e); }
-      }
       setSends(p => p.map(s => ids.includes(s.id) ? { ...s, status: 'done' } : s));
       if (selectedSend && ids.includes(selectedSend.id)) {
         setSelectedSend(p => ({ ...p, status: 'done' }));
