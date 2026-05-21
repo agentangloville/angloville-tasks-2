@@ -32,7 +32,7 @@ import {
   Plus, X, Check, Edit3, Trash2, ChevronLeft, ChevronRight,
   Calendar, List, Mail, MessageSquare, Phone,
   Filter, Loader2, LogOut, Lock, Menu, Repeat,
-  CheckCircle, Circle, ExternalLink, Users, Download
+  CheckCircle, Circle, ExternalLink, Users, Download, Copy, ClipboardPaste
 } from 'lucide-react';
 import { getTeamMembers, createTask, updateTask as updateTaskDb } from '../../lib/supabase';
 import {
@@ -669,7 +669,7 @@ function SeriesTimeline({ items, currentId, totalCount, onSelect, onUpdate, t, l
 
 // ── Calendar View ────────────────────────────────────
 
-function CalendarView({ sends, year, month, onSelectDay, onAddSend, onSelectSend, selectedDate, lang }) {
+function CalendarView({ sends, year, month, onSelectDay, onAddSend, onSelectSend, selectedDate, lang, copiedSend, onCopySend, onPasteSend, onClearCopy }) {
   const days = getMonthDays(year, month);
   const dayNames = lang==='en' ? DAYS_EN : DAYS_PL;
   const todayStr = fmt(new Date());
@@ -684,10 +684,31 @@ function CalendarView({ sends, year, month, onSelectDay, onAddSend, onSelectSend
     return () => document.removeEventListener('mousedown', h);
   }, [popupDate]);
 
+  // Esc anuluje skopiowaną wysyłkę
+  useEffect(() => {
+    if (!copiedSend) return;
+    const h = (e) => { if (e.key === 'Escape') onClearCopy(); };
+    document.addEventListener('keydown', h);
+    return () => document.removeEventListener('keydown', h);
+  }, [copiedSend, onClearCopy]);
+
   const popupSends = popupDate ? (byDate[popupDate] || []) : [];
 
   return (
     <div className="relative">
+    {copiedSend && (
+      <div className="mb-2 px-3 py-2 rounded-lg flex items-center justify-between gap-2 text-xs" style={{ background: '#e8f0fe', border: '1px solid #1a73e8', color: '#1a73e8' }}>
+        <div className="flex items-center gap-2 min-w-0">
+          <Copy size={14} />
+          <span className="font-medium flex-shrink-0">{lang==='en' ? 'Copied:' : 'Skopiowano:'}</span>
+          <span className="truncate">{copiedSend.title}</span>
+          <span className="flex-shrink-0" style={{ color: '#5f6368' }}>– {lang==='en' ? 'click 📋 on a day to paste' : 'kliknij 📋 w dniu aby wkleić'}</span>
+        </div>
+        <button onClick={onClearCopy} className="flex items-center gap-1 px-2 py-0.5 rounded hover:bg-blue-100 flex-shrink-0" style={{ color: '#1a73e8' }}>
+          <X size={12} /> {lang==='en' ? 'Cancel' : 'Anuluj'}
+        </button>
+      </div>
+    )}
     <div className="bg-white rounded-xl border" style={{ borderColor: '#dadce0' }}>
       <div className="grid grid-cols-7 border-b" style={{ borderColor: '#dadce0' }}>
         {dayNames.map(d => <div key={d} className="text-center py-2.5 text-xs font-medium" style={{ color: '#5f6368' }}>{d}</div>)}
@@ -703,7 +724,14 @@ function CalendarView({ sends, year, month, onSelectDay, onAddSend, onSelectSend
                   style={{ color: !day.cur?'#dadce0':it?'white':'#202124', background: it?'#1a73e8':'transparent' }}>
                   {day.date.getDate()}
                 </span>
-                <button onClick={e => {e.stopPropagation();onAddSend(ds);}} className="w-4 h-4 rounded-full items-center justify-center hidden group-hover:flex" style={{ background: 'transparent', border: '1.5px solid #dadce0', color: '#80868b', fontSize: '12px', lineHeight: '12px' }}>+</button>
+                <div className="flex items-center gap-1">
+                  {copiedSend && day.cur && (
+                    <button onClick={e => {e.stopPropagation();onPasteSend(ds);}} title={lang==='en'?'Paste here':'Wklej tutaj'} className="w-4 h-4 rounded-full flex items-center justify-center" style={{ background: '#1a73e8', color: 'white', border: '1.5px solid #1a73e8' }}>
+                      <ClipboardPaste size={10} />
+                    </button>
+                  )}
+                  <button onClick={e => {e.stopPropagation();onAddSend(ds);}} className="w-4 h-4 rounded-full items-center justify-center hidden group-hover:flex" style={{ background: 'transparent', border: '1.5px solid #dadce0', color: '#80868b', fontSize: '12px', lineHeight: '12px' }}>+</button>
+                </div>
               </div>
               <div className="space-y-0.5">
                 {ss.slice(0,3).map(s => {
@@ -711,11 +739,14 @@ function CalendarView({ sends, year, month, onSelectDay, onAddSend, onSelectSend
                   const st = STATUSES.find(x => x.id === s.status);
                   return (
                     <div key={s.id} onClick={e => {e.stopPropagation();onSelectSend(s);}}
-                      className="flex items-center gap-1 px-1 py-0.5 rounded text-xs truncate cursor-pointer hover:bg-blue-50"
+                      className="group/send relative flex items-center gap-1 px-1 py-0.5 rounded text-xs truncate cursor-pointer hover:bg-blue-50"
                       style={{ color: s.status==='done'?'#80868b':st?.color }}>
-                      <span style={{ fontSize: '10px', textDecoration: s.status==='done'?'line-through':'none' }}>
+                      <span className="truncate" style={{ fontSize: '10px', textDecoration: s.status==='done'?'line-through':'none' }}>
                         {MARKETS.find(m=>m.id===s.market)?.icon} {s.title}
                       </span>
+                      <button onClick={e => {e.stopPropagation();onCopySend(s);}} title={lang==='en'?'Copy':'Kopiuj'} className="ml-auto flex-shrink-0 w-3.5 h-3.5 rounded-sm items-center justify-center hidden group-hover/send:flex hover:bg-blue-200" style={{ color: '#5f6368' }}>
+                        <Copy size={9} />
+                      </button>
                     </div>
                   );
                 })}
@@ -1212,6 +1243,7 @@ export default function PlannerPage() {
   const [filterChannel, setFilterChannel] = useState('all');
   const [filterTool, setFilterTool] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
+  const [copiedSend, setCopiedSend] = useState(null);
 
   useEffect(() => { (async () => { setLoadingTeam(true); const m = await getTeamMembers(); if (m.length > 0) setTeamMembers(m); setLoadingTeam(false); })(); }, []);
   const cm = teamMembers.find(m => m.id === currentUser);
@@ -1297,6 +1329,55 @@ export default function PlannerPage() {
       }
     }
     setShowForm(false); setEditSend(null);
+  };
+
+  // Skopiuj wysyłkę do "schowka" w pamięci (nie tworzy nowej w DB)
+  const handleCopySend = (send) => {
+    setCopiedSend(send);
+  };
+
+  // Wklej skopiowaną wysyłkę na wybrany dzień – tworzy nową wysyłkę w DB
+  // (nie kopiuje recurrence/parentId – wklejenie to zawsze pojedyncza, niezależna kopia)
+  const handlePasteSend = async (date) => {
+    if (!copiedSend) return;
+    const src = copiedSend;
+    const newTask = await createTask({
+      title: src.title,
+      description: src.description || '',
+      market: src.market,
+      status: 'open',
+      deadline: date || null,
+      assignees: src.assignees || [],
+      createdBy: currentUser,
+      language: 'pl',
+    });
+    const cr = await createScheduledSend({
+      title: src.title,
+      description: src.description || '',
+      channel: src.channel,
+      tools: src.tools || [],
+      market: src.market,
+      segment: src.segment || null,
+      sendDate: date,
+      sendTime: src.sendTime || '10:00',
+      recurrence: null,
+      recurrenceEndDate: null,
+      parentId: null,
+      status: 'todo',
+      subjectLine: src.subjectLine || null,
+      links: src.links || [],
+      taskLink: src.taskLink || null,
+      createdBy: currentUser,
+      assignees: src.assignees || [],
+      linkedTaskId: newTask?.id || null,
+      seriesName: null,
+    });
+    if (cr) {
+      if (cr.linkedTaskId) {
+        try { await updateTaskDb(cr.linkedTaskId, { linkedSendId: cr.id }); } catch (e) { console.error('Failed to link task:', e); }
+      }
+      setSends(p => [...p, cr]);
+    }
   };
 
   const handleUpdateSend = async (id, updates) => {
@@ -1498,7 +1579,7 @@ export default function PlannerPage() {
           {/* Desktop: calendar/list toggle */}
           <div className="hidden lg:block">
             {view==='calendar'
-              ? <CalendarView sends={calendarSends} year={calYear} month={calMonth} onSelectDay={d => {setSelectedDate(d);setSelectedSend(null);}} onAddSend={d => {setEditSend({ _prefillDate: d });setShowForm(true);}} onSelectSend={setSelectedSend} selectedDate={selectedDate} lang={lang} />
+              ? <CalendarView sends={calendarSends} year={calYear} month={calMonth} onSelectDay={d => {setSelectedDate(d);setSelectedSend(null);}} onAddSend={d => {setEditSend({ _prefillDate: d });setShowForm(true);}} onSelectSend={setSelectedSend} selectedDate={selectedDate} lang={lang} copiedSend={copiedSend} onCopySend={handleCopySend} onPasteSend={handlePasteSend} onClearCopy={() => setCopiedSend(null)} />
               : <div className="max-w-4xl mx-auto"><ListView sends={filteredSends} onSelectSend={setSelectedSend} selectedId={selectedSend?.id} teamMembers={teamMembers} t={t} lang={lang} onBulkMarkSent={handleBulkMarkSent} /></div>
             }
           </div>
