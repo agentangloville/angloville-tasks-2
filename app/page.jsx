@@ -33,7 +33,7 @@ if (typeof document !== 'undefined') {
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Plus, Check, X, Edit3, Trash2, CheckCircle, Circle, Send, MessageSquare, ChevronDown, ChevronRight, Clock, AlertCircle, ExternalLink, Copy, Languages, Loader2, ListTodo, Square, CheckSquare, Bold, Italic, List, ListOrdered, LogOut, Lock, Filter, Underline, Link2, Undo, Redo, Inbox, Mail, MailCheck, MailX, RefreshCw, Paperclip, File, FileText, Image, FileSpreadsheet, Download, Flag, Users, UserPlus, Globe, EyeOff, ArrowUpDown, ArrowDown, ArrowUp, Activity, Bell, AtSign, Volume2, Pause, Eye, Menu, ThumbsUp, BarChart3, TrendingUp, TrendingDown, Calendar, ChevronUp, Tag, Lightbulb, CalendarClock, ClipboardCheck, Phone, Search } from 'lucide-react';
 import { getTasks, createTask, updateTask as updateTaskDb, deleteTask as deleteTaskDb, getQuickLinks, createQuickLink, deleteQuickLink, uploadFile, getTeamMembers, getAllTeamMembers, createTeamMember, updateTeamMember, getCustomTags, createCustomTag, updateCustomTag, deleteCustomTag as deleteCustomTagDb, getReadTimestampsFromDb, setTaskReadInDb, setTaskUnreadInDb, setAllTasksReadInDb } from '../lib/supabase';
-import { getScheduledSends, updateScheduledSend, createScheduledSend } from '../lib/supabase-planner';
+import { getScheduledSends, updateScheduledSend } from '../lib/supabase-planner';
 
 // XSS sanitizer – strips dangerous tags/attributes without external dependency
 function sanitizeHtml(html) {
@@ -364,7 +364,7 @@ function TaskItem({ task, isSelected, onClick, onStatusChange, currentUser, read
 
 // === WEEKLY SENDS ACCORDION ===
 
-function WeeklySendsAccordion({ sends, tasks, isOpen, onToggle, onSelectTask, onStatusChange, onCreateTaskForSend, currentUser, readTimestamps, lang, t, teamMembers, customTags, selectedTask, label, variant = 'default', filterSendsPerson = [] }) {
+function WeeklySendsAccordion({ sends, isOpen, onToggle, onSelectSend, onSendStatusChange, currentUser, lang, t, teamMembers, selectedSend, label, variant = 'default', filterSendsPerson = [] }) {
   // Filtr osób: pokazujemy wysyłkę jeśli przypisano do niej kogokolwiek z wybranych osób.
   // Pusta lista = brak filtra = wszyscy.
   const filteredSends = useMemo(() => {
@@ -372,56 +372,44 @@ function WeeklySendsAccordion({ sends, tasks, isOpen, onToggle, onSelectTask, on
     return sends.filter(s => filterSendsPerson.some(fp => (s.assignees || []).includes(fp)));
   }, [sends, filterSendsPerson]);
 
-  // Build a map: sendId → task (task.linkedSendId = send.id)
-  const taskBySendId = useMemo(() => {
-    const m = {};
-    tasks.forEach(tk => { if (tk.linkedSendId) m[tk.linkedSendId] = tk; });
-    return m;
-  }, [tasks]);
-
   if (!filteredSends.length) return null;
 
-  const isNext = variant === 'next';
-  const isWeek3 = variant === 'week3';
-  const bgHeader = 'white';
-  const bgContent = 'white';
   const borderColor = '#ddd6fe';
   const accentColor = '#7c3aed';
-
   const todoCount = filteredSends.filter(s => s.status === 'todo').length;
   const fmtD = (ds) => new Date(ds+'T00:00:00').toLocaleDateString(lang==='en'?'en-US':'pl-PL',{weekday:'short',day:'numeric',month:'short'});
 
-  const renderSendAsTask = (send) => {
-    const linkedTask = taskBySendId[send.id];
-    if (linkedTask) {
-      return (
-        <TaskItem
-          key={`send-${send.id}`}
-          task={linkedTask}
-          isSelected={selectedTask?.id === linkedTask.id}
-          onClick={() => onSelectTask(linkedTask)}
-          onStatusChange={s => onStatusChange(linkedTask.id, s)}
-          currentUser={currentUser}
-          readTimestamps={readTimestamps}
-          lang={lang}
-          t={t}
-          teamMembers={teamMembers}
-          customTags={customTags}
-        />
-      );
-    }
-    // Fallback: no linked task – create on click
+  const renderSend = (send) => {
     const mk = MARKETS.find(m => m.id === send.market);
     const assigned = (send.assignees||[]).map(id => teamMembers.find(m => m.id === id)).filter(Boolean);
+    const isDone = send.status === 'done';
+    const isSelected = selectedSend?.id === send.id;
+    const toggleStatus = (e) => {
+      e.stopPropagation();
+      onSendStatusChange(send.id, isDone ? 'todo' : 'done');
+    };
     return (
-      <div key={`send-fallback-${send.id}`}
-        onClick={() => onCreateTaskForSend(send)}
+      <div key={`send-${send.id}`}
+        onClick={() => onSelectSend(send)}
         className="rounded-lg px-3 py-1.5 cursor-pointer transition-all duration-100 hover:bg-gray-50"
-        style={{ borderWidth: '0.5px', borderStyle: 'solid', borderColor: '#e8eaed' }}>
+        style={{
+          borderWidth: '0.5px',
+          borderStyle: 'solid',
+          borderColor: isSelected ? accentColor : '#e8eaed',
+          background: isSelected ? '#faf5ff' : 'white'
+        }}>
         <div className="flex items-center gap-2">
-          <Circle size={16} style={{ color: '#80868b' }} />
+          <button onClick={toggleStatus} className="flex-shrink-0" title={isDone ? (lang==='en'?'Mark as todo':'Oznacz jako do zrobienia') : (lang==='en'?'Mark as done':'Oznacz jako gotowe')}>
+            {isDone ? <CheckCircle size={16} style={{ color: '#16a34a' }} /> : <Circle size={16} style={{ color: '#80868b' }} />}
+          </button>
           <span className="flex-shrink-0 text-sm">{mk?.icon}</span>
-          <h4 className="flex-1 min-w-0 truncate" style={{ fontSize: '13px', fontWeight: 450, letterSpacing: '-0.01em', color: '#202124' }}>{send.title}</h4>
+          <h4 className="flex-1 min-w-0 truncate" style={{
+            fontSize: '13px',
+            fontWeight: 450,
+            letterSpacing: '-0.01em',
+            color: isDone ? '#80868b' : '#202124',
+            textDecoration: isDone ? 'line-through' : 'none'
+          }}>{send.title}</h4>
           <div className="flex items-center gap-1 flex-shrink-0">
             <span style={{ fontSize: '10.5px', color: '#80868b' }}>{fmtD(send.sendDate)}</span>
             <div className="flex -space-x-1">
@@ -438,7 +426,7 @@ function WeeklySendsAccordion({ sends, tasks, isOpen, onToggle, onSelectTask, on
     <div className="max-w-4xl mx-auto mb-3">
       <button onClick={onToggle}
         className="w-full flex items-center justify-between px-3 py-2 transition-colors"
-        style={{ fontSize: '12px', fontWeight: 500, background: bgHeader, color: accentColor, border: `1px solid ${borderColor}`, borderBottom: isOpen ? `1px solid ${borderColor}` : `1px solid ${borderColor}`, borderRadius: isOpen ? '10px 10px 0 0' : '10px' }}>
+        style={{ fontSize: '12px', fontWeight: 500, background: 'white', color: accentColor, border: `1px solid ${borderColor}`, borderBottom: isOpen ? `1px solid ${borderColor}` : `1px solid ${borderColor}`, borderRadius: isOpen ? '10px 10px 0 0' : '10px' }}>
         <div className="flex items-center gap-2">
           <CalendarClock size={14} />
           <span>{label}</span>
@@ -450,9 +438,9 @@ function WeeklySendsAccordion({ sends, tasks, isOpen, onToggle, onSelectTask, on
         {isOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
       </button>
       {isOpen && (
-        <div className="rounded-b-lg overflow-hidden px-2 py-2" style={{ background: bgContent, border: `1px solid ${borderColor}`, borderTop: 'none' }}>
+        <div className="rounded-b-lg overflow-hidden px-2 py-2" style={{ background: 'white', border: `1px solid ${borderColor}`, borderTop: 'none' }}>
           <div className="space-y-0.5">
-            {filteredSends.map(renderSendAsTask)}
+            {filteredSends.map(renderSend)}
           </div>
           <a href="/planner" target="_blank" rel="noopener noreferrer"
             className="flex items-center justify-center gap-1.5 px-4 py-1.5 text-xs hover:underline rounded-lg transition-colors mt-1"
@@ -463,6 +451,186 @@ function WeeklySendsAccordion({ sends, tasks, isOpen, onToggle, onSelectTask, on
         </div>
       )}
     </div>
+  );
+}
+
+// === SEND DETAIL (read-only view from scheduled_sends, with inline edit) ===
+function SendDetail({ send, updateSend, onClose, currentUser, lang, t, teamMembers }) {
+  const [editing, setEditing] = useState(false);
+  const [form, setForm] = useState({ title: '', description: '', subjectLine: '' });
+  const [savingStatus, setSavingStatus] = useState(false);
+
+  useEffect(() => {
+    setForm({
+      title: send.title || '',
+      description: send.description || '',
+      subjectLine: send.subjectLine || ''
+    });
+    setEditing(false);
+  }, [send.id]);
+
+  const market = MARKETS.find(m => m.id === send.market);
+  const assigned = (send.assignees||[]).map(id => teamMembers.find(m => m.id === id)).filter(Boolean);
+  const isDone = send.status === 'done';
+  const fmtD = (ds) => ds ? new Date(ds+'T00:00:00').toLocaleDateString(lang==='en'?'en-US':'pl-PL',{weekday:'long',day:'numeric',month:'long',year:'numeric'}) : '';
+  const fmtT = (ts) => ts ? ts.slice(0,5) : '';
+
+  const saveContent = async () => {
+    await updateSend(send.id, {
+      title: form.title,
+      description: form.description,
+      subjectLine: form.subjectLine
+    });
+    setEditing(false);
+  };
+
+  const toggleStatus = async () => {
+    setSavingStatus(true);
+    await updateSend(send.id, { status: isDone ? 'todo' : 'done' });
+    setSavingStatus(false);
+  };
+
+  return (
+    <aside className="fixed lg:relative inset-0 lg:inset-auto z-40 lg:z-auto bg-white lg:border-l flex flex-col w-full lg:w-[460px] flex-shrink-0" style={{ borderColor: '#dadce0' }}>
+      <div className="p-4 border-b flex items-center justify-between" style={{ borderColor: '#dadce0', background: '#faf5ff' }}>
+        <div className="flex items-center gap-2">
+          <CalendarClock size={18} style={{ color: '#7c3aed' }} />
+          <span className="text-sm font-medium" style={{ color: '#7c3aed' }}>{lang==='en'?'Scheduled send':'Zaplanowana wysyłka'}</span>
+        </div>
+        <button onClick={onClose} className="p-1.5 rounded hover:bg-white" style={{ color: '#5f6368' }}><X size={18} /></button>
+      </div>
+
+      <div className="flex-1 overflow-y-auto p-5 space-y-4">
+        {/* Status + Date */}
+        <div className="flex items-center gap-3">
+          <button onClick={toggleStatus} disabled={savingStatus} className="flex items-center gap-2 px-3 py-1.5 rounded-full border" style={{ borderColor: isDone ? '#86efac' : '#dadce0', background: isDone ? '#dcfce7' : 'white', color: isDone ? '#15803d' : '#5f6368' }}>
+            {isDone ? <CheckCircle size={14} /> : <Circle size={14} />}
+            <span className="text-xs font-medium">{isDone ? (lang==='en'?'Done':'Gotowe') : (lang==='en'?'To do':'Do zrobienia')}</span>
+          </button>
+          <div className="text-xs" style={{ color: '#5f6368' }}>
+            <Calendar size={12} className="inline mr-1" style={{ color: '#7c3aed' }} />
+            {fmtD(send.sendDate)} {send.sendTime && `· ${fmtT(send.sendTime)}`}
+          </div>
+        </div>
+
+        {/* Title + Description (editable) */}
+        <div>
+          {editing ? (
+            <div className="space-y-2">
+              <input
+                type="text"
+                value={form.title}
+                onChange={e => setForm({...form, title: e.target.value})}
+                className="w-full px-3 py-2 border rounded-lg text-base font-medium"
+                style={{ borderColor: '#1a73e8' }}
+                placeholder={lang==='en'?'Title':'Tytuł'}
+              />
+              {send.subjectLine !== undefined && (
+                <input
+                  type="text"
+                  value={form.subjectLine}
+                  onChange={e => setForm({...form, subjectLine: e.target.value})}
+                  className="w-full px-3 py-2 border rounded-lg text-sm"
+                  style={{ borderColor: '#dadce0' }}
+                  placeholder={lang==='en'?'Subject line':'Temat maila'}
+                />
+              )}
+              <RichTextEditor value={form.description} onChange={v => setForm({...form, description: v})} placeholder={lang==='en'?'Description':'Opis'} minHeight="120px" />
+              <div className="flex gap-2">
+                <button onClick={saveContent} className="px-4 py-1.5 rounded-lg text-sm font-medium" style={{ background: '#1a73e8', color: 'white' }}>{t.save || (lang==='en'?'Save':'Zapisz')}</button>
+                <button onClick={() => setEditing(false)} className="px-4 py-1.5 rounded-lg text-sm" style={{ color: '#5f6368' }}>{t.cancel}</button>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <div className="flex items-start justify-between gap-2">
+                <h2 className="text-base font-medium flex-1" style={{ color: '#202124' }}>{send.title}</h2>
+                <button onClick={() => setEditing(true)} className="p-1.5 rounded hover:bg-gray-100 flex-shrink-0" title={lang==='en'?'Edit':'Edytuj'}><Edit3 size={14} style={{ color: '#5f6368' }} /></button>
+              </div>
+              {send.subjectLine && (
+                <div className="rounded-lg p-2.5" style={{ background: '#f5f3ff', border: '1px solid #e9d5ff' }}>
+                  <div className="flex items-center gap-1.5">
+                    <span style={{ color: '#7c3aed', fontSize: '12px', fontWeight: 600 }}>✉ {lang === 'en' ? 'Subject:' : 'Temat:'}</span>
+                    <span className="text-sm" style={{ color: '#3c4043' }}>{send.subjectLine}</span>
+                  </div>
+                </div>
+              )}
+              {send.description ? (
+                <div className="text-sm whitespace-pre-wrap" style={{ color: '#3c4043' }} dangerouslySetInnerHTML={{ __html: send.description }} />
+              ) : (
+                <div className="text-xs italic" style={{ color: '#80868b' }}>{lang==='en'?'No description':'Brak opisu'}</div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Meta: market, channel, segment */}
+        <div className="grid grid-cols-2 gap-2 text-xs">
+          <div className="rounded-lg p-2" style={{ background: '#f6f8fc' }}>
+            <div style={{ color: '#80868b', marginBottom: 2 }}>{t.market || (lang==='en'?'Market':'Rynek')}</div>
+            <div style={{ color: '#202124' }}>{market?.icon} {market ? (lang==='en'?market.nameEn:market.name) : send.market}</div>
+          </div>
+          {send.channel && (
+            <div className="rounded-lg p-2" style={{ background: '#f6f8fc' }}>
+              <div style={{ color: '#80868b', marginBottom: 2 }}>{lang==='en'?'Channel':'Kanał'}</div>
+              <div style={{ color: '#202124' }}>{send.channel}</div>
+            </div>
+          )}
+          {send.segment && (
+            <div className="rounded-lg p-2" style={{ background: '#f6f8fc' }}>
+              <div style={{ color: '#80868b', marginBottom: 2 }}>{lang==='en'?'Segment':'Segment'}</div>
+              <div style={{ color: '#202124' }}>{send.segment}</div>
+            </div>
+          )}
+          {send.tools && send.tools.length > 0 && (
+            <div className="rounded-lg p-2" style={{ background: '#f6f8fc' }}>
+              <div style={{ color: '#80868b', marginBottom: 2 }}>{lang==='en'?'Tools':'Narzędzia'}</div>
+              <div style={{ color: '#202124' }}>{send.tools.join(', ')}</div>
+            </div>
+          )}
+        </div>
+
+        {/* Assignees */}
+        {assigned.length > 0 && (
+          <div>
+            <div className="text-xs font-medium mb-1.5" style={{ color: '#5f6368' }}>{t.assignToPerson || (lang==='en'?'Assigned to':'Przypisani')}</div>
+            <div className="flex flex-wrap gap-1.5">
+              {assigned.map(m => (
+                <div key={m.id} className="flex items-center gap-1.5 px-2 py-1 rounded-full text-xs" style={{ background: '#f1f3f4' }}>
+                  <div className="w-5 h-5 rounded-full flex items-center justify-center text-white text-xs font-medium" style={{ background: m.color }}>{getInitials(m.name)}</div>
+                  <span style={{ color: '#202124' }}>{m.name}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Links */}
+        {send.links && send.links.length > 0 && (
+          <div>
+            <div className="text-xs font-medium mb-1.5" style={{ color: '#5f6368' }}>{t.links || (lang==='en'?'Links':'Linki')}</div>
+            <div className="space-y-1">
+              {send.links.filter(l => l.url).map((l, i) => (
+                <a key={i} href={l.url} target="_blank" rel="noopener noreferrer" className="block text-xs hover:underline truncate rounded-lg p-2" style={{ background: '#f6f8fc', color: '#1a73e8' }}>{l.label || l.url}</a>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Open Planner link */}
+        <div className="pt-2">
+          <a href="/planner" target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-xs hover:underline" style={{ color: '#7c3aed' }}>
+            <CalendarClock size={12} />
+            {lang === 'en' ? 'Open in Planner →' : 'Otwórz w Plannerze →'}
+          </a>
+        </div>
+
+        <div className="pt-3 border-t text-xs" style={{ borderColor: '#dadce0', color: '#80868b' }}>
+          {send.createdAt && <p>{t.created || (lang==='en'?'Created':'Utworzono')}: {new Date(send.createdAt).toLocaleString(lang==='en'?'en-US':'pl-PL')}</p>}
+          {send.createdBy && <p>{t.byPerson || (lang==='en'?'By':'Przez')}: {teamMembers.find(m => m.id === send.createdBy)?.name || send.createdBy}</p>}
+        </div>
+      </div>
+    </aside>
   );
 }
 
@@ -579,11 +747,11 @@ function TaskDetail({ task, updateTask, deleteTask, onClose, currentUser, isMana
 function NewTaskModal({ onClose, onSave, currentUser, restrictedMarket, isManager, t, lang, teamMembers }) {
   const [f, sF] = useState({ title: '', description: '', market: restrictedMarket || 'pl', status: 'open', assignees: [currentUser], priority: null, subcategory: null, attachments: [], deadline: null, managerOnly: false, reviewOn: null });
   const [uploading, setUploading] = useState(false);
-  const [createSend, setCreateSend] = useState(false);
+  const [saving, setSaving] = useState(false);
   const tog = (id) => sF(p => ({...p, assignees: p.assignees.includes(id) ? p.assignees.filter(a => a !== id) : [...p.assignees, id]}));
-  const sv = () => { if (f.title.trim()) onSave({ ...f, _createSend: createSend }); };
+  const sv = async () => { if (!f.title.trim() || saving) return; setSaving(true); try { await onSave(f); } finally { setSaving(false); } };
   const hUp = async (files) => { setUploading(true); for (const file of files) { const r = await uploadFile(file, 'tasks/new'); if (r) { r.uploadedBy = currentUser; sF(p => ({...p, attachments: [...p.attachments, r]})); } } setUploading(false); };
-  return <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}><div className="bg-white rounded-xl w-full max-w-lg max-h-[90vh] overflow-y-auto" style={{ boxShadow: '0 1px 3px 0 rgba(60,64,67,.3), 0 4px 8px 3px rgba(60,64,67,.15)' }} onClick={e => e.stopPropagation()}><div className="p-5 border-b flex items-center justify-between" style={{ borderColor: '#dadce0' }}><h3 className="text-lg font-medium" style={{ color: '#202124' }}>{t.newTask}</h3><button onClick={onClose} style={{ color: '#5f6368' }}><X size={20} /></button></div><div className="p-5 space-y-4"><div><label className="text-sm font-medium block mb-1.5" style={{ color: '#202124' }}>{t.title} *</label><input type="text" value={f.title} onChange={e => sF({...f, title: e.target.value})} className="w-full px-4 py-2.5 border rounded-lg text-sm" style={{ borderColor: '#dadce0' }} placeholder={t.whatToDo} autoFocus /></div><div><label className="text-sm font-medium block mb-1.5" style={{ color: '#202124' }}>{t.description}</label><RichTextEditor value={f.description} onChange={v => sF({...f, description: v})} placeholder={t.taskDetails} minHeight="120px" /></div><div><div className="flex items-center justify-between mb-1.5"><label className="text-sm font-medium" style={{ color: '#202124' }}>{t.attachments}</label><AttachmentUploader onUpload={hUp} uploading={uploading} /></div><AttachmentList attachments={f.attachments} onRemove={id => sF(p => ({...p, attachments: p.attachments.filter(a => a.id !== id)}))} /></div><div><label className="text-sm font-medium block mb-1.5" style={{ color: '#202124' }}>{t.priority}</label><div className="flex flex-wrap gap-2">{PRIORITIES.map(p => <button key={p.id||'none'} type="button" onClick={() => sF({...f, priority: p.id})} className="flex items-center gap-1 px-3 py-1.5 rounded-full text-sm" style={{ background: f.priority === p.id ? p.bg : '#f1f3f4', color: f.priority === p.id ? p.color : '#5f6368', border: f.priority === p.id ? `2px solid ${p.color}` : '2px solid transparent' }}>{p.id && <Flag size={12} />}{lang === 'en' ? p.nameEn : p.name}</button>)}</div></div><div className="grid grid-cols-2 gap-4"><div><label className="text-sm font-medium block mb-1.5" style={{ color: '#202124' }}>{t.market}</label><select value={f.market} onChange={e => sF({...f, market: e.target.value, subcategory: e.target.value === 'pl' ? f.subcategory : null})} className="w-full px-4 py-2.5 border rounded-lg text-sm" style={{ borderColor: '#dadce0' }} disabled={!!restrictedMarket}>{MARKETS.map(m => <option key={m.id} value={m.id}>{m.icon} {lang === 'en' ? m.nameEn : m.name}</option>)}</select></div><div><label className="text-sm font-medium block mb-1.5" style={{ color: '#202124' }}>{t.type}</label><select value={f.status} onChange={e => sF({...f, status: e.target.value})} className="w-full px-4 py-2.5 border rounded-lg text-sm" style={{ borderColor: '#dadce0' }}><option value="open">{t.open}</option><option value="waiting">{t.waiting}</option><option value="monitoring">{t.monitoring}</option><option value="paused">{t.paused}</option><option value="ideas">{t.ideas}</option></select></div></div><div><label className="text-sm font-medium block mb-1.5" style={{ color: '#202124' }}>{t.deadline}</label><div className="flex items-center gap-2"><Calendar size={16} style={{ color: '#5f6368' }} /><input type="date" value={f.deadline || ''} onChange={e => sF({...f, deadline: e.target.value || null})} className="px-3 py-2 border rounded-lg text-sm" style={{ borderColor: '#dadce0', color: '#202124' }} />{f.deadline && <button type="button" onClick={() => sF({...f, deadline: null})} className="p-1 rounded hover:bg-red-50" style={{ color: '#80868b' }}><X size={14} /></button>}<span className="text-xs" style={{ color: '#80868b' }}>{t.noDeadline}</span></div>{f.deadline && <label className="flex items-center gap-2 mt-2 cursor-pointer"><input type="checkbox" checked={createSend} onChange={e => setCreateSend(e.target.checked)} className="w-3.5 h-3.5 rounded" /><span className="text-xs" style={{ color: '#7c3aed' }}>{lang === 'en' ? 'Create send in Planner for this date' : 'Utwórz wysyłkę w Plannerze na ten dzień'}</span></label>}</div>{f.market === 'pl' && <div><label className="text-sm font-medium block mb-1.5" style={{ color: '#202124' }}>{t.subcategory}</label><div className="flex gap-2"><button type="button" onClick={() => sF({...f, subcategory: null})} className="px-3 py-1.5 rounded-full text-sm" style={{ background: !f.subcategory ? '#f1f3f4' : 'white', color: '#5f6368', border: !f.subcategory ? '2px solid #5f6368' : '2px solid #dadce0' }}>{t.none}</button>{PL_SUBCATEGORIES.map(s => <button key={s.id} type="button" onClick={() => sF({...f, subcategory: s.id})} className="px-3 py-1.5 rounded-full text-sm" style={{ background: f.subcategory === s.id ? s.bg : 'white', color: f.subcategory === s.id ? s.color : '#5f6368', border: f.subcategory === s.id ? `2px solid ${s.color}` : '2px solid #dadce0' }}>{s.name}</button>)}</div></div>}{f.status === 'monitoring' && <div><label className="text-sm font-medium block mb-1.5" style={{ color: '#202124' }}>{t.reviewOn}</label><div className="flex items-center gap-2"><Calendar size={16} style={{ color: '#5f6368' }} /><input type="date" value={f.reviewOn || ''} onChange={e => sF({...f, reviewOn: e.target.value || null})} className="px-3 py-2 border rounded-lg text-sm" style={{ borderColor: '#dadce0', color: '#202124' }} />{f.reviewOn && <button type="button" onClick={() => sF({...f, reviewOn: null})} className="p-1 rounded hover:bg-red-50" style={{ color: '#80868b' }}><X size={14} /></button>}<span className="text-xs" style={{ color: '#80868b' }}>{t.noReviewDate}</span></div></div>}{isManager && <label className="flex items-center gap-2 cursor-pointer p-2 rounded-lg" style={{ background: f.managerOnly ? '#f0fdfa' : 'transparent', border: f.managerOnly ? '1px solid #99f6e4' : '1px solid transparent' }}><input type="checkbox" checked={f.managerOnly} onChange={e => sF({...f, managerOnly: e.target.checked})} className="w-4 h-4 rounded" style={{ accentColor: '#0d9488' }} /><Lock size={14} style={{ color: '#0d9488' }} /><div><div className="text-sm font-medium" style={{ color: '#202124' }}>{t.managerOnly}</div><div className="text-xs" style={{ color: '#80868b' }}>{t.managerOnlyHint}</div></div></label>}<div><label className="text-sm font-medium block mb-2" style={{ color: '#202124' }}>{t.assignToPerson}</label><div className="flex flex-wrap gap-2">{teamMembers.filter(m => m.isActive !== false).map(m => <button key={m.id} type="button" onClick={() => tog(m.id)} className="flex items-center gap-2 px-3 py-2 rounded-full border text-sm" style={{ borderColor: f.assignees.includes(m.id) ? '#1a73e8' : '#dadce0', background: f.assignees.includes(m.id) ? '#e8f0fe' : 'white', color: f.assignees.includes(m.id) ? '#1a73e8' : '#202124' }}><div className="w-5 h-5 rounded-full flex items-center justify-center text-white text-xs font-medium" style={{ background: m.color }}>{getInitials(m.name)}</div><span>{m.name.split(' ')[0]}</span>{f.assignees.includes(m.id) && <Check size={14} />}</button>)}</div></div></div><div className="p-5 border-t flex justify-end gap-3" style={{ borderColor: '#dadce0' }}><button onClick={onClose} className="px-5 py-2.5 rounded-lg text-sm font-medium hover:bg-gray-100" style={{ color: '#5f6368' }}>{t.cancel}</button><button onClick={sv} className="px-5 py-2.5 rounded-lg text-sm font-medium" style={{ background: '#1a73e8', color: 'white' }}>{t.createTask}</button></div></div></div>;
+  return <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}><div className="bg-white rounded-xl w-full max-w-lg max-h-[90vh] overflow-y-auto" style={{ boxShadow: '0 1px 3px 0 rgba(60,64,67,.3), 0 4px 8px 3px rgba(60,64,67,.15)' }} onClick={e => e.stopPropagation()}><div className="p-5 border-b flex items-center justify-between" style={{ borderColor: '#dadce0' }}><h3 className="text-lg font-medium" style={{ color: '#202124' }}>{t.newTask}</h3><button onClick={onClose} style={{ color: '#5f6368' }}><X size={20} /></button></div><div className="p-5 space-y-4"><div><label className="text-sm font-medium block mb-1.5" style={{ color: '#202124' }}>{t.title} *</label><input type="text" value={f.title} onChange={e => sF({...f, title: e.target.value})} className="w-full px-4 py-2.5 border rounded-lg text-sm" style={{ borderColor: '#dadce0' }} placeholder={t.whatToDo} autoFocus /></div><div><label className="text-sm font-medium block mb-1.5" style={{ color: '#202124' }}>{t.description}</label><RichTextEditor value={f.description} onChange={v => sF({...f, description: v})} placeholder={t.taskDetails} minHeight="120px" /></div><div><div className="flex items-center justify-between mb-1.5"><label className="text-sm font-medium" style={{ color: '#202124' }}>{t.attachments}</label><AttachmentUploader onUpload={hUp} uploading={uploading} /></div><AttachmentList attachments={f.attachments} onRemove={id => sF(p => ({...p, attachments: p.attachments.filter(a => a.id !== id)}))} /></div><div><label className="text-sm font-medium block mb-1.5" style={{ color: '#202124' }}>{t.priority}</label><div className="flex flex-wrap gap-2">{PRIORITIES.map(p => <button key={p.id||'none'} type="button" onClick={() => sF({...f, priority: p.id})} className="flex items-center gap-1 px-3 py-1.5 rounded-full text-sm" style={{ background: f.priority === p.id ? p.bg : '#f1f3f4', color: f.priority === p.id ? p.color : '#5f6368', border: f.priority === p.id ? `2px solid ${p.color}` : '2px solid transparent' }}>{p.id && <Flag size={12} />}{lang === 'en' ? p.nameEn : p.name}</button>)}</div></div><div className="grid grid-cols-2 gap-4"><div><label className="text-sm font-medium block mb-1.5" style={{ color: '#202124' }}>{t.market}</label><select value={f.market} onChange={e => sF({...f, market: e.target.value, subcategory: e.target.value === 'pl' ? f.subcategory : null})} className="w-full px-4 py-2.5 border rounded-lg text-sm" style={{ borderColor: '#dadce0' }} disabled={!!restrictedMarket}>{MARKETS.map(m => <option key={m.id} value={m.id}>{m.icon} {lang === 'en' ? m.nameEn : m.name}</option>)}</select></div><div><label className="text-sm font-medium block mb-1.5" style={{ color: '#202124' }}>{t.type}</label><select value={f.status} onChange={e => sF({...f, status: e.target.value})} className="w-full px-4 py-2.5 border rounded-lg text-sm" style={{ borderColor: '#dadce0' }}><option value="open">{t.open}</option><option value="waiting">{t.waiting}</option><option value="monitoring">{t.monitoring}</option><option value="paused">{t.paused}</option><option value="ideas">{t.ideas}</option></select></div></div><div><label className="text-sm font-medium block mb-1.5" style={{ color: '#202124' }}>{t.deadline}</label><div className="flex items-center gap-2"><Calendar size={16} style={{ color: '#5f6368' }} /><input type="date" value={f.deadline || ''} onChange={e => sF({...f, deadline: e.target.value || null})} className="px-3 py-2 border rounded-lg text-sm" style={{ borderColor: '#dadce0', color: '#202124' }} />{f.deadline && <button type="button" onClick={() => sF({...f, deadline: null})} className="p-1 rounded hover:bg-red-50" style={{ color: '#80868b' }}><X size={14} /></button>}<span className="text-xs" style={{ color: '#80868b' }}>{t.noDeadline}</span></div></div>{f.market === 'pl' && <div><label className="text-sm font-medium block mb-1.5" style={{ color: '#202124' }}>{t.subcategory}</label><div className="flex gap-2"><button type="button" onClick={() => sF({...f, subcategory: null})} className="px-3 py-1.5 rounded-full text-sm" style={{ background: !f.subcategory ? '#f1f3f4' : 'white', color: '#5f6368', border: !f.subcategory ? '2px solid #5f6368' : '2px solid #dadce0' }}>{t.none}</button>{PL_SUBCATEGORIES.map(s => <button key={s.id} type="button" onClick={() => sF({...f, subcategory: s.id})} className="px-3 py-1.5 rounded-full text-sm" style={{ background: f.subcategory === s.id ? s.bg : 'white', color: f.subcategory === s.id ? s.color : '#5f6368', border: f.subcategory === s.id ? `2px solid ${s.color}` : '2px solid #dadce0' }}>{s.name}</button>)}</div></div>}{f.status === 'monitoring' && <div><label className="text-sm font-medium block mb-1.5" style={{ color: '#202124' }}>{t.reviewOn}</label><div className="flex items-center gap-2"><Calendar size={16} style={{ color: '#5f6368' }} /><input type="date" value={f.reviewOn || ''} onChange={e => sF({...f, reviewOn: e.target.value || null})} className="px-3 py-2 border rounded-lg text-sm" style={{ borderColor: '#dadce0', color: '#202124' }} />{f.reviewOn && <button type="button" onClick={() => sF({...f, reviewOn: null})} className="p-1 rounded hover:bg-red-50" style={{ color: '#80868b' }}><X size={14} /></button>}<span className="text-xs" style={{ color: '#80868b' }}>{t.noReviewDate}</span></div></div>}{isManager && <label className="flex items-center gap-2 cursor-pointer p-2 rounded-lg" style={{ background: f.managerOnly ? '#f0fdfa' : 'transparent', border: f.managerOnly ? '1px solid #99f6e4' : '1px solid transparent' }}><input type="checkbox" checked={f.managerOnly} onChange={e => sF({...f, managerOnly: e.target.checked})} className="w-4 h-4 rounded" style={{ accentColor: '#0d9488' }} /><Lock size={14} style={{ color: '#0d9488' }} /><div><div className="text-sm font-medium" style={{ color: '#202124' }}>{t.managerOnly}</div><div className="text-xs" style={{ color: '#80868b' }}>{t.managerOnlyHint}</div></div></label>}<div><label className="text-sm font-medium block mb-2" style={{ color: '#202124' }}>{t.assignToPerson}</label><div className="flex flex-wrap gap-2">{teamMembers.filter(m => m.isActive !== false).map(m => <button key={m.id} type="button" onClick={() => tog(m.id)} className="flex items-center gap-2 px-3 py-2 rounded-full border text-sm" style={{ borderColor: f.assignees.includes(m.id) ? '#1a73e8' : '#dadce0', background: f.assignees.includes(m.id) ? '#e8f0fe' : 'white', color: f.assignees.includes(m.id) ? '#1a73e8' : '#202124' }}><div className="w-5 h-5 rounded-full flex items-center justify-center text-white text-xs font-medium" style={{ background: m.color }}>{getInitials(m.name)}</div><span>{m.name.split(' ')[0]}</span>{f.assignees.includes(m.id) && <Check size={14} />}</button>)}</div></div></div><div className="p-5 border-t flex justify-end gap-3" style={{ borderColor: '#dadce0' }}><button onClick={onClose} className="px-5 py-2.5 rounded-lg text-sm font-medium hover:bg-gray-100" style={{ color: '#5f6368' }}>{t.cancel}</button><button onClick={sv} disabled={saving} className="px-5 py-2.5 rounded-lg text-sm font-medium" style={{ background: saving ? '#9aa0a6' : '#1a73e8', color: 'white', opacity: saving ? 0.7 : 1, cursor: saving ? 'not-allowed' : 'pointer' }}>{saving ? (lang==='en'?'Saving...':'Zapisuję...') : t.createTask}</button></div></div></div>;
 }
 
 // === PERSON MULTI-SELECT ===
@@ -901,7 +1069,7 @@ function GlobalSearch({ tasks, onSelectTask, teamMembers, customTags, t, lang })
 
 // === MAIN APP ===
 export default function TaskApp() {
-  const [currentUser, setCurrentUser] = useState(null); const [teamMembers, setTeamMembers] = useState(FALLBACK_TEAM); const [tasks, setTasks] = useState([]); const [loading, setLoading] = useState(true); const [loadingTeam, setLoadingTeam] = useState(true); const [selectedTask, setSelectedTask] = useState(null); const [showNewTask, setShowNewTask] = useState(false); const [showUsersPanel, setShowUsersPanel] = useState(false); const [filterMarkets, setFilterMarkets] = useState([]); const [filterPerson, setFilterPerson] = useState([]); const [filterSendsPerson, setFilterSendsPerson] = useState([]); const [filterStatus, setFilterStatus] = useState('active'); const [filterDeadline, setFilterDeadline] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null); const [teamMembers, setTeamMembers] = useState(FALLBACK_TEAM); const [tasks, setTasks] = useState([]); const [loading, setLoading] = useState(true); const [loadingTeam, setLoadingTeam] = useState(true); const [selectedTask, setSelectedTask] = useState(null); const [selectedSend, setSelectedSend] = useState(null); const [showNewTask, setShowNewTask] = useState(false); const [showUsersPanel, setShowUsersPanel] = useState(false); const [filterMarkets, setFilterMarkets] = useState([]); const [filterPerson, setFilterPerson] = useState([]); const [filterSendsPerson, setFilterSendsPerson] = useState([]); const [filterStatus, setFilterStatus] = useState('active'); const [filterDeadline, setFilterDeadline] = useState(false);
   const [filterLinkedPlanner, setFilterLinkedPlanner] = useState(false);
   const [weeklySends, setWeeklySends] = useState([]);
   const [nextWeekSends, setNextWeekSends] = useState([]);
@@ -980,8 +1148,9 @@ export default function TaskApp() {
   }, []);
   useEffect(() => { if (currentUser) { loadTasks(); loadCustomTags(); loadWeeklySends(); } }, [currentUser]);
   useEffect(() => { if (!currentUser) return; const iv = setInterval(() => { loadTasks(); loadWeeklySends(); }, 30000); return () => clearInterval(iv); }, [currentUser]);
-  const handleLogout = () => { sessionStorage.removeItem('av_tasks_user'); setCurrentUser(null); setTasks([]); setSelectedTask(null); setShowUsersPanel(false); filtersInitialized.current = false; };
-  const handleSelectTask = useCallback((task) => { setSelectedTask(task); setShowUsersPanel(false); setSidebarOpen(false); if (currentUser && task) { const now = new Date().toISOString(); setReadTimestamps(prev => ({...prev, [task.id]: now})); setTaskReadInDb(currentUser, task.id); } }, [currentUser]);
+  const handleLogout = () => { sessionStorage.removeItem('av_tasks_user'); setCurrentUser(null); setTasks([]); setSelectedTask(null); setSelectedSend(null); setShowUsersPanel(false); filtersInitialized.current = false; };
+  const handleSelectTask = useCallback((task) => { setSelectedTask(task); setSelectedSend(null); setShowUsersPanel(false); setSidebarOpen(false); if (currentUser && task) { const now = new Date().toISOString(); setReadTimestamps(prev => ({...prev, [task.id]: now})); setTaskReadInDb(currentUser, task.id); } }, [currentUser]);
+  const handleSelectSend = useCallback((send) => { setSelectedSend(send); setSelectedTask(null); setShowUsersPanel(false); setSidebarOpen(false); }, []);
   const handleMarkUnread = useCallback((taskId) => { if (currentUser) { setReadTimestamps(prev => { const n = {...prev}; delete n[taskId]; return n; }); setTaskUnreadInDb(currentUser, taskId); } }, [currentUser]);
   const reloadTeamMembers = async () => { const m = await getTeamMembers(); if (m.length > 0) setTeamMembers(m); };
 
@@ -1015,54 +1184,20 @@ export default function TaskApp() {
   const withDeadlineCount = visibleTasks.filter(t => !!t.deadline && t.status !== 'closed').length;
 
   const updateTask = async (id, updates, options = {}) => { const old = tasks.find(t => t.id === id); const nt = {...old, ...updates}; setTasks(prev => prev.map(t => t.id === id ? nt : t)); if (selectedTask?.id === id) setSelectedTask(nt); if (updates.status === 'closed' && old?.status !== 'closed' && old?.isExternal && old?.submitterEmail && !options.skipEmail) { const r = await sendCompletedEmail(old, currentMember?.name); const ee = { id: generateId(), type: 'completed', sentAt: new Date().toISOString(), sentBy: currentUser, sentTo: old.submitterEmail, success: r.sent }; updates.emailHistory = [...(old.emailHistory||[]), ee]; nt.emailHistory = updates.emailHistory; setTasks(prev => prev.map(t => t.id === id ? nt : t)); if (selectedTask?.id === id) setSelectedTask(nt); }
-    // Sync: when closing a task linked to a planner send, mark send as done
-    if (updates.status === 'closed' && old?.linkedSendId) {
-      try {
-        await updateScheduledSend(old.linkedSendId, { status: 'done' });
-        loadWeeklySends();
-      } catch (e) { console.error('Sync send status failed:', e); }
-    }
-    // Sync: when reopening a task linked to a planner send, revert send status to 'todo'
-    if (old?.status === 'closed' && updates.status && updates.status !== 'closed' && old?.linkedSendId) {
-      try {
-        await updateScheduledSend(old.linkedSendId, { status: 'todo' });
-        loadWeeklySends();
-      } catch (e) { console.error('Sync send status failed:', e); }
-    }
-    // Sync: title, description, deadline, assignees, market → planner
-    if (old?.linkedSendId && (updates.title || updates.description !== undefined || updates.deadline || updates.assignees || updates.market)) {
-      const sendUpdates = {};
-      if (updates.title) sendUpdates.title = updates.title;
-      if (updates.description !== undefined) sendUpdates.description = updates.description;
-      if (updates.deadline) sendUpdates.sendDate = updates.deadline;
-      if (updates.assignees) sendUpdates.assignees = updates.assignees;
-      if (updates.market) sendUpdates.market = updates.market;
-      try { await updateScheduledSend(old.linkedSendId, sendUpdates); } catch (e) { console.error('Sync task→planner failed:', e); }
-    }
     await updateTaskDb(id, updates); };
   const deleteTask = async (id) => { if (confirm(t.deleteTask)) { setTasks(prev => prev.filter(t => t.id !== id)); setSelectedTask(null); await deleteTaskDb(id); } };
   const approveTask = async (task, assignees) => { await updateTask(task.id, { status: 'open', assignees, approvedAt: new Date().toISOString(), approvedBy: currentUser }); for (const aId of assignees) { const m = teamMembers.find(x => x.id === aId); if (m) await sendEmailNotification(m.email, m.name, task.title, currentMember?.name); } setActiveTab('tasks'); };
-  const addTask = async (task) => { const wantSend = task._createSend; const { _createSend, ...taskData } = task; const nt = {...taskData, createdAt: new Date().toISOString(), createdBy: currentUser, isExternal: false, subtasks: []}; const c = await createTask(nt); if (c) { if (wantSend && c.deadline) { try { const send = await createScheduledSend({ title: c.title, description: '', channel: 'email', tools: ['hubspot'], market: c.market, segment: '', sendDate: c.deadline, sendTime: '10:00', status: 'todo', assignees: c.assignees || [], linkedTaskId: c.id, createdBy: currentUser }); if (send) await updateTaskDb(c.id, { linkedSendId: send.id }); } catch (e) { console.error('Failed to create linked send:', e); } } await loadTasks(); await loadWeeklySends(); } setShowNewTask(false); for (const aId of task.assignees||[]) { const m = teamMembers.find(x => x.id === aId); if (m && m.id !== currentUser) await sendEmailNotification(m.email, m.name, task.title, currentMember?.name); } };
+  const addTask = async (task) => { const nt = {...task, createdAt: new Date().toISOString(), createdBy: currentUser, isExternal: false, subtasks: []}; const c = await createTask(nt); if (c) { await loadTasks(); } setShowNewTask(false); for (const aId of task.assignees||[]) { const m = teamMembers.find(x => x.id === aId); if (m && m.id !== currentUser) await sendEmailNotification(m.email, m.name, task.title, currentMember?.name); } };
 
-  // Auto-create task for a planner send that doesn't have one yet
-  const createTaskForSend = async (send) => {
-    const newTask = await createTask({
-      title: send.title,
-      description: send.description || '',
-      market: send.market,
-      status: 'open',
-      deadline: send.sendDate || null,
-      assignees: send.assignees || [],
-      createdBy: currentUser,
-      language: 'pl',
-      linkedSendId: send.id,
-    });
-    if (newTask) {
-      // Update the send with the linked task id
-      try { await updateScheduledSend(send.id, { linkedTaskId: newTask.id }); } catch (e) { console.error('Failed to link send to task:', e); }
-      await loadTasks();
-      await loadWeeklySends();
-      handleSelectTask(newTask);
+  // Update a scheduled send directly from Tasker (when user clicks on send in accordion and edits it)
+  const updateSend = async (id, updates) => {
+    const up = await updateScheduledSend(id, updates);
+    if (up) {
+      setWeeklySends(prev => prev.map(s => s.id === id ? up : s));
+      setNextWeekSends(prev => prev.map(s => s.id === id ? up : s));
+      setWeek3Sends(prev => prev.map(s => s.id === id ? up : s));
+      setAllSends(prev => prev.map(s => s.id === id ? up : s));
+      if (selectedSend?.id === id) setSelectedSend(up);
     }
   };
 
@@ -1096,7 +1231,7 @@ export default function TaskApp() {
         <div className="mt-4 space-y-0.5">
   <a href="/planner" target="_blank" className="w-full flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs" style={{ color: '#3c4043' }}><CalendarClock size={13} style={{ color: '#7c3aed' }} /><span>Planner</span><ExternalLink size={10} style={{ color: '#80868b' }} /></a>
   <a href="/collabs" target="_blank" className="w-full flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs" style={{ color: '#3c4043' }}><UserPlus size={13} style={{ color: '#ec4899' }} /><span>Collabs</span><ExternalLink size={10} style={{ color: '#80868b' }} /></a>
-  {isManager && <><a href="/dashboard" target="_blank" className="w-full flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs" style={{ color: '#3c4043' }}><BarChart3 size={13} style={{ color: '#1a73e8' }} /><span>{t.dashboard}</span><ExternalLink size={10} style={{ color: '#80868b' }} /></a><button onClick={() => { setShowUsersPanel(true); setSelectedTask(null); setFilterDeadline(false); setFilterLinkedPlanner(false); setSidebarOpen(false); }} className="w-full flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs" style={{ background: showUsersPanel ? '#e8f0fe' : 'transparent', color: showUsersPanel ? '#1a73e8' : '#374151', fontWeight: showUsersPanel ? 500 : 400 }}><Users size={13} style={{ color: '#1a73e8' }} /><span>{t.users}</span></button></>}
+  {isManager && <><a href="/dashboard" target="_blank" className="w-full flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs" style={{ color: '#3c4043' }}><BarChart3 size={13} style={{ color: '#1a73e8' }} /><span>{t.dashboard}</span><ExternalLink size={10} style={{ color: '#80868b' }} /></a><button onClick={() => { setShowUsersPanel(true); setSelectedTask(null); setSelectedSend(null); setFilterDeadline(false); setFilterLinkedPlanner(false); setSidebarOpen(false); }} className="w-full flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs" style={{ background: showUsersPanel ? '#e8f0fe' : 'transparent', color: showUsersPanel ? '#1a73e8' : '#374151', fontWeight: showUsersPanel ? 500 : 400 }}><Users size={13} style={{ color: '#1a73e8' }} /><span>{t.users}</span></button></>}
 </div>
           <div className="mt-4 mx-2 p-3 rounded-lg text-xs hidden lg:block" style={{ background: '#f1f3f4' }}><p className="mb-1.5" style={{ color: '#5f6368' }}>{t.formEn}</p><button onClick={copyLink} className="w-full flex items-center gap-2 px-2 py-1.5 rounded hover:bg-gray-200"><code className="flex-1 text-xs truncate" style={{ color: '#1a73e8' }}>/request</code>{copied ? <Check size={14} style={{ color: '#16a34a' }} /> : <Copy size={14} style={{ color: '#5f6368' }} />}</button></div>
           <QuickLinksSection currentUser={currentUser} t={t} />
@@ -1120,57 +1255,45 @@ export default function TaskApp() {
             <>{showAccordion && (<>
               <WeeklySendsAccordion
                 sends={visibleWeeklySends}
-                tasks={tasks}
                 isOpen={weekSendsOpen}
                 onToggle={() => setWeekSendsOpen(o => !o)}
-                onSelectTask={handleSelectTask}
-                onStatusChange={(id, s) => updateTask(id, { status: s })}
-                onCreateTaskForSend={createTaskForSend}
+                onSelectSend={handleSelectSend}
+                onSendStatusChange={(id, s) => updateSend(id, { status: s })}
                 currentUser={currentUser}
-                readTimestamps={readTimestamps}
                 lang={lang}
                 t={t}
                 teamMembers={teamMembers}
-                customTags={customTags}
-                selectedTask={selectedTask}
+                selectedSend={selectedSend}
                 label={lang === 'en' ? 'Sends this week' : 'Wysyłki ten tydzień'}
                 variant="default"
                 filterSendsPerson={filterSendsPerson}
               />
               <WeeklySendsAccordion
                 sends={visibleNextWeekSends}
-                tasks={tasks}
                 isOpen={nextWeekSendsOpen}
                 onToggle={() => setNextWeekSendsOpen(o => !o)}
-                onSelectTask={handleSelectTask}
-                onStatusChange={(id, s) => updateTask(id, { status: s })}
-                onCreateTaskForSend={createTaskForSend}
+                onSelectSend={handleSelectSend}
+                onSendStatusChange={(id, s) => updateSend(id, { status: s })}
                 currentUser={currentUser}
-                readTimestamps={readTimestamps}
                 lang={lang}
                 t={t}
                 teamMembers={teamMembers}
-                customTags={customTags}
-                selectedTask={selectedTask}
+                selectedSend={selectedSend}
                 label={lang === 'en' ? 'Next week' : 'Następny tydzień'}
                 variant="next"
                 filterSendsPerson={filterSendsPerson}
               />
               <WeeklySendsAccordion
                 sends={visibleWeek3Sends}
-                tasks={tasks}
                 isOpen={week3SendsOpen}
                 onToggle={() => setWeek3SendsOpen(o => !o)}
-                onSelectTask={handleSelectTask}
-                onStatusChange={(id, s) => updateTask(id, { status: s })}
-                onCreateTaskForSend={createTaskForSend}
+                onSelectSend={handleSelectSend}
+                onSendStatusChange={(id, s) => updateSend(id, { status: s })}
                 currentUser={currentUser}
-                readTimestamps={readTimestamps}
                 lang={lang}
                 t={t}
                 teamMembers={teamMembers}
-                customTags={customTags}
-                selectedTask={selectedTask}
+                selectedSend={selectedSend}
                 label={lang === 'en' ? 'In 2 weeks' : 'Za 2 tygodnie'}
                 variant="week3"
                 filterSendsPerson={filterSendsPerson}
@@ -1183,6 +1306,7 @@ export default function TaskApp() {
       
       {showUsersPanel && <UsersPanel teamMembers={teamMembers} onUpdate={reloadTeamMembers} onClose={() => setShowUsersPanel(false)} t={t} />}
       {selectedTask && !showUsersPanel && <TaskDetail task={selectedTask} updateTask={updateTask} deleteTask={deleteTask} onClose={() => setSelectedTask(null)} currentUser={currentUser} isManager={isManager} onMarkUnread={handleMarkUnread} readTimestamps={readTimestamps} t={t} lang={lang} teamMembers={teamMembers} customTags={customTags} onRefreshTags={loadCustomTags} allSends={allSends} />}
+      {selectedSend && !selectedTask && !showUsersPanel && <SendDetail send={selectedSend} updateSend={updateSend} onClose={() => setSelectedSend(null)} currentUser={currentUser} lang={lang} t={t} teamMembers={teamMembers} />}
       {showNewTask && <NewTaskModal onClose={() => setShowNewTask(false)} onSave={addTask} currentUser={currentUser} restrictedMarket={restrictedMarket} isManager={isManager} t={t} lang={lang} teamMembers={teamMembers} />}
     </div>
   );
