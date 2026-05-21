@@ -459,6 +459,15 @@ function SendDetail({ send, updateSend, onClose, currentUser, lang, t, teamMembe
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({ title: '', description: '', subjectLine: '' });
   const [savingStatus, setSavingStatus] = useState(false);
+  const [comment, setComment] = useState('');
+  const [commentAttachments, setCommentAttachments] = useState([]);
+  const [uploadingComment, setUploadingComment] = useState(false);
+  const [editingCommentId, setEditingCommentId] = useState(null);
+  const [editingCommentText, setEditingCommentText] = useState('');
+  const [newSubtask, setNewSubtask] = useState('');
+  const [subtaskAssignee, setSubtaskAssignee] = useState('');
+  const [showSubtaskForm, setShowSubtaskForm] = useState(false);
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     setForm({
@@ -467,6 +476,12 @@ function SendDetail({ send, updateSend, onClose, currentUser, lang, t, teamMembe
       subjectLine: send.subjectLine || ''
     });
     setEditing(false);
+    setComment('');
+    setCommentAttachments([]);
+    setEditingCommentId(null);
+    setShowSubtaskForm(false);
+    setNewSubtask('');
+    setSubtaskAssignee('');
   }, [send.id]);
 
   const market = MARKETS.find(m => m.id === send.market);
@@ -474,6 +489,7 @@ function SendDetail({ send, updateSend, onClose, currentUser, lang, t, teamMembe
   const isDone = send.status === 'done';
   const fmtD = (ds) => ds ? new Date(ds+'T00:00:00').toLocaleDateString(lang==='en'?'en-US':'pl-PL',{weekday:'long',day:'numeric',month:'long',year:'numeric'}) : '';
   const fmtT = (ts) => ts ? ts.slice(0,5) : '';
+  const fd = lang === 'en' ? formatDateTimeEn : formatDateTime;
 
   const saveContent = async () => {
     await updateSend(send.id, {
@@ -488,6 +504,97 @@ function SendDetail({ send, updateSend, onClose, currentUser, lang, t, teamMembe
     setSavingStatus(true);
     await updateSend(send.id, { status: isDone ? 'todo' : 'done' });
     setSavingStatus(false);
+  };
+
+  // ── Comments ──
+  const addComment = async () => {
+    if (!comment.trim() && commentAttachments.length === 0) return;
+    const nc = {
+      id: generateId(),
+      text: comment.trim(),
+      author: currentUser,
+      createdAt: new Date().toISOString(),
+      attachments: commentAttachments.length > 0 ? commentAttachments : undefined,
+      mentions: parseMentions(comment.trim()),
+      reactions: []
+    };
+    await updateSend(send.id, { comments: [...(send.comments || []), nc] });
+    setComment('');
+    setCommentAttachments([]);
+  };
+  const handleCommentAttachmentUpload = async (files) => {
+    setUploadingComment(true);
+    for (const file of files) {
+      const r = await uploadFile(file, `sends/${send.id}/comments`);
+      if (r) { r.uploadedBy = currentUser; setCommentAttachments(prev => [...prev, r]); }
+    }
+    setUploadingComment(false);
+  };
+  const toggleReaction = async (cid, emoji = '👍') => {
+    const uc = (send.comments || []).map(c => {
+      if (c.id !== cid) return c;
+      const rx = c.reactions || [];
+      const isOldFormat = rx.length > 0 && typeof rx[0] === 'string';
+      const normalized = isOldFormat ? rx.map(uid => ({ emoji: '👍', userId: uid })) : rx;
+      const existing = normalized.find(r => r.emoji === emoji && r.userId === currentUser);
+      return { ...c, reactions: existing ? normalized.filter(r => !(r.emoji === emoji && r.userId === currentUser)) : [...normalized, { emoji, userId: currentUser }] };
+    });
+    await updateSend(send.id, { comments: uc });
+  };
+  const deleteComment = async (cid) => {
+    await updateSend(send.id, { comments: (send.comments || []).filter(c => c.id !== cid) });
+  };
+  const startEditComment = (c) => { setEditingCommentId(c.id); setEditingCommentText(c.text); };
+  const saveEditComment = async () => {
+    if (!editingCommentText.trim()) return;
+    await updateSend(send.id, {
+      comments: (send.comments || []).map(c => c.id !== editingCommentId ? c : { ...c, text: editingCommentText.trim(), editedAt: new Date().toISOString() })
+    });
+    setEditingCommentId(null);
+    setEditingCommentText('');
+  };
+  const cancelEditComment = () => { setEditingCommentId(null); setEditingCommentText(''); };
+
+  // ── Subtasks ──
+  const subtasks = send.subtasks || [];
+  const addSubtask = async () => {
+    if (!newSubtask.trim()) return;
+    await updateSend(send.id, {
+      subtasks: [...subtasks, { id: generateId(), title: newSubtask.trim(), assignee: subtaskAssignee || null, status: 'open', createdAt: new Date().toISOString() }]
+    });
+    setNewSubtask('');
+    setSubtaskAssignee('');
+    setShowSubtaskForm(false);
+  };
+  const toggleSubtask = async (sid) => {
+    await updateSend(send.id, {
+      subtasks: subtasks.map(s => s.id === sid ? { ...s, status: s.status === 'open' ? 'closed' : 'open' } : s)
+    });
+  };
+  const deleteSubtask = async (sid) => {
+    await updateSend(send.id, { subtasks: subtasks.filter(s => s.id !== sid) });
+  };
+  const updateSubtaskAssignee = async (sid, aid) => {
+    await updateSend(send.id, {
+      subtasks: subtasks.map(s => s.id === sid ? { ...s, assignee: aid || null } : s)
+    });
+  };
+
+  // ── Attachments ──
+  const handleSendAttachmentUpload = async (files) => {
+    setUploading(true);
+    const up = [];
+    for (const file of files) {
+      const r = await uploadFile(file, `sends/${send.id}`);
+      if (r) { r.uploadedBy = currentUser; up.push(r); }
+    }
+    if (up.length > 0) {
+      await updateSend(send.id, { attachments: [...(send.attachments || []), ...up] });
+    }
+    setUploading(false);
+  };
+  const handleRemoveSendAttachment = async (aid) => {
+    await updateSend(send.id, { attachments: (send.attachments || []).filter(a => a.id !== aid) });
   };
 
   return (
@@ -623,6 +730,154 @@ function SendDetail({ send, updateSend, onClose, currentUser, lang, t, teamMembe
             <CalendarClock size={12} />
             {lang === 'en' ? 'Open in Planner →' : 'Otwórz w Plannerze →'}
           </a>
+        </div>
+
+        {/* Attachments */}
+        <div>
+          <div className="flex items-center justify-between mb-1">
+            <div className="flex items-center gap-2">
+              <Paperclip size={14} style={{ color: '#5f6368' }} />
+              <label className="text-xs font-medium" style={{ color: '#5f6368' }}>{t.attachments || (lang==='en'?'Attachments':'Załączniki')} ({send.attachments?.length || 0})</label>
+            </div>
+            <AttachmentUploader onUpload={handleSendAttachmentUpload} uploading={uploading} />
+          </div>
+          <AttachmentList attachments={send.attachments} onRemove={handleRemoveSendAttachment} showRemove={true} />
+        </div>
+
+        {/* Subtasks */}
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <ListTodo size={14} style={{ color: '#5f6368' }} />
+              <label className="text-xs font-medium" style={{ color: '#5f6368' }}>{t.subtasks || (lang==='en'?'Subtasks':'Podzadania')} ({subtasks.filter(s => s.status === 'closed').length}/{subtasks.length})</label>
+            </div>
+            {!showSubtaskForm && (
+              <button onClick={() => setShowSubtaskForm(true)} className="text-xs flex items-center gap-1 px-2 py-0.5 rounded-full hover:bg-gray-100" style={{ color: '#1a73e8' }}>
+                <Plus size={14} /> {t.add || (lang==='en'?'Add':'Dodaj')}
+              </button>
+            )}
+          </div>
+          <div className="space-y-1">
+            {subtasks.map(sub => {
+              const asgn = teamMembers.find(m => m.id === sub.assignee);
+              const done = sub.status === 'closed';
+              return (
+                <div key={sub.id} className="flex items-center gap-2 px-2 py-1.5 rounded-lg group hover:bg-gray-50">
+                  <button onClick={() => toggleSubtask(sub.id)} className="flex-shrink-0">
+                    {done ? <CheckSquare size={16} style={{ color: '#16a34a' }} /> : <Square size={16} style={{ color: '#dadce0' }} />}
+                  </button>
+                  <span className="flex-1 text-sm" style={{ color: done ? '#80868b' : '#202124', textDecoration: done ? 'line-through' : 'none' }}>{sub.title}</span>
+                  {asgn ? (
+                    <div className="w-5 h-5 rounded-full flex items-center justify-center text-white text-xs font-medium" style={{ background: asgn.color }} title={asgn.name}>{getInitials(asgn.name)}</div>
+                  ) : (
+                    <select onChange={e => updateSubtaskAssignee(sub.id, e.target.value)} className="text-xs px-1 py-0.5 rounded border opacity-0 group-hover:opacity-100" style={{ borderColor: '#dadce0' }} value="">
+                      <option value="">+</option>
+                      {teamMembers.filter(m => m.isActive !== false).map(m => <option key={m.id} value={m.id}>{m.name.split(' ')[0]}</option>)}
+                    </select>
+                  )}
+                  <button onClick={() => deleteSubtask(sub.id)} className="opacity-0 group-hover:opacity-100 p-0.5 hover:bg-red-50 rounded" style={{ color: '#ef4444' }}><X size={14} /></button>
+                </div>
+              );
+            })}
+          </div>
+          {showSubtaskForm && (
+            <div className="mt-2 p-2 rounded-lg border" style={{ borderColor: '#1a73e8', background: '#f8fbff' }}>
+              <input type="text" value={newSubtask} onChange={e => setNewSubtask(e.target.value)} onKeyDown={e => e.key === 'Enter' && addSubtask()} placeholder={t.subtaskName || (lang==='en'?'Subtask name':'Nazwa podzadania')} className="w-full px-2 py-1.5 border rounded-lg text-sm mb-2" style={{ borderColor: '#dadce0' }} autoFocus />
+              <div className="flex items-center gap-2">
+                <select value={subtaskAssignee} onChange={e => setSubtaskAssignee(e.target.value)} className="flex-1 px-2 py-1 border rounded-lg text-sm" style={{ borderColor: '#dadce0' }}>
+                  <option value="">{t.noAssignment || (lang==='en'?'No assignment':'Brak przypisania')}</option>
+                  {teamMembers.filter(m => m.isActive !== false).map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+                </select>
+                <button onClick={addSubtask} className="px-3 py-1 rounded-lg text-sm font-medium" style={{ background: '#1a73e8', color: 'white' }}>{t.add || (lang==='en'?'Add':'Dodaj')}</button>
+                <button onClick={() => { setShowSubtaskForm(false); setNewSubtask(''); }} className="px-2 py-1 rounded-lg text-sm" style={{ color: '#5f6368' }}>{t.cancel || (lang==='en'?'Cancel':'Anuluj')}</button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Comments */}
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <label className="text-xs font-medium" style={{ color: '#5f6368' }}>{t.comments || (lang==='en'?'Comments':'Komentarze')} ({send.comments?.length || 0})</label>
+          </div>
+          <div className="space-y-2 mb-3">
+            {(send.comments || []).map(c => {
+              const auth = teamMembers.find(m => m.id === c.author);
+              const isExt = c.author === 'external';
+              const isMy = c.author === currentUser;
+              const rawRx = c.reactions || [];
+              const isOldFormat = rawRx.length > 0 && typeof rawRx[0] === 'string';
+              const rxNorm = isOldFormat ? rawRx.map(uid => ({ emoji: '👍', userId: uid })) : rawRx;
+              const emojiGroups = {};
+              rxNorm.forEach(r => { if (!emojiGroups[r.emoji]) emojiGroups[r.emoji] = []; emojiGroups[r.emoji].push(r.userId); });
+              const QUICK_EMOJIS = ['👍', '❤️', '😂', '🎉', '👀', '🔥'];
+              const hasMention = c.mentions?.some(m => {
+                const myM = teamMembers.find(tm => tm.id === currentUser);
+                if (!myM) return false;
+                return [currentUser.toLowerCase(), myM.name.split(' ')[0].toLowerCase()].includes(m.toLowerCase());
+              });
+              const isEd = editingCommentId === c.id;
+              return (
+                <div key={c.id} className="flex gap-2 group">
+                  <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-medium flex-shrink-0" style={{ background: isExt ? '#5f6368' : (auth?.color || '#999') }}>
+                    {isExt ? '👤' : getInitials(auth?.name || '?')}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="rounded-lg p-2" style={{ background: hasMention ? '#fef2f2' : '#f1f3f4' }}>
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <span className="text-xs font-medium" style={{ color: '#202124' }}>{isExt ? (c.authorName || 'Zewnętrzny') : (auth?.name || (t.unknown || '?'))}</span>
+                        <span className="text-xs" style={{ color: '#80868b' }}>{fd(c.createdAt)}</span>
+                        {c.editedAt && <span className="text-xs italic" style={{ color: '#80868b' }}>({t.edited || (lang==='en'?'edited':'edytowany')})</span>}
+                      </div>
+                      {isEd ? (
+                        <div className="space-y-1">
+                          <input type="text" value={editingCommentText} onChange={e => setEditingCommentText(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') saveEditComment(); if (e.key === 'Escape') cancelEditComment(); }} className="w-full px-2 py-1 border rounded text-sm" style={{ borderColor: '#1a73e8' }} autoFocus />
+                          <div className="flex gap-1">
+                            <button onClick={saveEditComment} className="text-xs px-2 py-0.5 rounded font-medium" style={{ background: '#1a73e8', color: 'white' }}>{t.saveComment || (lang==='en'?'Save':'Zapisz')}</button>
+                            <button onClick={cancelEditComment} className="text-xs px-2 py-0.5 rounded" style={{ color: '#5f6368' }}>{t.cancelEdit || (lang==='en'?'Cancel':'Anuluj')}</button>
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="text-sm whitespace-pre-wrap" style={{ color: '#3c4043' }}><CommentText text={c.text} teamMembers={teamMembers} /></p>
+                      )}
+                      <AttachmentList attachments={c.attachments} showRemove={false} />
+                    </div>
+                    {Object.keys(emojiGroups).length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-1 ml-1">
+                        {Object.entries(emojiGroups).map(([emoji, userIds]) => {
+                          const isMine = userIds.includes(currentUser);
+                          const names = userIds.map(uid => { const m = teamMembers.find(tm => tm.id === uid); return m ? m.name.split(' ')[0] : uid; });
+                          return (
+                            <button key={emoji} onClick={() => toggleReaction(c.id, emoji)} className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-xs" style={{ background: isMine ? '#d2e3fc' : '#f1f3f4', border: isMine ? '1px solid #8ab4f8' : '1px solid #dadce0' }} title={names.join(', ')}>
+                              <span>{emoji}</span>
+                              <span style={{ color: isMine ? '#1a73e8' : '#5f6368', fontSize: '11px' }}>{userIds.length}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                    <div className="flex items-center gap-1 mt-0.5 ml-1">
+                      {QUICK_EMOJIS.map(emoji => (
+                        <button key={emoji} onClick={() => toggleReaction(c.id, emoji)} className="p-0.5 rounded hover:bg-gray-100 text-xs opacity-0 group-hover:opacity-100 transition-opacity" style={{ fontSize: '12px', lineHeight: 1 }}>{emoji}</button>
+                      ))}
+                      {isMy && !isEd && (
+                        <>
+                          <button onClick={() => startEditComment(c)} className="text-xs px-1.5 py-0.5 rounded-full hover:bg-gray-100" style={{ color: '#80868b' }}>{t.editComment || (lang==='en'?'Edit':'Edytuj')}</button>
+                          <button onClick={() => deleteComment(c.id)} className="text-xs px-1.5 py-0.5 rounded-full hover:bg-red-50" style={{ color: '#80868b' }}>{t.delete || (lang==='en'?'Delete':'Usuń')}</button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <div className="flex gap-2 items-start">
+            <MentionInput value={comment} onChange={setComment} onSubmit={addComment} placeholder={t.writeComment || (lang==='en'?'Write a comment...':'Napisz komentarz...')} teamMembers={teamMembers} />
+            <AttachmentUploader onUpload={handleCommentAttachmentUpload} uploading={uploadingComment} />
+            <button onClick={addComment} className="p-2 rounded-xl" style={{ background: '#1a73e8', color: 'white' }}><Send size={16} /></button>
+          </div>
+          <AttachmentList attachments={commentAttachments} onRemove={(id) => setCommentAttachments(p => p.filter(a => a.id !== id))} />
         </div>
 
         <div className="pt-3 border-t text-xs" style={{ borderColor: '#dadce0', color: '#80868b' }}>
