@@ -31,7 +31,7 @@ if (typeof document !== 'undefined') {
 
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { Plus, Check, X, Edit3, Trash2, CheckCircle, Circle, Send, MessageSquare, ChevronDown, ChevronRight, Clock, AlertCircle, ExternalLink, Copy, Languages, Loader2, ListTodo, Square, CheckSquare, Bold, Italic, List, ListOrdered, LogOut, Lock, Filter, Underline, Link2, Undo, Redo, Inbox, Sparkles, Mail, MailCheck, MailX, RefreshCw, Paperclip, File, FileText, Image, FileSpreadsheet, Download, Flag, Users, UserPlus, Globe, EyeOff, ArrowUpDown, ArrowDown, ArrowUp, Activity, Bell, AtSign, Volume2, Pause, Eye, Menu, ThumbsUp, BarChart3, TrendingUp, TrendingDown, Calendar, ChevronUp, Tag, Lightbulb, CalendarClock, ClipboardCheck, Phone, Search } from 'lucide-react';
+import { Plus, Check, X, Edit3, Trash2, CheckCircle, Circle, Send, MessageSquare, ChevronDown, ChevronRight, Clock, AlertCircle, ExternalLink, Copy, Languages, Loader2, ListTodo, Square, CheckSquare, Bold, Italic, List, ListOrdered, LogOut, Lock, Filter, Underline, Link2, Undo, Redo, Inbox, Mail, MailCheck, MailX, RefreshCw, Paperclip, File, FileText, Image, FileSpreadsheet, Download, Flag, Users, UserPlus, Globe, EyeOff, ArrowUpDown, ArrowDown, ArrowUp, Activity, Bell, AtSign, Volume2, Pause, Eye, Menu, ThumbsUp, BarChart3, TrendingUp, TrendingDown, Calendar, ChevronUp, Tag, Lightbulb, CalendarClock, ClipboardCheck, Phone, Search } from 'lucide-react';
 import { getTasks, createTask, updateTask as updateTaskDb, deleteTask as deleteTaskDb, getQuickLinks, createQuickLink, deleteQuickLink, uploadFile, getTeamMembers, getAllTeamMembers, createTeamMember, updateTeamMember, getCustomTags, createCustomTag, updateCustomTag, deleteCustomTag as deleteCustomTagDb, getReadTimestampsFromDb, setTaskReadInDb, setTaskUnreadInDb, setAllTasksReadInDb } from '../lib/supabase';
 import { getScheduledSends, updateScheduledSend, createScheduledSend } from '../lib/supabase-planner';
 
@@ -193,8 +193,7 @@ const getUnreadComments = (task, userId, timestamps) => { if (!task.comments?.le
 const getUnreadCount = (task, userId, timestamps) => getUnreadComments(task, userId, timestamps).length;
 const parseMentions = (text) => { const mentionRegex = /@([\w.]+)/g; const mentions = []; let match; while ((match = mentionRegex.exec(text)) !== null) { mentions.push(match[1].toLowerCase()); } return mentions; };
 const getMentionsForUser = (task, userId, timestamps, teamMembers) => { const unreadComments = getUnreadComments(task, userId, timestamps); const userMember = teamMembers.find(m => m.id === userId); if (!userMember) return []; const userIdentifiers = [userId.toLowerCase(), userMember.name.split(' ')[0].toLowerCase(), userMember.name.toLowerCase().replace(/\s+/g, '_'), userMember.name.toLowerCase().replace(/\s+/g, '')]; return unreadComments.filter(c => { const mentions = parseMentions(c.text); return mentions.some(m => userIdentifiers.includes(m)); }); };
-const getSeenTaskIds = (userId) => { try { return JSON.parse(sessionStorage.getItem(`av_seen_${userId}`) || '[]'); } catch { return []; } };
-const markTaskAsSeen = (taskId, userId) => { const seen = getSeenTaskIds(userId); if (!seen.includes(taskId)) { seen.push(taskId); sessionStorage.setItem(`av_seen_${userId}`, JSON.stringify(seen)); } };
+
 const getSoundEnabled = (userId) => { try { return sessionStorage.getItem(`av_sound_${userId}`) !== 'false'; } catch { return true; } };
 const setSoundEnabled = (userId, enabled) => { sessionStorage.setItem(`av_sound_${userId}`, enabled ? 'true' : 'false'); };
 
@@ -331,14 +330,13 @@ function SortDropdown({ value, onChange, t }) { const [op, setOp] = useState(fal
 function PendingView({ tasks, approveTask, deleteTask, currentUser, t, lang, teamMembers }) { const [sel, setSel] = useState({}); const tog = (tid, mid) => { setSel(p => { const c = p[tid] || []; return { ...p, [tid]: c.includes(mid) ? c.filter(x => x !== mid) : [...c, mid] }; }); }; if (!tasks.length) return <div className="max-w-3xl mx-auto text-center py-16"><CheckCircle size={48} className="mx-auto mb-4" style={{ color: '#16a34a', opacity: 0.4 }} /><p style={{ color: '#5f6368' }}>{t.noPending}</p></div>; return <div className="max-w-3xl mx-auto space-y-4">{tasks.map(task => { const mk = MARKETS.find(m => m.id === task.market); const as = sel[task.id] || task.assignees || []; return <div key={task.id} className="bg-white rounded-xl p-5 border" style={{ borderColor: '#dadce0' }}>{task.isExternal && <div className="flex items-center gap-2 mb-3 pb-3 border-b flex-wrap" style={{ borderColor: '#dadce0' }}><ExternalLink size={14} style={{ color: '#f59e0b' }} /><span className="text-xs font-medium" style={{ color: '#b45309' }}>{t.external}</span>{task.language === 'en' && <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: '#e8f0fe', color: '#1a73e8' }}>🇬🇧</span>}<span className="text-xs" style={{ color: '#80868b' }}>{t.from} {task.submittedBy}</span></div>}<div className="flex items-start gap-3 mb-4"><span className="text-xl">{mk?.icon}</span><div className="flex-1"><div className="flex items-center gap-2 flex-wrap"><h3 className="font-medium text-lg" style={{ color: '#202124' }}>{task.title}</h3><TranslateButton task={task} /><PriorityBadge priority={task.priority} lang={lang} /></div>{task.description && <div className="mt-2"><RichTextDisplay html={task.description} /></div>}{task.links && <div className="mt-3 p-3 rounded-lg" style={{ background: '#f6f8fc' }}><ClickableLinks text={task.links} /></div>}<AttachmentList attachments={task.attachments} showRemove={false} /></div></div><div className="mb-4"><p className="text-xs font-medium mb-2" style={{ color: '#5f6368' }}>{t.assignTo}</p><div className="flex flex-wrap gap-2">{teamMembers.filter(m => m.isActive !== false).map(m => <button key={m.id} onClick={() => tog(task.id, m.id)} className="flex items-center gap-2 px-3 py-2 rounded-full border text-sm" style={{ borderColor: as.includes(m.id) ? '#1a73e8' : '#dadce0', background: as.includes(m.id) ? '#e8f0fe' : 'white', color: as.includes(m.id) ? '#1a73e8' : '#202124' }}><div className="w-5 h-5 rounded-full flex items-center justify-center text-white text-xs font-medium" style={{ background: m.color }}>{getInitials(m.name)}</div><span>{m.name.split(' ')[0]}</span>{as.includes(m.id) && <Check size={14} />}</button>)}</div></div><div className="flex gap-2 pt-4 border-t" style={{ borderColor: '#dadce0' }}><button onClick={() => approveTask(task, as)} disabled={!as.length} className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg font-medium disabled:opacity-50" style={{ background: as.length ? '#1a73e8' : '#f1f3f4', color: as.length ? 'white' : '#80868b' }}><Check size={18} /> {t.approve}</button><button onClick={() => deleteTask(task.id)} className="px-4 py-2.5 rounded-lg hover:bg-red-50" style={{ color: '#ef4444', border: '1px solid #f5c6cb' }}><X size={18} /></button></div></div>; })}</div>; }
 
 // === TASK ITEM ===
-function TaskItem({ task, isSelected, onClick, onStatusChange, currentUser, readTimestamps, seenTaskIds, lang, t, teamMembers, customTags }) {
+function TaskItem({ task, isSelected, onClick, onStatusChange, currentUser, readTimestamps, lang, t, teamMembers, customTags }) {
   const mk = MARKETS.find(m => m.id === task.market); const st = STATUSES.find(s => s.id === task.status); const Icon = st?.icon || Circle;
   const cycle = (e) => { e.stopPropagation(); onStatusChange(task.status === 'open' ? 'closed' : 'open'); };
   const uc = getUnreadCount(task, currentUser, readTimestamps); const mc = getMentionsForUser(task, currentUser, readTimestamps, teamMembers).length;
-  const isNew = task.assignees?.includes(currentUser) && task.createdBy !== currentUser && !seenTaskIds.includes(task.id);
   const hasEP = task.isExternal && task.submitterEmail && task.status === 'closed' && !(task.emailHistory || []).some(e => e.type === 'completed' && e.success);
   const tTags = (task.tags || []).map(tid => (customTags || []).find(ct => ct.id === tid)).filter(Boolean);
-  return <div onClick={onClick} className="rounded-lg px-3 py-1.5 cursor-pointer transition-all duration-100" style={{ borderWidth: '0.5px', borderStyle: 'solid', borderColor: isSelected ? '#3b82f6' : isNew ? '#aecbfa' : '#e8eaed', background: isNew ? '#f8faff' : isSelected ? '#fafbff' : 'white', boxShadow: isSelected ? '0 0 0 1px rgba(59,130,246,0.1)' : 'none' }} onMouseEnter={e => { if (!isSelected) { e.currentTarget.style.borderColor = '#d5d9dd'; e.currentTarget.style.background = '#fafbfc'; }}} onMouseLeave={e => { if (!isSelected) { e.currentTarget.style.borderColor = isNew ? '#aecbfa' : '#e8eaed'; e.currentTarget.style.background = isNew ? '#f8faff' : 'white'; }}}><div className="flex items-center gap-2">
+  return <div onClick={onClick} className="rounded-lg px-3 py-1.5 cursor-pointer transition-all duration-100" style={{ borderWidth: '0.5px', borderStyle: 'solid', borderColor: isSelected ? '#3b82f6' : '#e8eaed', background: isSelected ? '#fafbff' : 'white', boxShadow: isSelected ? '0 0 0 1px rgba(59,130,246,0.1)' : 'none' }} onMouseEnter={e => { if (!isSelected) { e.currentTarget.style.borderColor = '#d5d9dd'; e.currentTarget.style.background = '#fafbfc'; }}} onMouseLeave={e => { if (!isSelected) { e.currentTarget.style.borderColor = '#e8eaed'; e.currentTarget.style.background = 'white'; }}}><div className="flex items-center gap-2">
     <button onClick={cycle} className="hover:scale-110 flex-shrink-0"><Icon size={16} style={{ color: st?.color }} className={task.status === 'closed' ? 'fill-current' : ''} /></button>
     <span className="flex-shrink-0 text-sm">{mk?.icon}</span>
     {task.managerOnly && <Lock size={11} style={{ color: '#0d9488', flexShrink: 0 }} aria-label="Manager only" />}
@@ -349,7 +347,6 @@ function TaskItem({ task, isSelected, onClick, onStatusChange, currentUser, read
       <DeadlineBadge deadline={task.deadline} size="small" lang={lang} t={t} />
       {task.status !== 'closed' && <TaskAge createdAt={task.createdAt} size="small" lang={lang} />}
       {tTags.map(tg => <span key={tg.id} className="rounded-full" style={{ fontSize: '10.5px', padding: '1px 7px', background: tg.color + '15', color: tg.color, fontWeight: 500 }}>{tg.name}</span>)}
-      {isNew && <span className="flex items-center gap-0.5 rounded-full" style={{ fontSize: '10.5px', padding: '1px 7px', background: '#1a73e8', color: 'white', fontWeight: 500 }}><Sparkles size={9} />{t.new}</span>}
       {mc > 0 && <span className="flex items-center gap-0.5 rounded-full" style={{ fontSize: '10.5px', padding: '1px 7px', background: '#ef4444', color: 'white', fontWeight: 500 }}><AtSign size={9} />{mc}</span>}
       {uc > 0 && mc === 0 && <span className="flex items-center gap-0.5 rounded-full" style={{ fontSize: '10.5px', padding: '1px 7px', background: '#f59e0b', color: 'white', fontWeight: 500 }}><MessageSquare size={9} />{uc}</span>}
       {hasEP && <MailX size={10} style={{ color: '#ef4444' }} />}
@@ -367,7 +364,7 @@ function TaskItem({ task, isSelected, onClick, onStatusChange, currentUser, read
 
 // === WEEKLY SENDS ACCORDION ===
 
-function WeeklySendsAccordion({ sends, tasks, isOpen, onToggle, onSelectTask, onStatusChange, onCreateTaskForSend, currentUser, readTimestamps, seenTaskIds, lang, t, teamMembers, customTags, selectedTask, label, variant = 'default', filterSendsPerson = [] }) {
+function WeeklySendsAccordion({ sends, tasks, isOpen, onToggle, onSelectTask, onStatusChange, onCreateTaskForSend, currentUser, readTimestamps, lang, t, teamMembers, customTags, selectedTask, label, variant = 'default', filterSendsPerson = [] }) {
   // Filtr osób: pokazujemy wysyłkę jeśli przypisano do niej kogokolwiek z wybranych osób.
   // Pusta lista = brak filtra = wszyscy.
   const filteredSends = useMemo(() => {
@@ -406,7 +403,6 @@ function WeeklySendsAccordion({ sends, tasks, isOpen, onToggle, onSelectTask, on
           onStatusChange={s => onStatusChange(linkedTask.id, s)}
           currentUser={currentUser}
           readTimestamps={readTimestamps}
-          seenTaskIds={seenTaskIds}
           lang={lang}
           t={t}
           teamMembers={teamMembers}
@@ -914,14 +910,14 @@ export default function TaskApp() {
   const [weekSendsOpen, setWeekSendsOpen] = useState(false);
   const [nextWeekSendsOpen, setNextWeekSendsOpen] = useState(false);
   const [week3SendsOpen, setWeek3SendsOpen] = useState(false);
-  const [sortBy, setSortBy] = useState('newest'); const [activeTab, setActiveTab] = useState('tasks'); const [copied, setCopied] = useState(false); const [checkingAuth, setCheckingAuth] = useState(true); const [readTimestamps, setReadTimestamps] = useState({}); const [seenTaskIds, setSeenTaskIds] = useState([]); const [sidebarOpen, setSidebarOpen] = useState(false); const [customTags, setCustomTags] = useState([]); const filtersInitialized = useRef(false);
+  const [sortBy, setSortBy] = useState('newest'); const [activeTab, setActiveTab] = useState('tasks'); const [copied, setCopied] = useState(false); const [checkingAuth, setCheckingAuth] = useState(true); const [readTimestamps, setReadTimestamps] = useState({}); const [sidebarOpen, setSidebarOpen] = useState(false); const [customTags, setCustomTags] = useState([]); const filtersInitialized = useRef(false);
 
   useEffect(() => { (async () => { setLoadingTeam(true); const m = await getTeamMembers(); if (m.length > 0) setTeamMembers(m); setLoadingTeam(false); })(); }, []);
   const currentMember = teamMembers.find(m => m.id === currentUser); const lang = currentMember?.language || 'pl'; const t = TRANSLATIONS[lang]; const isManager = currentMember?.isManager || false; const restrictedMarket = currentMember?.restrictedToMarket || null;
   // Backward-compat: stary seeOnlyAssigned:true → defaultTasksView:'mine'. Teraz to tylko domyślne ustawienie filtra, nie twarde ograniczenie – user może przełączyć na „wszystkich”.
   const defaultTasksView = currentMember?.defaultTasksView || (currentMember?.seeOnlyAssigned ? 'mine' : 'all');
   const defaultSendsView = currentMember?.defaultSendsView || 'all';
-  useEffect(() => { if (currentUser) { getReadTimestampsFromDb(currentUser).then(ts => setReadTimestamps(ts)); setSeenTaskIds(getSeenTaskIds(currentUser)); } }, [currentUser]);
+  useEffect(() => { if (currentUser) { getReadTimestampsFromDb(currentUser).then(ts => setReadTimestamps(ts)); } }, [currentUser]);
   useEffect(() => { const su = sessionStorage.getItem('av_tasks_user'); if (su) { (async () => { const m = await getTeamMembers(); if (m.find(x => x.id === su)) { setCurrentUser(su); setTeamMembers(m); } setCheckingAuth(false); })(); } else setCheckingAuth(false); }, []);
   useEffect(() => { if (restrictedMarket) setFilterMarkets([restrictedMarket]); }, [restrictedMarket]);
   useEffect(() => {
@@ -985,7 +981,7 @@ export default function TaskApp() {
   useEffect(() => { if (currentUser) { loadTasks(); loadCustomTags(); loadWeeklySends(); } }, [currentUser]);
   useEffect(() => { if (!currentUser) return; const iv = setInterval(() => { loadTasks(); loadWeeklySends(); }, 30000); return () => clearInterval(iv); }, [currentUser]);
   const handleLogout = () => { sessionStorage.removeItem('av_tasks_user'); setCurrentUser(null); setTasks([]); setSelectedTask(null); setShowUsersPanel(false); filtersInitialized.current = false; };
-  const handleSelectTask = useCallback((task) => { setSelectedTask(task); setShowUsersPanel(false); setSidebarOpen(false); if (currentUser && task) { const now = new Date().toISOString(); setReadTimestamps(prev => ({...prev, [task.id]: now})); markTaskAsSeen(task.id, currentUser); setSeenTaskIds(prev => prev.includes(task.id) ? prev : [...prev, task.id]); setTaskReadInDb(currentUser, task.id); } }, [currentUser]);
+  const handleSelectTask = useCallback((task) => { setSelectedTask(task); setShowUsersPanel(false); setSidebarOpen(false); if (currentUser && task) { const now = new Date().toISOString(); setReadTimestamps(prev => ({...prev, [task.id]: now})); setTaskReadInDb(currentUser, task.id); } }, [currentUser]);
   const handleMarkUnread = useCallback((taskId) => { if (currentUser) { setReadTimestamps(prev => { const n = {...prev}; delete n[taskId]; return n; }); setTaskUnreadInDb(currentUser, taskId); } }, [currentUser]);
   const reloadTeamMembers = async () => { const m = await getTeamMembers(); if (m.length > 0) setTeamMembers(m); };
 
@@ -1132,7 +1128,6 @@ export default function TaskApp() {
                 onCreateTaskForSend={createTaskForSend}
                 currentUser={currentUser}
                 readTimestamps={readTimestamps}
-                seenTaskIds={seenTaskIds}
                 lang={lang}
                 t={t}
                 teamMembers={teamMembers}
@@ -1152,7 +1147,6 @@ export default function TaskApp() {
                 onCreateTaskForSend={createTaskForSend}
                 currentUser={currentUser}
                 readTimestamps={readTimestamps}
-                seenTaskIds={seenTaskIds}
                 lang={lang}
                 t={t}
                 teamMembers={teamMembers}
@@ -1172,7 +1166,6 @@ export default function TaskApp() {
                 onCreateTaskForSend={createTaskForSend}
                 currentUser={currentUser}
                 readTimestamps={readTimestamps}
-                seenTaskIds={seenTaskIds}
                 lang={lang}
                 t={t}
                 teamMembers={teamMembers}
@@ -1183,7 +1176,7 @@ export default function TaskApp() {
                 filterSendsPerson={filterSendsPerson}
               />
             </>)}
-            <div className="max-w-4xl mx-auto">{filteredTasks.length === 0 ? <div className="text-center py-16"><CheckCircle size={48} className="mx-auto mb-4" style={{ color: '#16a34a', opacity: 0.4 }} /><p style={{ color: '#5f6368' }}>{t.noTasksToShow}</p></div> : <div className="space-y-px">{filteredTasks.map(task => <TaskItem key={task.id} task={task} isSelected={selectedTask?.id === task.id} onClick={() => handleSelectTask(task)} onStatusChange={s => updateTask(task.id, { status: s })} currentUser={currentUser} readTimestamps={readTimestamps} seenTaskIds={seenTaskIds} lang={lang} t={t} teamMembers={teamMembers} customTags={customTags} />)}</div>}</div></>
+            <div className="max-w-4xl mx-auto">{filteredTasks.length === 0 ? <div className="text-center py-16"><CheckCircle size={48} className="mx-auto mb-4" style={{ color: '#16a34a', opacity: 0.4 }} /><p style={{ color: '#5f6368' }}>{t.noTasksToShow}</p></div> : <div className="space-y-px">{filteredTasks.map(task => <TaskItem key={task.id} task={task} isSelected={selectedTask?.id === task.id} onClick={() => handleSelectTask(task)} onStatusChange={s => updateTask(task.id, { status: s })} currentUser={currentUser} readTimestamps={readTimestamps} lang={lang} t={t} teamMembers={teamMembers} customTags={customTags} />)}</div>}</div></>
           )}
         </div>
       </main>
