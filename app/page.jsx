@@ -492,7 +492,7 @@ function SendDetail({ send, updateSend, onClose, currentUser, lang, t, teamMembe
   const fmtD = (ds) => ds ? new Date(ds+'T00:00:00').toLocaleDateString(lang==='en'?'en-US':'pl-PL',{weekday:'long',day:'numeric',month:'long',year:'numeric'}) : '';
   const fmtT = (ts) => ts ? ts.slice(0,5) : '';
   const fd = lang === 'en' ? formatDateTimeEn : formatDateTime;
-  const publicLink = send.publicToken ? `${typeof window !== 'undefined' ? window.location.origin : ''}/send/${send.publicToken}` : null;
+  const publicLink = send.publicToken ? `${typeof window !== 'undefined' ? window.location.origin : ''}/?send=${send.publicToken}` : null;
   const copyPublicLink = () => { if (publicLink) { navigator.clipboard.writeText(publicLink); setLinkCopied(true); setTimeout(() => setLinkCopied(false), 2000); } };
 
   const saveContent = async () => {
@@ -1436,6 +1436,36 @@ export default function TaskApp() {
   const handleLogout = () => { sessionStorage.removeItem('av_tasks_user'); setCurrentUser(null); setTasks([]); setSelectedTask(null); setSelectedSend(null); setShowUsersPanel(false); filtersInitialized.current = false; };
   const handleSelectTask = useCallback((task) => { setSelectedTask(task); setSelectedSend(null); setShowUsersPanel(false); setSidebarOpen(false); if (currentUser && task) { const now = new Date().toISOString(); setReadTimestamps(prev => ({...prev, [task.id]: now})); setTaskReadInDb(currentUser, task.id); } }, [currentUser]);
   const handleSelectSend = useCallback((send) => { setSelectedSend(send); setSelectedTask(null); setShowUsersPanel(false); setSidebarOpen(false); }, []);
+
+  // Auto-open SendDetail po wejściu z linku publicznego (?send=TOKEN)
+  // Czeka na zalogowanego usera i załadowane wysyłki, potem znajduje send po publicToken.
+  // Po otwarciu czyści parametr z URL żeby F5 nie próbowało ponownie.
+  const sendLinkConsumed = useRef(false);
+  useEffect(() => {
+    if (sendLinkConsumed.current) return;
+    if (!currentUser || !allSends || allSends.length === 0) return;
+    if (typeof window === 'undefined') return;
+    const url = new URL(window.location.href);
+    const token = url.searchParams.get('send');
+    if (!token) return;
+    const found = allSends.find(s => s.publicToken === token);
+    if (found) {
+      setSelectedSend(found);
+      setSelectedTask(null);
+      setShowUsersPanel(false);
+      sendLinkConsumed.current = true;
+      // Usuń parametr z URL bez przeładowania strony
+      url.searchParams.delete('send');
+      window.history.replaceState({}, '', url.pathname + url.search + url.hash);
+    } else {
+      // Token niezgodny – wyczyść parametr i pokaż błąd w konsoli
+      sendLinkConsumed.current = true;
+      url.searchParams.delete('send');
+      window.history.replaceState({}, '', url.pathname + url.search + url.hash);
+      console.warn('Send not found for token:', token);
+    }
+  }, [currentUser, allSends]);
+
   const handleMarkUnread = useCallback((taskId) => { if (currentUser) { setReadTimestamps(prev => { const n = {...prev}; delete n[taskId]; return n; }); setTaskUnreadInDb(currentUser, taskId); } }, [currentUser]);
   const reloadTeamMembers = async () => { const m = await getTeamMembers(); if (m.length > 0) setTeamMembers(m); };
 
