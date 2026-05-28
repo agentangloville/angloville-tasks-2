@@ -921,13 +921,16 @@ function SendDetail({ send, updateSend, onClose, currentUser, lang, t, teamMembe
 
 // === TASK DETAIL ===
 function TaskDetail({ task, updateTask, deleteTask, onClose, currentUser, isManager, onMarkUnread, readTimestamps, t, lang, teamMembers, customTags, onRefreshTags, allSends }) {
-  const [comment, setComment] = useState(''); const [editing, setEditing] = useState(false); const [form, setForm] = useState({ title: '', description: '' }); const [newSubtask, setNewSubtask] = useState(''); const [subtaskAssignee, setSubtaskAssignee] = useState(''); const [showSubtaskForm, setShowSubtaskForm] = useState(false); const [linkCopied, setLinkCopied] = useState(false); const [uploading, setUploading] = useState(false); const [commentAttachments, setCommentAttachments] = useState([]); const [uploadingComment, setUploadingComment] = useState(false); const [editingCommentId, setEditingCommentId] = useState(null); const [editingCommentText, setEditingCommentText] = useState(''); const [showTagManager, setShowTagManager] = useState(false); const [newTagName, setNewTagName] = useState(''); const [newTagColor, setNewTagColor] = useState(TAG_COLORS[0]);
+  const [comment, setComment] = useState(''); const [editing, setEditing] = useState(false); const [form, setForm] = useState({ title: '', description: '' }); const [newSubtask, setNewSubtask] = useState(''); const [subtaskAssignee, setSubtaskAssignee] = useState(''); const [showSubtaskForm, setShowSubtaskForm] = useState(false); const [linkCopied, setLinkCopied] = useState(false); const [externalLinkCopied, setExternalLinkCopied] = useState(false); const [uploading, setUploading] = useState(false); const [commentAttachments, setCommentAttachments] = useState([]); const [uploadingComment, setUploadingComment] = useState(false); const [editingCommentId, setEditingCommentId] = useState(null); const [editingCommentText, setEditingCommentText] = useState(''); const [showTagManager, setShowTagManager] = useState(false); const [newTagName, setNewTagName] = useState(''); const [newTagColor, setNewTagColor] = useState(TAG_COLORS[0]);
 
   useEffect(() => { setForm({ title: task.title, description: task.description || '' }); setEditing(false); setComment(''); setNewSubtask(''); setSubtaskAssignee(''); setShowSubtaskForm(false); setLinkCopied(false); setCommentAttachments([]); setEditingCommentId(null); setShowTagManager(false); }, [task.id]);
   
   const market = MARKETS.find(m => m.id === task.market); const me = teamMembers.find(m => m.id === currentUser); const subtasks = task.subtasks || []; const canEdit = isManager || task.createdBy === currentUser; const canContribute = canEdit || task.assignees?.includes(currentUser);
-  const publicLink = task.publicToken ? `${typeof window !== 'undefined' ? window.location.origin : ''}/task/${task.publicToken}` : null;
-  const copyPublicLink = () => { if (publicLink) { navigator.clipboard.writeText(publicLink); setLinkCopied(true); setTimeout(() => setLinkCopied(false), 2000); } };
+  const origin = typeof window !== 'undefined' ? window.location.origin : '';
+  const internalLink = task.publicToken ? `${origin}/?task=${task.publicToken}` : null;
+  const externalLink = task.publicToken ? `${origin}/task/${task.publicToken}` : null;
+  const copyPublicLink = () => { if (internalLink) { navigator.clipboard.writeText(internalLink); setLinkCopied(true); setTimeout(() => setLinkCopied(false), 2000); } };
+  const copyExternalLink = () => { if (externalLink) { navigator.clipboard.writeText(externalLink); setExternalLinkCopied(true); setTimeout(() => setExternalLinkCopied(false), 2000); } };
   const handleTaskAttachmentUpload = async (files) => { setUploading(true); const up = []; for (const file of files) { const r = await uploadFile(file, `tasks/${task.id}`); if (r) { r.uploadedBy = currentUser; up.push(r); } } if (up.length > 0) await updateTask(task.id, { attachments: [...(task.attachments || []), ...up] }); setUploading(false); };
   const handleRemoveTaskAttachment = async (aid) => { await updateTask(task.id, { attachments: (task.attachments || []).filter(a => a.id !== aid) }); };
   const handleCommentAttachmentUpload = async (files) => { setUploadingComment(true); for (const file of files) { const r = await uploadFile(file, `comments/${task.id}`); if (r) { r.uploadedBy = currentUser; setCommentAttachments(prev => [...prev, r]); } } setUploadingComment(false); };
@@ -951,9 +954,9 @@ function TaskDetail({ task, updateTask, deleteTask, onClose, currentUser, isMana
     <aside className="w-full lg:w-[640px] bg-white border-l flex flex-col overflow-hidden flex-shrink-0 fixed lg:static inset-0 z-40 lg:z-auto" style={{ borderColor: '#dadce0' }}>
       <div className="p-3 border-b flex items-center justify-between" style={{ borderColor: '#dadce0' }}>
         <div className="flex items-center gap-2"><span className="text-lg">{market?.icon}</span><span className="text-sm font-medium" style={{ color: '#202124' }}>{lang === 'en' ? market?.nameEn : market?.name}</span>{task.isExternal && <ExternalLink size={14} style={{ color: '#f59e0b' }} />}{task.language === 'en' && <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: '#e8f0fe', color: '#1a73e8' }}>🇬🇧</span>}</div>
-        <div className="flex items-center gap-1">{task.language === 'en' && <TranslateButton task={task} />}{publicLink && <button onClick={copyPublicLink} className="p-1.5 rounded-full hover:bg-blue-50" style={{ color: linkCopied ? '#16a34a' : '#1a73e8' }}>{linkCopied ? <Check size={16} /> : <Link2 size={16} />}</button>}{canEdit && <><button onClick={() => setEditing(!editing)} className="p-1.5 rounded-full hover:bg-gray-100" style={{ color: '#5f6368' }}><Edit3 size={16} /></button><button onClick={() => deleteTask(task.id)} className="p-1.5 rounded-full hover:bg-red-50" style={{ color: '#5f6368' }}><Trash2 size={16} /></button></>}<button onClick={onClose} className="p-1.5 rounded-full hover:bg-gray-100" style={{ color: '#5f6368' }}><X size={16} /></button></div>
+        <div className="flex items-center gap-1">{task.language === 'en' && <TranslateButton task={task} />}{internalLink && <button onClick={copyPublicLink} className="p-1.5 rounded-full hover:bg-purple-50" style={{ color: linkCopied ? '#16a34a' : '#7c3aed' }} title={lang==='en'?'Copy internal link (for team)':'Kopiuj link wewnętrzny (dla zespołu)'}>{linkCopied ? <Check size={16} /> : <Link2 size={16} />}</button>}{canEdit && <><button onClick={() => setEditing(!editing)} className="p-1.5 rounded-full hover:bg-gray-100" style={{ color: '#5f6368' }}><Edit3 size={16} /></button><button onClick={() => deleteTask(task.id)} className="p-1.5 rounded-full hover:bg-red-50" style={{ color: '#5f6368' }}><Trash2 size={16} /></button></>}<button onClick={onClose} className="p-1.5 rounded-full hover:bg-gray-100" style={{ color: '#5f6368' }}><X size={16} /></button></div>
       </div>
-      {publicLink && <div className="px-3 py-1.5 border-b flex items-center gap-2" style={{ background: '#e8f0fe', borderColor: '#aecbfa' }}><Link2 size={12} style={{ color: '#1a73e8' }} /><code className="flex-1 text-xs truncate" style={{ color: '#1a73e8' }}>{publicLink}</code><button onClick={copyPublicLink} className="text-xs px-2 py-0.5 rounded hover:bg-blue-100" style={{ color: '#1a73e8' }}>{linkCopied ? '✓' : t.copyLink}</button></div>}
+      {internalLink && <div className="px-3 py-1.5 border-b flex items-center gap-2" style={{ background: '#f5f3ff', borderColor: '#e9d5ff' }}><Link2 size={12} style={{ color: '#7c3aed' }} /><code className="flex-1 text-xs truncate" style={{ color: '#7c3aed' }}>{internalLink}</code><button onClick={copyPublicLink} className="text-xs px-2 py-0.5 rounded hover:bg-purple-100" style={{ color: '#7c3aed' }}>{linkCopied ? '✓' : t.copyLink}</button></div>}
       
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {task.isExternal && <div className="p-2 rounded-lg text-sm" style={{ background: '#fefce8', border: '1px solid #fef3c7', color: '#b45309' }}>📨 {t.from}: <strong>{task.submittedBy}</strong> {task.submitterEmail && `(${task.submitterEmail})`}</div>}
@@ -1021,6 +1024,20 @@ function TaskDetail({ task, updateTask, deleteTask, onClose, currentUser, isMana
           <div className="flex gap-2 items-start"><MentionInput value={comment} onChange={setComment} onSubmit={addComment} placeholder={t.writeComment} teamMembers={teamMembers} /><AttachmentUploader onUpload={handleCommentAttachmentUpload} uploading={uploadingComment} /><button onClick={addComment} className="p-2 rounded-xl" style={{ background: '#1a73e8', color: 'white' }}><Send size={16} /></button></div>
           <AttachmentList attachments={commentAttachments} onRemove={(id) => setCommentAttachments(p => p.filter(a => a.id !== id))} />
         </div>
+
+        {externalLink && (
+          <div className="rounded-lg p-3 border" style={{ background: '#fffbeb', borderColor: '#fde68a' }}>
+            <div className="flex items-center gap-2 mb-1.5">
+              <ExternalLink size={14} style={{ color: '#b45309' }} />
+              <span className="text-xs font-medium" style={{ color: '#b45309' }}>{lang==='en' ? 'External link (no login required)' : 'Link dla osób z zewnątrz (bez logowania)'}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <code className="flex-1 text-xs truncate px-2 py-1 rounded" style={{ background: 'white', color: '#92400e', border: '1px solid #fde68a' }}>{externalLink}</code>
+              <button onClick={copyExternalLink} className="text-xs px-2.5 py-1 rounded font-medium hover:bg-amber-200" style={{ background: '#fde68a', color: '#92400e' }}>{externalLinkCopied ? '✓' : (t.copyLink || (lang==='en'?'Copy':'Kopiuj'))}</button>
+            </div>
+            <p className="text-xs mt-1.5" style={{ color: '#a16207' }}>{lang==='en' ? 'Recipient can view status and add comments without logging in.' : 'Odbiorca zobaczy status i może dodawać komentarze bez logowania.'}</p>
+          </div>
+        )}
         
         <div className="pt-3 border-t text-xs" style={{ borderColor: '#dadce0', color: '#80868b' }}><p>{t.created}: {fd(task.createdAt)}</p>{task.createdBy && <p>{t.byPerson}: {teamMembers.find(m => m.id === task.createdBy)?.name}</p>}</div>
       </div>
@@ -1465,6 +1482,32 @@ export default function TaskApp() {
       console.warn('Send not found for token:', token);
     }
   }, [currentUser, allSends]);
+
+  // Auto-open TaskDetail po wejściu z linku wewnętrznego (?task=TOKEN)
+  // Analogicznie do ?send= ale dla tasków – czeka na user + załadowane tasks.
+  const taskLinkConsumed = useRef(false);
+  useEffect(() => {
+    if (taskLinkConsumed.current) return;
+    if (!currentUser || !tasks || tasks.length === 0) return;
+    if (typeof window === 'undefined') return;
+    const url = new URL(window.location.href);
+    const token = url.searchParams.get('task');
+    if (!token) return;
+    const found = tasks.find(t => t.publicToken === token);
+    if (found) {
+      setSelectedTask(found);
+      setSelectedSend(null);
+      setShowUsersPanel(false);
+      taskLinkConsumed.current = true;
+      url.searchParams.delete('task');
+      window.history.replaceState({}, '', url.pathname + url.search + url.hash);
+    } else {
+      taskLinkConsumed.current = true;
+      url.searchParams.delete('task');
+      window.history.replaceState({}, '', url.pathname + url.search + url.hash);
+      console.warn('Task not found for token:', token);
+    }
+  }, [currentUser, tasks]);
 
   const handleMarkUnread = useCallback((taskId) => { if (currentUser) { setReadTimestamps(prev => { const n = {...prev}; delete n[taskId]; return n; }); setTaskUnreadInDb(currentUser, taskId); } }, [currentUser]);
   const reloadTeamMembers = async () => { const m = await getTeamMembers(); if (m.length > 0) setTeamMembers(m); };
