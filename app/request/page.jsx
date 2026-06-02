@@ -21,8 +21,21 @@ const PRIORITIES = [
   { id: 'urgent', name: 'Urgent', color: '#d93025', bg: '#fce8e6' },
 ];
 
+// Mapa login -> pełne imię i nazwisko wyświetlane na chipach "To".
+// Klucz musi być dokładnie taki jak id członka zespołu w tabeli team_members.
+// Jeśli kogoś tu nie ma, pokaże się jego dotychczasowe m.name (fallback).
+const FULL_NAMES = {
+  'e.kedzior': 'Ewa Kędzior',
+  'd.wojcicki': 'Damian Wójcicki',
+  'c.bonaccorsi': 'Chiara Bonaccorsi',
+  'k.golembiowska': 'Karolina Gołębiowska',
+  'v.aguiar': 'Vinicius Aguiar',
+};
+
+const getDisplayName = (m) => FULL_NAMES[m.id] || m.name || m.id;
+
 const getInitials = (name) => {
-  const parts = name.split(' ');
+  const parts = String(name).trim().split(/\s+/);
   if (parts.length >= 2) return parts[0][0] + parts[1][0];
   return name[0];
 };
@@ -184,7 +197,7 @@ export default function RequestPage() {
         for (const aId of form.assignees) {
           const m = teamMembers.find(x => x.id === aId);
           if (m && m.email) {
-            await sendEmailNotification(m.email, m.name, form.title.trim(), submitterName);
+            await sendEmailNotification(m.email, getDisplayName(m), form.title.trim(), submitterName);
           }
         }
       } else {
@@ -323,9 +336,9 @@ export default function RequestPage() {
                         className="w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px] font-medium"
                         style={{ background: m.color }}
                       >
-                        {getInitials(m.name)}
+                        {getInitials(getDisplayName(m))}
                       </div>
-                      <span>{m.name}</span>
+                      <span>{getDisplayName(m)}</span>
                       {selected && <Check size={12} />}
                     </button>
                   );
