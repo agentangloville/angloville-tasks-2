@@ -21,18 +21,28 @@ const PRIORITIES = [
   { id: 'urgent', name: 'Urgent', color: '#d93025', bg: '#fce8e6' },
 ];
 
-// Mapa login -> pełne imię i nazwisko wyświetlane na chipach "To".
+// Nazwy wyświetlane na chipach "To": inicjał + nazwisko (bez zgadywania imion).
 // Klucz musi być dokładnie taki jak id członka zespołu w tabeli team_members.
-// Jeśli kogoś tu nie ma, pokaże się jego dotychczasowe m.name (fallback).
+// Tu trzymamy tylko poprawną pisownię nazwiska (np. polskie znaki).
 const FULL_NAMES = {
-  'e.kedzior': 'Ewa Kędzior',
-  'd.wojcicki': 'Damian Wójcicki',
-  'c.bonaccorsi': 'Chiara Bonaccorsi',
-  'k.golembiowska': 'Karolina Gołębiowska',
-  'v.aguiar': 'Vinicius Aguiar',
+  'e.kedzior': 'E. Kędzior',
+  'd.wojcicki': 'D. Wójcicki',
+  'c.bonaccorsi': 'C. Bonaccorsi',
+  'k.golembiowska': 'K. Gołębiowska',
+  'v.aguiar': 'V. Aguiar',
 };
 
-const getDisplayName = (m) => FULL_NAMES[m.id] || m.name || m.id;
+// Fallback: jeśli kogoś nie ma w mapie, a id ma format "x.nazwisko",
+// zbuduj "X. Nazwisko" automatycznie; w ostateczności pokaż m.name lub id.
+const formatFromId = (id) => {
+  if (!id || !id.includes('.')) return null;
+  const [first, ...rest] = id.split('.');
+  const last = rest.join('.');
+  if (!first || !last) return null;
+  return first.charAt(0).toUpperCase() + '. ' + last.charAt(0).toUpperCase() + last.slice(1);
+};
+
+const getDisplayName = (m) => FULL_NAMES[m.id] || formatFromId(m.id) || m.name || m.id;
 
 const getInitials = (name) => {
   const parts = String(name).trim().split(/\s+/);
