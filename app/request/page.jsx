@@ -28,7 +28,7 @@ const FULL_NAMES = {
   'e.kedzior': 'E. Kędzior',
   'd.wojcicki': 'D. Wójcicki',
   'c.bonaccorsi': 'C. Bonaccorsi',
-  'k.golembiowska': 'K. Gołębiowska',
+  'k.golembiowska': 'K. Gołembiowska',
   'v.aguiar': 'V. Aguiar',
 };
 
