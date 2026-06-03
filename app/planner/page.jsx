@@ -529,9 +529,10 @@ function Row({ label, children }) {
 
 function SendsHistory({ sends, currentSend, onSelect, onUpdate, t, lang }) {
   const currentId = currentSend.id;
-  const FORWARD_LIMIT = 5; // ile wysyłek pokazujemy od bieżącej w przód (z bieżącą włącznie)
-  const [showEarlier, setShowEarlier] = useState(false);
-  const [showMore, setShowMore] = useState(false);
+  const VISIBLE = 8; // ile pozycji widać domyślnie (bieżąca + następne)
+  const STEP = 5;    // ile odkrywa jeden klik
+  const [earlierShown, setEarlierShown] = useState(0);
+  const [forwardShown, setForwardShown] = useState(VISIBLE);
   const [editingId, setEditingId] = useState(null);
   const [editSubject, setEditSubject] = useState('');
   const [editNotes, setEditNotes] = useState('');
@@ -545,15 +546,20 @@ function SendsHistory({ sends, currentSend, onSelect, onUpdate, t, lang }) {
   );
 
   const idx = sameMarket.findIndex(s => s.id === currentId);
-  const earlier = idx > 0 ? sameMarket.slice(0, idx) : [];           // przed bieżącą
+  const earlierAll = idx > 0 ? sameMarket.slice(0, idx) : [];        // przed bieżącą (chronologicznie)
   const fromCurrent = idx >= 0 ? sameMarket.slice(idx) : sameMarket; // bieżąca + dalsze
-  const forwardVisible = showMore ? fromCurrent : fromCurrent.slice(0, FORWARD_LIMIT);
-  const moreCount = fromCurrent.length - forwardVisible.length;
 
-  // Reset zwinięć i edycji przy zmianie wybranej wysyłki
+  // Wcześniejsze odkrywamy od najbliższych bieżącej
+  const earlierVisible = earlierAll.slice(Math.max(0, earlierAll.length - earlierShown));
+  const earlierRemaining = earlierAll.length - earlierVisible.length;
+
+  const forwardVisible = fromCurrent.slice(0, forwardShown);
+  const forwardRemaining = fromCurrent.length - forwardVisible.length;
+
+  // Reset przy zmianie wybranej wysyłki
   useEffect(() => {
-    setShowEarlier(false);
-    setShowMore(false);
+    setEarlierShown(0);
+    setForwardShown(VISIBLE);
     setEditingId(null);
   }, [currentId]);
 
@@ -647,42 +653,25 @@ function SendsHistory({ sends, currentSend, onSelect, onUpdate, t, lang }) {
       </div>
 
       <div className="space-y-1">
-        {/* Wcześniejsze – zwinięte, bieżąca zawsze na górze listy */}
-        {earlier.length > 0 && (
-          showEarlier ? (
-            <>
-              {earlier.map(renderItem)}
-              <button onClick={() => setShowEarlier(false)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-gray-100 w-full justify-center"
-                style={{ color: '#80868b', border: '1px dashed #dadce0' }}>
-                {t.hideEarlier}
-              </button>
-            </>
-          ) : (
-            <button onClick={() => setShowEarlier(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-gray-100 w-full justify-center"
-              style={{ color: '#80868b', border: '1px dashed #dadce0' }}>
-              <ChevronLeft size={12} /> {t.showEarlier} ({earlier.length})
-            </button>
-          )
-        )}
-
-        {/* Bieżąca + maks. kilka kolejnych */}
-        {forwardVisible.map(renderItem)}
-
-        {/* Rozwiń dalsze przyszłe */}
-        {moreCount > 0 && (
-          <button onClick={() => setShowMore(true)}
+        {/* Wcześniejsze – odkrywane po STEP, najbliższe bieżącej */}
+        {earlierRemaining > 0 && (
+          <button onClick={() => setEarlierShown(n => n + STEP)}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-gray-100 w-full justify-center"
             style={{ color: '#80868b', border: '1px dashed #dadce0' }}>
-            {lang === 'en' ? 'Show more' : 'Pokaż dalsze'} ({moreCount}) <ChevronRight size={12} />
+            <ChevronLeft size={12} /> {t.showEarlier} ({earlierRemaining})
           </button>
         )}
-        {showMore && fromCurrent.length > FORWARD_LIMIT && (
-          <button onClick={() => setShowMore(false)}
+        {earlierVisible.map(renderItem)}
+
+        {/* Bieżąca + następne (domyślnie do VISIBLE) */}
+        {forwardVisible.map(renderItem)}
+
+        {/* Późniejsze – odkrywane po STEP */}
+        {forwardRemaining > 0 && (
+          <button onClick={() => setForwardShown(n => n + STEP)}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-gray-100 w-full justify-center"
             style={{ color: '#80868b', border: '1px dashed #dadce0' }}>
-            {lang === 'en' ? 'Show less' : 'Zwiń'}
+            {lang === 'en' ? 'Show later' : 'Pokaż późniejsze'} ({forwardRemaining}) <ChevronRight size={12} />
           </button>
         )}
       </div>
