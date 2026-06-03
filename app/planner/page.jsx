@@ -529,14 +529,14 @@ function Row({ label, children }) {
 
 function SendsHistory({ sends, currentSend, onSelect, onUpdate, t, lang }) {
   const currentId = currentSend.id;
-  const itemRefs = useRef({});
+  const FORWARD_LIMIT = 5; // ile wysyłek pokazujemy od bieżącej w przód (z bieżącą włącznie)
   const [showEarlier, setShowEarlier] = useState(false);
-  const [showLater, setShowLater] = useState(false);
+  const [showMore, setShowMore] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [editSubject, setEditSubject] = useState('');
   const [editNotes, setEditNotes] = useState('');
 
-  // Okno: zawsze tylko rynek aktualnie wybranej wysyłki, posortowane chronologicznie
+  // Tylko rynek aktualnie wybranej wysyłki, chronologicznie
   const sameMarket = useMemo(() =>
     sends
       .filter(s => s.market === currentSend.market)
@@ -544,31 +544,18 @@ function SendsHistory({ sends, currentSend, onSelect, onUpdate, t, lang }) {
     [sends, currentSend.market]
   );
 
-  // Granice okna: 3 tygodnie wstecz i 3 tygodnie do przodu od dziś
-  const addDays = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return fmt(d); };
-  const winStart = addDays(-21);
-  const winEnd = addDays(21);
+  const idx = sameMarket.findIndex(s => s.id === currentId);
+  const earlier = idx > 0 ? sameMarket.slice(0, idx) : [];           // przed bieżącą
+  const fromCurrent = idx >= 0 ? sameMarket.slice(idx) : sameMarket; // bieżąca + dalsze
+  const forwardVisible = showMore ? fromCurrent : fromCurrent.slice(0, FORWARD_LIMIT);
+  const moreCount = fromCurrent.length - forwardVisible.length;
 
-  const earlier = sameMarket.filter(s => s.sendDate < winStart);
-  const within = sameMarket.filter(s => s.sendDate >= winStart && s.sendDate <= winEnd);
-  const later = sameMarket.filter(s => s.sendDate > winEnd);
-
-  // Jeśli wybrana wysyłka jest poza oknem, automatycznie rozwiń odpowiednią sekcję
+  // Reset zwinięć i edycji przy zmianie wybranej wysyłki
   useEffect(() => {
-    const cur = sameMarket.find(s => s.id === currentId);
-    if (!cur) return;
-    if (cur.sendDate < winStart) setShowEarlier(true);
-    if (cur.sendDate > winEnd) setShowLater(true);
-    // reset edycji przy zmianie wybranej wysyłki
+    setShowEarlier(false);
+    setShowMore(false);
     setEditingId(null);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentId]);
-
-  // Po wyrenderowaniu/rozwinięciu przewiń do aktualnej
-  useEffect(() => {
-    const el = itemRefs.current[currentId];
-    if (el) el.scrollIntoView({ block: 'center' });
-  }, [currentId, showEarlier, showLater]);
 
   if (!sameMarket.length) return null;
 
@@ -598,7 +585,6 @@ function SendsHistory({ sends, currentSend, onSelect, onUpdate, t, lang }) {
 
     return (
       <div key={item.id}
-        ref={el => { if (el) itemRefs.current[item.id] = el; }}
         className="rounded-lg transition-colors"
         style={{
           borderLeft: `3px solid ${accent}`,
@@ -614,11 +600,6 @@ function SendsHistory({ sends, currentSend, onSelect, onUpdate, t, lang }) {
           <div className="flex-1 min-w-0">
             <p className="text-sm truncate" style={{ color: isDone ? '#80868b' : '#202124', textDecoration: isDone ? 'line-through' : 'none', fontWeight: isCurrent ? 600 : 450 }}>{item.title}</p>
             {item.subjectLine && <p className="text-xs truncate" style={{ color: '#80868b' }}>✉ {item.subjectLine}</p>}
-            {itemTools.length > 0 && (
-              <div className="flex flex-wrap gap-1 mt-0.5">
-                {itemTools.map(tl => <span key={tl.id} className="rounded-full" style={{ fontSize: '9.5px', padding: '0 6px', background: tl.color + '18', color: tl.color, fontWeight: 500 }}>{tl.name}</span>)}
-              </div>
-            )}
           </div>
           <div className="flex flex-col items-end flex-shrink-0">
             <span style={{ fontSize: '10.5px', color: isToday(item.sendDate) ? '#1a73e8' : past ? '#80868b' : '#202124', fontWeight: isToday(item.sendDate) ? 600 : 400 }}>{fmtDisp(item.sendDate, lang)}</span>
@@ -658,24 +639,24 @@ function SendsHistory({ sends, currentSend, onSelect, onUpdate, t, lang }) {
 
   return (
     <div>
-      <div className="flex items-center gap-1.5 mb-2 sticky top-0 z-10 py-1" style={{ background: 'white' }}>
+      <div className="flex items-center gap-1.5 mb-2">
         <span className="text-sm">{mkCurrent?.icon}</span>
         <label className="text-xs font-semibold" style={{ color: '#5f6368' }}>
-          {t.allSends} · {lang === 'en' ? mkCurrent?.nameEn : mkCurrent?.name} ({sameMarket.length})
+          {t.allSends} · {lang === 'en' ? mkCurrent?.nameEn : mkCurrent?.name}
         </label>
       </div>
 
       <div className="space-y-1">
-        {/* Zaległe – zwinięte */}
+        {/* Wcześniejsze – zwinięte, bieżąca zawsze na górze listy */}
         {earlier.length > 0 && (
           showEarlier ? (
             <>
+              {earlier.map(renderItem)}
               <button onClick={() => setShowEarlier(false)}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-gray-100 w-full justify-center"
                 style={{ color: '#80868b', border: '1px dashed #dadce0' }}>
                 {t.hideEarlier}
               </button>
-              {earlier.map(renderItem)}
             </>
           ) : (
             <button onClick={() => setShowEarlier(true)}
@@ -686,27 +667,23 @@ function SendsHistory({ sends, currentSend, onSelect, onUpdate, t, lang }) {
           )
         )}
 
-        {/* Ostatnie 3 tygodnie + nadchodzące 3 tygodnie */}
-        {within.map(renderItem)}
+        {/* Bieżąca + maks. kilka kolejnych */}
+        {forwardVisible.map(renderItem)}
 
-        {/* Dalsze przyszłe – zwinięte */}
-        {later.length > 0 && (
-          showLater ? (
-            <>
-              {later.map(renderItem)}
-              <button onClick={() => setShowLater(false)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-gray-100 w-full justify-center"
-                style={{ color: '#80868b', border: '1px dashed #dadce0' }}>
-                {lang === 'en' ? 'Hide later' : 'Ukryj dalsze'}
-              </button>
-            </>
-          ) : (
-            <button onClick={() => setShowLater(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-gray-100 w-full justify-center"
-              style={{ color: '#80868b', border: '1px dashed #dadce0' }}>
-              {lang === 'en' ? 'Show later' : 'Pokaż dalsze'} ({later.length}) <ChevronRight size={12} />
-            </button>
-          )
+        {/* Rozwiń dalsze przyszłe */}
+        {moreCount > 0 && (
+          <button onClick={() => setShowMore(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-gray-100 w-full justify-center"
+            style={{ color: '#80868b', border: '1px dashed #dadce0' }}>
+            {lang === 'en' ? 'Show more' : 'Pokaż dalsze'} ({moreCount}) <ChevronRight size={12} />
+          </button>
+        )}
+        {showMore && fromCurrent.length > FORWARD_LIMIT && (
+          <button onClick={() => setShowMore(false)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-gray-100 w-full justify-center"
+            style={{ color: '#80868b', border: '1px dashed #dadce0' }}>
+            {lang === 'en' ? 'Show less' : 'Zwiń'}
+          </button>
         )}
       </div>
     </div>
