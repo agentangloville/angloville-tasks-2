@@ -516,8 +516,8 @@ function SendDetail({ send, onUpdate, onDelete, onEdit, onClose, onSelectSend, a
           <div className="px-3 py-2 rounded-lg text-sm whitespace-pre-wrap" style={{ background: '#f1f3f4', color: '#3c4043' }}>{send.description}</div>
         </div>}
 
-        {/* Pełna historia wysyłek – chronologicznie */}
-        <SendsHistory sends={allSends} currentId={send.id} onSelect={onSelectSend} t={t} lang={lang} />
+        {/* Historia wysyłek danego rynku – chronologicznie */}
+        <SendsHistory sends={allSends} currentSend={send} onSelect={onSelectSend} onUpdate={onUpdate} t={t} lang={lang} />
       </div>
     </aside>
   );
@@ -527,72 +527,187 @@ function Row({ label, children }) {
   return <div className="flex items-center justify-between"><span className="text-xs font-medium" style={{ color: '#5f6368' }}>{label}</span>{children}</div>;
 }
 
-function SendsHistory({ sends, currentId, onSelect, t, lang }) {
+function SendsHistory({ sends, currentSend, onSelect, onUpdate, t, lang }) {
+  const currentId = currentSend.id;
   const itemRefs = useRef({});
+  const [showEarlier, setShowEarlier] = useState(false);
+  const [showLater, setShowLater] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [editSubject, setEditSubject] = useState('');
+  const [editNotes, setEditNotes] = useState('');
 
-  const sorted = useMemo(() =>
-    [...sends].sort((a, b) => a.sendDate.localeCompare(b.sendDate) || (a.sendTime || '').localeCompare(b.sendTime || '')),
-    [sends]
+  // Okno: zawsze tylko rynek aktualnie wybranej wysyłki, posortowane chronologicznie
+  const sameMarket = useMemo(() =>
+    sends
+      .filter(s => s.market === currentSend.market)
+      .sort((a, b) => a.sendDate.localeCompare(b.sendDate) || (a.sendTime || '').localeCompare(b.sendTime || '')),
+    [sends, currentSend.market]
   );
 
+  // Granice okna: 3 tygodnie wstecz i 3 tygodnie do przodu od dziś
+  const addDays = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return fmt(d); };
+  const winStart = addDays(-21);
+  const winEnd = addDays(21);
+
+  const earlier = sameMarket.filter(s => s.sendDate < winStart);
+  const within = sameMarket.filter(s => s.sendDate >= winStart && s.sendDate <= winEnd);
+  const later = sameMarket.filter(s => s.sendDate > winEnd);
+
+  // Jeśli wybrana wysyłka jest poza oknem, automatycznie rozwiń odpowiednią sekcję
+  useEffect(() => {
+    const cur = sameMarket.find(s => s.id === currentId);
+    if (!cur) return;
+    if (cur.sendDate < winStart) setShowEarlier(true);
+    if (cur.sendDate > winEnd) setShowLater(true);
+    // reset edycji przy zmianie wybranej wysyłki
+    setEditingId(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentId]);
+
+  // Po wyrenderowaniu/rozwinięciu przewiń do aktualnej
   useEffect(() => {
     const el = itemRefs.current[currentId];
     if (el) el.scrollIntoView({ block: 'center' });
-  }, [currentId, sorted.length]);
+  }, [currentId, showEarlier, showLater]);
 
-  if (!sorted.length) return null;
+  if (!sameMarket.length) return null;
+
+  const mkCurrent = MARKETS.find(m => m.id === currentSend.market);
+
+  const startEdit = (item, e) => {
+    e.stopPropagation();
+    setEditingId(item.id);
+    setEditSubject(item.subjectLine || '');
+    setEditNotes(item.description || '');
+  };
+  const saveEdit = () => {
+    if (editingId) onUpdate(editingId, { subjectLine: editSubject, description: editNotes });
+    setEditingId(null);
+  };
+  const cancelEdit = () => setEditingId(null);
+
+  const renderItem = (item) => {
+    const ch = CHANNELS.find(c => c.id === item.channel);
+    const itemTools = (item.tools || []).map(id => TOOLS.find(t => t.id === id)).filter(Boolean);
+    const accent = itemTools[0]?.color || ch?.color || '#80868b';
+    const ChI = ch?.icon || Mail;
+    const isCurrent = item.id === currentId;
+    const isDone = item.status === 'done';
+    const past = isPast(item.sendDate) && !isToday(item.sendDate);
+    const isEditing = editingId === item.id;
+
+    return (
+      <div key={item.id}
+        ref={el => { if (el) itemRefs.current[item.id] = el; }}
+        className="rounded-lg transition-colors"
+        style={{
+          borderLeft: `3px solid ${accent}`,
+          borderTop: `0.5px solid ${isCurrent ? accent : '#e8eaed'}`,
+          borderRight: `0.5px solid ${isCurrent ? accent : '#e8eaed'}`,
+          borderBottom: `0.5px solid ${isCurrent ? accent : '#e8eaed'}`,
+          background: isCurrent ? accent + '12' : past ? '#fafafa' : 'white',
+        }}>
+        <div className="group flex items-center gap-2 pr-2 py-1.5 cursor-pointer" style={{ paddingLeft: '8px' }} onClick={() => !isEditing && onSelect(item)}>
+          <div className="w-5 h-5 rounded flex items-center justify-center flex-shrink-0" style={{ background: ch?.bg }}>
+            <ChI size={11} style={{ color: ch?.color }} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm truncate" style={{ color: isDone ? '#80868b' : '#202124', textDecoration: isDone ? 'line-through' : 'none', fontWeight: isCurrent ? 600 : 450 }}>{item.title}</p>
+            {item.subjectLine && <p className="text-xs truncate" style={{ color: '#80868b' }}>✉ {item.subjectLine}</p>}
+            {itemTools.length > 0 && (
+              <div className="flex flex-wrap gap-1 mt-0.5">
+                {itemTools.map(tl => <span key={tl.id} className="rounded-full" style={{ fontSize: '9.5px', padding: '0 6px', background: tl.color + '18', color: tl.color, fontWeight: 500 }}>{tl.name}</span>)}
+              </div>
+            )}
+          </div>
+          <div className="flex flex-col items-end flex-shrink-0">
+            <span style={{ fontSize: '10.5px', color: isToday(item.sendDate) ? '#1a73e8' : past ? '#80868b' : '#202124', fontWeight: isToday(item.sendDate) ? 600 : 400 }}>{fmtDisp(item.sendDate, lang)}</span>
+            <span style={{ fontSize: '9.5px', color: '#b0b5bc' }}>{fmtTime(item.sendTime)}</span>
+          </div>
+          {isDone && <CheckCircle size={13} style={{ color: '#16a34a', flexShrink: 0 }} />}
+          {!isEditing && (
+            <button onClick={e => startEdit(item, e)} className="p-1 rounded hover:bg-gray-100 flex-shrink-0 opacity-0 group-hover:opacity-100" style={{ color: '#5f6368', opacity: isCurrent ? 1 : undefined }} title={t.edit}>
+              <Edit3 size={12} />
+            </button>
+          )}
+        </div>
+
+        {isEditing && (
+          <div className="px-3 pb-3 pt-1 space-y-2" onClick={e => e.stopPropagation()}>
+            <div>
+              <label className="text-xs font-medium block mb-1" style={{ color: '#5f6368' }}>{t.subjectLine}</label>
+              <input type="text" value={editSubject} onChange={e => setEditSubject(e.target.value)}
+                className="w-full px-2.5 py-1.5 border rounded-lg text-sm" style={{ borderColor: '#dadce0' }}
+                placeholder={t.subjectPlaceholder} autoFocus />
+            </div>
+            <div>
+              <label className="text-xs font-medium block mb-1" style={{ color: '#5f6368' }}>{t.notes}</label>
+              <textarea value={editNotes} onChange={e => setEditNotes(e.target.value)}
+                className="w-full px-2.5 py-1.5 border rounded-lg text-sm resize-none" style={{ borderColor: '#dadce0' }}
+                rows={2} placeholder={t.notesPlaceholder} />
+            </div>
+            <div className="flex gap-2">
+              <button onClick={saveEdit} className="flex-1 py-1.5 rounded-lg text-xs font-medium" style={{ background: '#1a73e8', color: 'white' }}>{t.save}</button>
+              <button onClick={cancelEdit} className="px-3 py-1.5 rounded-lg text-xs" style={{ color: '#5f6368' }}>{t.cancel}</button>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-2 sticky top-0 z-10 py-1" style={{ background: 'white' }}>
+      <div className="flex items-center gap-1.5 mb-2 sticky top-0 z-10 py-1" style={{ background: 'white' }}>
+        <span className="text-sm">{mkCurrent?.icon}</span>
         <label className="text-xs font-semibold" style={{ color: '#5f6368' }}>
-          {t.allSends} ({sorted.length})
+          {t.allSends} · {lang === 'en' ? mkCurrent?.nameEn : mkCurrent?.name} ({sameMarket.length})
         </label>
       </div>
-      <div className="space-y-1">
-        {sorted.map(item => {
-          const ch = CHANNELS.find(c => c.id === item.channel);
-          const itemTools = (item.tools || []).map(id => TOOLS.find(t => t.id === id)).filter(Boolean);
-          const accent = itemTools[0]?.color || ch?.color || '#80868b';
-          const ChI = ch?.icon || Mail;
-          const mk = MARKETS.find(m => m.id === item.market);
-          const isCurrent = item.id === currentId;
-          const isDone = item.status === 'done';
-          const past = isPast(item.sendDate) && !isToday(item.sendDate);
 
-          return (
-            <div key={item.id}
-              ref={el => { if (el) itemRefs.current[item.id] = el; }}
-              onClick={() => onSelect(item)}
-              className="flex items-center gap-2 rounded-lg pr-2.5 py-1.5 cursor-pointer transition-colors"
-              style={{
-                borderLeft: `3px solid ${accent}`,
-                borderTop: `0.5px solid ${isCurrent ? accent : '#e8eaed'}`,
-                borderRight: `0.5px solid ${isCurrent ? accent : '#e8eaed'}`,
-                borderBottom: `0.5px solid ${isCurrent ? accent : '#e8eaed'}`,
-                background: isCurrent ? accent + '12' : past ? '#fafafa' : 'white',
-                paddingLeft: '8px',
-              }}>
-              <div className="w-5 h-5 rounded flex items-center justify-center flex-shrink-0" style={{ background: ch?.bg }}>
-                <ChI size={11} style={{ color: ch?.color }} />
-              </div>
-              <span className="text-sm flex-shrink-0">{mk?.icon}</span>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm truncate" style={{ color: isDone ? '#80868b' : '#202124', textDecoration: isDone ? 'line-through' : 'none', fontWeight: isCurrent ? 600 : 450 }}>{item.title}</p>
-                {itemTools.length > 0 && (
-                  <div className="flex flex-wrap gap-1 mt-0.5">
-                    {itemTools.map(tl => <span key={tl.id} className="rounded-full" style={{ fontSize: '9.5px', padding: '0 6px', background: tl.color + '18', color: tl.color, fontWeight: 500 }}>{tl.name}</span>)}
-                  </div>
-                )}
-              </div>
-              <div className="flex flex-col items-end flex-shrink-0">
-                <span style={{ fontSize: '10.5px', color: isToday(item.sendDate) ? '#1a73e8' : past ? '#80868b' : '#202124', fontWeight: isToday(item.sendDate) ? 600 : 400 }}>{fmtDisp(item.sendDate, lang)}</span>
-                <span style={{ fontSize: '9.5px', color: '#b0b5bc' }}>{fmtTime(item.sendTime)}</span>
-              </div>
-              {isDone && <CheckCircle size={13} style={{ color: '#16a34a', flexShrink: 0 }} />}
-            </div>
-          );
-        })}
+      <div className="space-y-1">
+        {/* Zaległe – zwinięte */}
+        {earlier.length > 0 && (
+          showEarlier ? (
+            <>
+              <button onClick={() => setShowEarlier(false)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-gray-100 w-full justify-center"
+                style={{ color: '#80868b', border: '1px dashed #dadce0' }}>
+                {t.hideEarlier}
+              </button>
+              {earlier.map(renderItem)}
+            </>
+          ) : (
+            <button onClick={() => setShowEarlier(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-gray-100 w-full justify-center"
+              style={{ color: '#80868b', border: '1px dashed #dadce0' }}>
+              <ChevronLeft size={12} /> {t.showEarlier} ({earlier.length})
+            </button>
+          )
+        )}
+
+        {/* Ostatnie 3 tygodnie + nadchodzące 3 tygodnie */}
+        {within.map(renderItem)}
+
+        {/* Dalsze przyszłe – zwinięte */}
+        {later.length > 0 && (
+          showLater ? (
+            <>
+              {later.map(renderItem)}
+              <button onClick={() => setShowLater(false)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-gray-100 w-full justify-center"
+                style={{ color: '#80868b', border: '1px dashed #dadce0' }}>
+                {lang === 'en' ? 'Hide later' : 'Ukryj dalsze'}
+              </button>
+            </>
+          ) : (
+            <button onClick={() => setShowLater(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-gray-100 w-full justify-center"
+              style={{ color: '#80868b', border: '1px dashed #dadce0' }}>
+              {lang === 'en' ? 'Show later' : 'Pokaż dalsze'} ({later.length}) <ChevronRight size={12} />
+            </button>
+          )
+        )}
       </div>
     </div>
   );
