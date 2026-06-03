@@ -115,6 +115,7 @@ const T = {
     bulkDeselectAll: 'Odznacz',
     showEarlier: 'Pokaż wcześniejsze',
     hideEarlier: 'Ukryj wcześniejsze',
+    allSends: 'Wszystkie wysyłki',
   },
   en: {
     planner: 'Send Planner', calendar: 'Calendar', list: 'List', newSend: 'New send',
@@ -149,6 +150,7 @@ const T = {
     bulkDeselectAll: 'Deselect',
     showEarlier: 'Show earlier',
     hideEarlier: 'Hide earlier',
+    allSends: 'All sends',
   },
 };
 
@@ -447,25 +449,6 @@ function SendDetail({ send, onUpdate, onDelete, onEdit, onClose, onSelectSend, a
   const assigned = (send.assignees||[]).map(id => teamMembers.find(m => m.id === id)).filter(Boolean);
   const ChIcon = ch?.icon || Mail;
 
-  // Series siblings: match by seriesName (fallback to title) + market
-  const seriesSiblings = useMemo(() => {
-    const key = send.seriesName || send.title;
-    const siblings = allSends
-      .filter(s => (s.seriesName || s.title) === key && s.market === send.market)
-      .sort((a, b) => a.sendDate.localeCompare(b.sendDate) || (a.sendTime||'').localeCompare(b.sendTime||''));
-    return siblings.length > 1 ? siblings : [];
-  }, [send, allSends]);
-
-  // Show 3 previous + current + 5 next
-  const seriesView = useMemo(() => {
-    if (!seriesSiblings.length) return [];
-    const idx = seriesSiblings.findIndex(s => s.id === send.id);
-    if (idx === -1) return seriesSiblings.slice(0, 9);
-    const start = Math.max(0, idx - 3);
-    const end = Math.min(seriesSiblings.length, idx + 13);
-    return seriesSiblings.slice(start, end);
-  }, [seriesSiblings, send.id]);
-
   return (
     <aside className="w-full lg:w-[520px] bg-white border-l flex flex-col overflow-hidden flex-shrink-0 fixed lg:static inset-0 z-40 lg:z-auto" style={{ borderColor: '#dadce0' }}>
       <div className="p-3 border-b flex items-center justify-between" style={{ borderColor: '#dadce0' }}>
@@ -473,7 +456,6 @@ function SendDetail({ send, onUpdate, onDelete, onEdit, onClose, onSelectSend, a
           <ChIcon size={18} style={{ color: ch?.color }} />
           <span className="text-sm font-medium" style={{ color: '#202124' }}>{ch?.name}</span>
           <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: st?.bg, color: st?.color }}>{lang==='en' ? st?.nameEn : st?.name}</span>
-          {(isPartOfSeries(send) || seriesSiblings.length > 0) && <Repeat size={13} style={{ color: '#7c3aed' }} />}
         </div>
         <div className="flex items-center gap-1">
           <button onClick={() => onEdit(send)} className="p-1.5 rounded-full hover:bg-gray-100" style={{ color: '#5f6368' }}><Edit3 size={16} /></button>
@@ -504,9 +486,6 @@ function SendDetail({ send, onUpdate, onDelete, onEdit, onClose, onSelectSend, a
             </div>
           </Row>
           {send.segment && <Row label={t.segment}><span className="text-sm">{send.segment}</span></Row>}
-          {send.seriesName && <Row label={t.seriesName}><span className="flex items-center gap-1 text-sm" style={{ color: '#7c3aed' }}><Repeat size={12} />{send.seriesName}</span></Row>}
-          {send.recurrence && <Row label={t.recurrence}><span className="flex items-center gap-1 text-sm" style={{ color: '#7c3aed' }}><Repeat size={12} />{RECURRENCE_OPTIONS.find(r=>r.id===send.recurrence)?.[lang==='en'?'nameEn':'name']}</span></Row>}
-          {send.parentId && <Row label={lang==='en'?'Series':'Seria'}><span className="text-xs" style={{ color: '#7c3aed' }}><Repeat size={11} /> {lang==='en'?'Part of series':'Część serii'}</span></Row>}
         </div>
 
         {/* Assignees */}
@@ -537,18 +516,8 @@ function SendDetail({ send, onUpdate, onDelete, onEdit, onClose, onSelectSend, a
           <div className="px-3 py-2 rounded-lg text-sm whitespace-pre-wrap" style={{ background: '#f1f3f4', color: '#3c4043' }}>{send.description}</div>
         </div>}
 
-        {/* Series Timeline */}
-        {seriesView.length > 0 && (
-          <SeriesTimeline
-            items={seriesView}
-            currentId={send.id}
-            totalCount={seriesSiblings.length}
-            onSelect={onSelectSend}
-            onUpdate={onUpdate}
-            t={t}
-            lang={lang}
-          />
-        )}
+        {/* Pełna historia wysyłek – chronologicznie */}
+        <SendsHistory sends={allSends} currentId={send.id} onSelect={onSelectSend} t={t} lang={lang} />
       </div>
     </aside>
   );
@@ -558,97 +527,69 @@ function Row({ label, children }) {
   return <div className="flex items-center justify-between"><span className="text-xs font-medium" style={{ color: '#5f6368' }}>{label}</span>{children}</div>;
 }
 
-function SeriesTimeline({ items, currentId, totalCount, onSelect, onUpdate, t, lang }) {
-  const [editingId, setEditingId] = useState(null);
-  const [editSubject, setEditSubject] = useState('');
-  const [editNotes, setEditNotes] = useState('');
+function SendsHistory({ sends, currentId, onSelect, t, lang }) {
+  const itemRefs = useRef({});
 
-  const startEdit = (item) => {
-    setEditingId(item.id);
-    setEditSubject(item.subjectLine || '');
-    setEditNotes(item.description || '');
-  };
+  const sorted = useMemo(() =>
+    [...sends].sort((a, b) => a.sendDate.localeCompare(b.sendDate) || (a.sendTime || '').localeCompare(b.sendTime || '')),
+    [sends]
+  );
 
-  const saveEdit = () => {
-    if (editingId) {
-      onUpdate(editingId, { subjectLine: editSubject, description: editNotes });
-      setEditingId(null);
-    }
-  };
+  useEffect(() => {
+    const el = itemRefs.current[currentId];
+    if (el) el.scrollIntoView({ block: 'center' });
+  }, [currentId, sorted.length]);
 
-  const cancelEdit = () => { setEditingId(null); };
+  if (!sorted.length) return null;
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-1.5">
-          <Repeat size={14} style={{ color: '#7c3aed' }} />
-          <label className="text-xs font-semibold" style={{ color: '#7c3aed' }}>{lang==='en' ? 'Series' : 'Seria'} ({totalCount})</label>
-        </div>
+      <div className="flex items-center justify-between mb-2 sticky top-0 z-10 py-1" style={{ background: 'white' }}>
+        <label className="text-xs font-semibold" style={{ color: '#5f6368' }}>
+          {t.allSends} ({sorted.length})
+        </label>
       </div>
       <div className="space-y-1">
-        {items.map(item => {
+        {sorted.map(item => {
+          const ch = CHANNELS.find(c => c.id === item.channel);
+          const itemTools = (item.tools || []).map(id => TOOLS.find(t => t.id === id)).filter(Boolean);
+          const accent = itemTools[0]?.color || ch?.color || '#80868b';
+          const ChI = ch?.icon || Mail;
+          const mk = MARKETS.find(m => m.id === item.market);
           const isCurrent = item.id === currentId;
-          const past = isPast(item.sendDate) && !isToday(item.sendDate);
           const isDone = item.status === 'done';
-          const isEditing = editingId === item.id;
+          const past = isPast(item.sendDate) && !isToday(item.sendDate);
 
           return (
             <div key={item.id}
-              className="rounded-lg border transition-all"
+              ref={el => { if (el) itemRefs.current[item.id] = el; }}
+              onClick={() => onSelect(item)}
+              className="flex items-center gap-2 rounded-lg pr-2.5 py-1.5 cursor-pointer transition-colors"
               style={{
-                borderColor: isCurrent ? '#7c3aed' : '#dadce0',
-                background: isCurrent ? '#f5f3ff' : past ? '#fafafa' : 'white',
-                borderWidth: isCurrent ? '1.5px' : '0.5px',
+                borderLeft: `3px solid ${accent}`,
+                borderTop: `0.5px solid ${isCurrent ? accent : '#e8eaed'}`,
+                borderRight: `0.5px solid ${isCurrent ? accent : '#e8eaed'}`,
+                borderBottom: `0.5px solid ${isCurrent ? accent : '#e8eaed'}`,
+                background: isCurrent ? accent + '12' : past ? '#fafafa' : 'white',
+                paddingLeft: '8px',
               }}>
-              {/* Header row – clickable */}
-              <div className="flex items-center gap-2 px-3 py-2 cursor-pointer" onClick={() => !isEditing && onSelect(item)}>
-                <div className="flex-shrink-0">
-                  {isDone ? <CheckCircle size={14} style={{ color: '#16a34a' }} /> :
-                   isCurrent ? <div className="w-3 h-3 rounded-full" style={{ background: '#7c3aed' }} /> :
-                   <div className="w-3 h-3 rounded-full border-2" style={{ borderColor: past ? '#dadce0' : '#7c3aed' }} />}
-                </div>
-                <span className="text-xs font-medium flex-1" style={{ color: past && !isCurrent ? '#80868b' : '#202124' }}>
-                  {fmtDisp(item.sendDate, lang)}
-                </span>
-                {isCurrent && <span className="text-xs px-1.5 py-0.5 rounded-full font-medium" style={{ background: '#7c3aed', color: 'white' }}>
-                  {lang==='en' ? 'current' : 'teraz'}
-                </span>}
-                {!isEditing && (
-                  <button onClick={e => { e.stopPropagation(); startEdit(item); }}
-                    className="p-1 rounded hover:bg-gray-100 opacity-0 group-hover:opacity-100"
-                    style={{ color: '#5f6368', opacity: isCurrent ? 1 : undefined }}>
-                    <Edit3 size={12} />
-                  </button>
+              <div className="w-5 h-5 rounded flex items-center justify-center flex-shrink-0" style={{ background: ch?.bg }}>
+                <ChI size={11} style={{ color: ch?.color }} />
+              </div>
+              <span className="text-sm flex-shrink-0">{mk?.icon}</span>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm truncate" style={{ color: isDone ? '#80868b' : '#202124', textDecoration: isDone ? 'line-through' : 'none', fontWeight: isCurrent ? 600 : 450 }}>{item.title}</p>
+                {itemTools.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-0.5">
+                    {itemTools.map(tl => <span key={tl.id} className="rounded-full" style={{ fontSize: '9.5px', padding: '0 6px', background: tl.color + '18', color: tl.color, fontWeight: 500 }}>{tl.name}</span>)}
+                  </div>
                 )}
               </div>
-
-              {/* Content – subject + notes preview OR edit mode */}
-              {isEditing ? (
-                <div className="px-3 pb-3 space-y-2" onClick={e => e.stopPropagation()}>
-                  <div>
-                    <label className="text-xs font-medium block mb-1" style={{ color: '#5f6368' }}>{t.subjectLine}</label>
-                    <input type="text" value={editSubject} onChange={e => setEditSubject(e.target.value)}
-                      className="w-full px-2.5 py-1.5 border rounded-lg text-sm" style={{ borderColor: '#dadce0' }}
-                      placeholder={t.subjectPlaceholder} autoFocus />
-                  </div>
-                  <div>
-                    <label className="text-xs font-medium block mb-1" style={{ color: '#5f6368' }}>{lang==='en' ? 'Idea / outline' : 'Zarys / pomysł'}</label>
-                    <textarea value={editNotes} onChange={e => setEditNotes(e.target.value)}
-                      className="w-full px-2.5 py-1.5 border rounded-lg text-sm resize-none" style={{ borderColor: '#dadce0' }}
-                      rows={2} placeholder={lang==='en' ? 'Brief idea for this send...' : 'Krótki zarys tej wysyłki...'} />
-                  </div>
-                  <div className="flex gap-2">
-                    <button onClick={saveEdit} className="flex-1 py-1.5 rounded-lg text-xs font-medium" style={{ background: '#1a73e8', color: 'white' }}>{t.save}</button>
-                    <button onClick={cancelEdit} className="px-3 py-1.5 rounded-lg text-xs" style={{ color: '#5f6368' }}>{t.cancel}</button>
-                  </div>
-                </div>
-              ) : (item.subjectLine || item.description) ? (
-                <div className="px-3 pb-2 pl-8">
-                  {item.subjectLine && <p className="text-xs font-medium truncate" style={{ color: past && !isCurrent ? '#bdc1c6' : '#3c4043' }}>✉ {item.subjectLine}</p>}
-                  {item.description && <p className="text-xs truncate mt-0.5" style={{ color: '#80868b' }}>{item.description}</p>}
-                </div>
-              ) : null}
+              <div className="flex flex-col items-end flex-shrink-0">
+                <span style={{ fontSize: '10.5px', color: isToday(item.sendDate) ? '#1a73e8' : past ? '#80868b' : '#202124', fontWeight: isToday(item.sendDate) ? 600 : 400 }}>{fmtDisp(item.sendDate, lang)}</span>
+                <span style={{ fontSize: '9.5px', color: '#b0b5bc' }}>{fmtTime(item.sendTime)}</span>
+              </div>
+              {isDone && <CheckCircle size={13} style={{ color: '#16a34a', flexShrink: 0 }} />}
             </div>
           );
         })}
@@ -799,7 +740,6 @@ function CalendarView({ sends, year, month, onSelectDay, onAddSend, onSelectSend
 // ── List View ────────────────────────────────────────
 
 function ListView({ sends, onSelectSend, selectedId, teamMembers, t, lang, onBulkMarkSent }) {
-  const [groupMode, setGroupMode] = useState('date'); // 'date' | 'series'
   const [bulkMode, setBulkMode] = useState(false);
   const [selected, setSelected] = useState(new Set());
   const [showPast, setShowPast] = useState(false);
@@ -815,21 +755,6 @@ function ListView({ sends, onSelectSend, selectedId, teamMembers, t, lang, onBul
 
   const groupedByDate = useMemo(() => {
     const m = {}; sends.forEach(s => { (m[s.sendDate]||(m[s.sendDate]=[])).push(s); }); return Object.entries(m).sort(([a],[b]) => a.localeCompare(b));
-  }, [sends]);
-
-  const groupedBySeries = useMemo(() => {
-    const m = {};
-    sends.forEach(s => {
-      const key = s.seriesName || s.title;
-      (m[key] || (m[key] = [])).push(s);
-    });
-    return Object.entries(m)
-      .map(([name, items]) => [name, items.sort((a, b) => a.sendDate.localeCompare(b.sendDate))])
-      .sort(([, a], [, b]) => {
-        const nextA = a.find(x => !isPast(x.sendDate)) || a[a.length - 1];
-        const nextB = b.find(x => !isPast(x.sendDate)) || b[b.length - 1];
-        return nextA.sendDate.localeCompare(nextB.sendDate);
-      });
   }, [sends]);
 
   const toggleSelect = (id) => {
@@ -857,18 +782,8 @@ function ListView({ sends, onSelectSend, selectedId, teamMembers, t, lang, onBul
 
   return (
     <div>
-      {/* Group toggle + bulk mode toggle */}
+      {/* Bulk mode toggle */}
       <div className="flex items-center gap-1 mb-3">
-        <button onClick={() => setGroupMode('date')}
-          className="flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium"
-          style={{ background: groupMode==='date'?'#e8f0fe':'transparent', color: groupMode==='date'?'#1a73e8':'#5f6368' }}>
-          <Calendar size={12} /> {t.groupByDate}
-        </button>
-        <button onClick={() => setGroupMode('series')}
-          className="flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium"
-          style={{ background: groupMode==='series'?'#f5f3ff':'transparent', color: groupMode==='series'?'#7c3aed':'#5f6368' }}>
-          <Repeat size={12} /> {t.groupBySeries}
-        </button>
         <div className="flex-1" />
         {!bulkMode ? (
           <button onClick={() => setBulkMode(true)}
@@ -914,97 +829,52 @@ function ListView({ sends, onSelectSend, selectedId, teamMembers, t, lang, onBul
         </div>
       )}
 
-      {groupMode === 'date' ? (
-        <div className="space-y-4">
-          {(() => {
-            const past = groupedByDate.filter(([date]) => date < thisMonday);
-            const current = groupedByDate.filter(([date]) => date >= thisMonday);
-            return <>
-              {past.length > 0 && !showPast && (
-                <button onClick={() => setShowPast(true)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-gray-100 mx-auto"
-                  style={{ color: '#80868b', border: '1px dashed #dadce0' }}>
-                  <ChevronLeft size={12} /> {t.showEarlier} ({past.length})
-                </button>
-              )}
-              {showPast && past.length > 0 && (
-                <>
-                  <button onClick={() => setShowPast(false)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-gray-100 mx-auto"
-                    style={{ color: '#80868b', border: '1px dashed #dadce0' }}>
-                    {t.hideEarlier}
-                  </button>
-                  {past.map(([date, ss]) => (
-                    <div key={date} style={{ opacity: 0.6 }}>
-                      <div className="flex items-center gap-2 mb-2 px-1">
-                        <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={{ background: '#f1f3f4', color: '#80868b' }}>{fmtDisp(date,lang)}</span>
-                      </div>
-                      <div className="space-y-px">
-                        {ss.map(s => <SendRow key={s.id} s={s} onSelectSend={onSelectSend} selectedId={selectedId} teamMembers={teamMembers} showDate={false} lang={lang} bulkMode={bulkMode} bulkSelected={selected.has(s.id)} onBulkToggle={toggleSelect} />)}
-                      </div>
-                    </div>
-                  ))}
-                  <div style={{ height: '1px', background: '#dadce0', margin: '4px 0' }} />
-                </>
-              )}
-              {current.map(([date, ss]) => (
-                <div key={date}>
-                  <div className="flex items-center gap-2 mb-2 px-1">
-                    <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={{ background: isToday(date)?'#1a73e8':'#f1f3f4', color: isToday(date)?'white':isPast(date)?'#80868b':'#202124' }}>{fmtDisp(date,lang)}</span>
-                    {isToday(date) && <span className="text-xs font-medium" style={{ color: '#1a73e8' }}>{t.today}</span>}
-                  </div>
-                  <div className="space-y-px">
-                    {ss.map(s => <SendRow key={s.id} s={s} onSelectSend={onSelectSend} selectedId={selectedId} teamMembers={teamMembers} showDate={false} lang={lang} bulkMode={bulkMode} bulkSelected={selected.has(s.id)} onBulkToggle={toggleSelect} />)}
-                  </div>
-                </div>
-              ))}
-            </>;
-          })()}
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {(() => {
-            const pastCount = sends.filter(s => s.sendDate < thisMonday).length;
-            return <>
-              {pastCount > 0 && !showPast && (
-                <button onClick={() => setShowPast(true)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-gray-100 mx-auto"
-                  style={{ color: '#80868b', border: '1px dashed #dadce0' }}>
-                  <ChevronLeft size={12} /> {t.showEarlier}
-                </button>
-              )}
-              {showPast && pastCount > 0 && (
+      <div className="space-y-4">
+        {(() => {
+          const past = groupedByDate.filter(([date]) => date < thisMonday);
+          const current = groupedByDate.filter(([date]) => date >= thisMonday);
+          return <>
+            {past.length > 0 && !showPast && (
+              <button onClick={() => setShowPast(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-gray-100 mx-auto"
+                style={{ color: '#80868b', border: '1px dashed #dadce0' }}>
+                <ChevronLeft size={12} /> {t.showEarlier} ({past.length})
+              </button>
+            )}
+            {showPast && past.length > 0 && (
+              <>
                 <button onClick={() => setShowPast(false)}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-gray-100 mx-auto"
                   style={{ color: '#80868b', border: '1px dashed #dadce0' }}>
                   {t.hideEarlier}
                 </button>
-              )}
-              {groupedBySeries.map(([name, allItems]) => {
-                const ss = showPast ? allItems : allItems.filter(s => s.sendDate >= thisMonday);
-                if (ss.length === 0) return null;
-                const mk = MARKETS.find(m => m.id === ss[0]?.market);
-                const futureCount = ss.filter(s => !isPast(s.sendDate) || isToday(s.sendDate)).length;
-                const doneCount = ss.filter(s => s.status === 'done').length;
-                return (
-                  <div key={name}>
+                {past.map(([date, ss]) => (
+                  <div key={date} style={{ opacity: 0.6 }}>
                     <div className="flex items-center gap-2 mb-2 px-1">
-                      <Repeat size={13} style={{ color: '#7c3aed' }} />
-                      <span className="text-xs font-semibold" style={{ color: '#7c3aed' }}>{name}</span>
-                      {mk && <span className="text-xs">{mk.icon}</span>}
-                      <span className="text-xs px-1.5 py-0.5 rounded-full" style={{ background: '#f1f3f4', color: '#5f6368' }}>{doneCount}/{allItems.length}</span>
-                      {futureCount > 0 && <span className="text-xs" style={{ color: '#80868b' }}>{futureCount} {lang==='en'?'upcoming':'nadchodzących'}</span>}
+                      <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={{ background: '#f1f3f4', color: '#80868b' }}>{fmtDisp(date,lang)}</span>
                     </div>
                     <div className="space-y-px">
-                      {ss.map(s => <SendRow key={s.id} s={s} onSelectSend={onSelectSend} selectedId={selectedId} teamMembers={teamMembers} showDate={true} lang={lang} bulkMode={bulkMode} bulkSelected={selected.has(s.id)} onBulkToggle={toggleSelect} />)}
+                      {ss.map(s => <SendRow key={s.id} s={s} onSelectSend={onSelectSend} selectedId={selectedId} teamMembers={teamMembers} showDate={false} lang={lang} bulkMode={bulkMode} bulkSelected={selected.has(s.id)} onBulkToggle={toggleSelect} />)}
                     </div>
                   </div>
-                );
-              })}
-            </>;
-          })()}
-        </div>
-      )}
+                ))}
+                <div style={{ height: '1px', background: '#dadce0', margin: '4px 0' }} />
+              </>
+            )}
+            {current.map(([date, ss]) => (
+              <div key={date}>
+                <div className="flex items-center gap-2 mb-2 px-1">
+                  <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={{ background: isToday(date)?'#1a73e8':'#f1f3f4', color: isToday(date)?'white':isPast(date)?'#80868b':'#202124' }}>{fmtDisp(date,lang)}</span>
+                  {isToday(date) && <span className="text-xs font-medium" style={{ color: '#1a73e8' }}>{t.today}</span>}
+                </div>
+                <div className="space-y-px">
+                  {ss.map(s => <SendRow key={s.id} s={s} onSelectSend={onSelectSend} selectedId={selectedId} teamMembers={teamMembers} showDate={false} lang={lang} bulkMode={bulkMode} bulkSelected={selected.has(s.id)} onBulkToggle={toggleSelect} />)}
+                </div>
+              </div>
+            ))}
+          </>;
+        })()}
+      </div>
     </div>
   );
 }
@@ -1042,7 +912,6 @@ function SendRow({ s, onSelectSend, selectedId, teamMembers, showDate, lang, bul
         {assigned.slice(0,2).map(m => <div key={m.id} className="w-[18px] h-[18px] rounded-full flex items-center justify-center text-white border border-white" style={{ background: m.color, fontSize: '8px', fontWeight: 600 }}>{getInitials(m.name)}</div>)}
       </div>
       <span className="whitespace-nowrap" style={{ fontSize: '10.5px', color: '#b0b5bc' }}>{fmtTime(s.sendTime)}</span>
-      {!showDate && isPartOfSeries(s) && <Repeat size={11} style={{ color: '#7c3aed' }} />}
     </div>
   );
 }
@@ -1260,6 +1129,12 @@ export default function PlannerPage() {
       return true;
     });
   }, [sends, filterMarket, filterChannel, filterTool, filterStatus, restrictedMarket, currentUser]);
+
+  // Wysyłki widoczne w panelu historii – respektują ograniczenie rynku usera,
+  // ale nie aktywne filtry sidebar (żeby historia była pełna niezależnie od filtra).
+  const historySends = useMemo(() => {
+    return sends.filter(s => !restrictedMarket || s.market === restrictedMarket);
+  }, [sends, restrictedMarket]);
 
   const calendarSends = useMemo(() => {
     const s = new Date(calYear, calMonth - 1, 20); const e = new Date(calYear, calMonth + 1, 10);
@@ -1515,7 +1390,7 @@ export default function PlannerPage() {
         </div>
       </main>
 
-      {selectedSend && <SendDetail send={selectedSend} onUpdate={handleUpdateSend} onDelete={handleDeleteSend} onEdit={handleEditSend} onClose={() => setSelectedSend(null)} onSelectSend={setSelectedSend} allSends={sends} teamMembers={teamMembers} t={t} lang={lang} />}
+      {selectedSend && <SendDetail send={selectedSend} onUpdate={handleUpdateSend} onDelete={handleDeleteSend} onEdit={handleEditSend} onClose={() => setSelectedSend(null)} onSelectSend={setSelectedSend} allSends={historySends} teamMembers={teamMembers} t={t} lang={lang} />}
       {showForm && <SendFormModal send={editSend} onSave={handleSaveSend} onClose={() => {setShowForm(false);setEditSend(null);}} currentUser={currentUser} teamMembers={teamMembers} t={t} lang={lang} />}
       {seriesModal && <SeriesChoiceModal type={seriesModal.type} onChoice={handleSeriesChoice} onClose={() => setSeriesModal(null)} t={t} />}
       {showExport && <ExportModal sends={sends} onClose={() => setShowExport(false)} t={t} lang={lang} />}
