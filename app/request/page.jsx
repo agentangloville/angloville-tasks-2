@@ -158,6 +158,11 @@ export default function RequestPage() {
       return;
     }
 
+    if (form.assignees.length === 0) {
+      setError('Please select at least one owner');
+      return;
+    }
+
     setLoading(true);
     setError('');
 
@@ -320,7 +325,7 @@ export default function RequestPage() {
 
           {/* Assignees */}
           <div className="px-4 py-3 border-b" style={{ borderColor: '#e8eaed' }}>
-            <label className="text-xs font-medium block mb-2" style={{ color: '#5f6368' }}>To</label>
+            <label className="text-xs font-medium block mb-2" style={{ color: '#5f6368' }}>To *</label>
             {teamLoading ? (
               <div className="flex items-center gap-2 text-xs" style={{ color: '#9aa0a6' }}>
                 <Loader2 size={12} className="animate-spin" />
@@ -356,7 +361,7 @@ export default function RequestPage() {
               </div>
             )}
             {!teamLoading && form.assignees.length === 0 && (
-              <p className="text-[11px] mt-1.5" style={{ color: '#9aa0a6' }}>No selection = entire Marketing Team</p>
+              <p className="text-[11px] mt-1.5" style={{ color: '#9aa0a6' }}>Select at least one owner</p>
             )}
           </div>
 
