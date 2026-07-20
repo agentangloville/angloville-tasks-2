@@ -12,6 +12,7 @@ const MARKETS = [
   { id: 'exchange', name: 'Wymiana', icon: '🎓' },
   { id: 'tefl', name: 'TEFL', icon: '🌏' },
   { id: 'brazil', name: 'Brazylia', icon: '🇧🇷' },
+  { id: 'cz', name: 'Czechy', icon: '🇨🇿' },
 ];
 
 const getInitials = (n) => { const p = n.split(' '); return p.length >= 2 ? p[0][0] + p[1][0] : n[0]; };
