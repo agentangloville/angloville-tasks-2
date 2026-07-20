@@ -11,6 +11,7 @@ const MARKETS = [
   { id: 'exchange', name: 'Exchange', icon: '🎓' },
   { id: 'tefl', name: 'TEFL in Asia', icon: '🌏' },
   { id: 'brazil', name: 'Brazil', icon: '🇧🇷' },
+  { id: 'cz', name: 'Czech Republic', icon: '🇨🇿' },
 ];
 
 const PRIORITIES = [
