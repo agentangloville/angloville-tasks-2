@@ -38,7 +38,8 @@ import { getTeamMembers } from '../../lib/supabase';
 import {
   getScheduledSends, createScheduledSend, updateScheduledSend,
   deleteScheduledSend, generateRecurrences, updateSeries, deleteSeries,
-  bulkUpdateStatus
+  bulkUpdateStatus, deleteSingleOccurrence, deleteThisAndFuture,
+  updateSeriesFromDate, moveScheduledSend, duplicateScheduledSend
 } from '../../lib/supabase-planner';
 
 // ── Constants ────────────────────────────────────────
@@ -100,7 +101,10 @@ const T = {
     exportBtn: 'Eksport', exportTitle: 'Eksportuj harmonogram', exportMarkets: 'Rynki', exportStatuses: 'Statusy', exportChannels: 'Kanały', exportRange: 'Zakres dat', exportDownload: 'Pobierz CSV', exportAll: 'Wszystkie',
     editThis: 'Tylko tę wysyłkę', editAll: 'Całą serię',
     deleteThis: 'Tylko tę', deleteAll: 'Całą serię',
+    editFuture: 'Tę i przyszłe', deleteFuture: 'Tę i przyszłe',
     editRecurring: 'Edytuj cykliczną', deleteRecurring: 'Usuń cykliczną',
+    duplicate: 'Duplikuj', duplicated: 'kopia',
+    dragHint: 'Przeciągnij wysyłkę na inny dzień aby ją przenieść',
     noEndDefault: 'Brak = rok do przodu',
     optional: 'opcjonalnie',
     createLinkedTask: 'Utwórz task w Taskerze',
@@ -135,7 +139,10 @@ const T = {
     exportBtn: 'Export', exportTitle: 'Export schedule', exportMarkets: 'Markets', exportStatuses: 'Statuses', exportChannels: 'Channels', exportRange: 'Date range', exportDownload: 'Download CSV', exportAll: 'All',
     editThis: 'This send only', editAll: 'All in series',
     deleteThis: 'This only', deleteAll: 'Entire series',
+    editFuture: 'This and following', deleteFuture: 'This and following',
     editRecurring: 'Edit recurring', deleteRecurring: 'Delete recurring',
+    duplicate: 'Duplicate', duplicated: 'copy',
+    dragHint: 'Drag a send to another day to move it',
     noEndDefault: 'None = 1 year ahead',
     optional: 'optional',
     createLinkedTask: 'Create task in Tasker',
@@ -179,11 +186,17 @@ const isToday = (ds) => ds === fmt(new Date());
 const isPast = (ds) => ds < fmt(new Date());
 const isPartOfSeries = (s) => !!(s.parentId || s.recurrence);
 const getSeriesRoot = (s) => s.parentId || s.id;
+const t_dragTitle = (lang) => lang === 'en' ? 'Drag to another day to move' : 'Przeciągnij na inny dzień aby przenieść';
 
 // ── Series Choice Modal (like Google Calendar) ───────
 
 function SeriesChoiceModal({ type, onChoice, onClose, t }) {
   const isDelete = type === 'delete';
+  const opts = [
+    { key: 'this', label: isDelete ? t.deleteThis : t.editThis },
+    { key: 'future', label: isDelete ? t.deleteFuture : t.editFuture },
+    { key: 'all', label: isDelete ? t.deleteAll : t.editAll },
+  ];
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4" onClick={onClose}>
       <div className="bg-white rounded-xl w-full max-w-xs overflow-hidden" style={{ boxShadow: '0 1px 3px 0 rgba(60,64,67,.3), 0 4px 8px 3px rgba(60,64,67,.15)' }} onClick={e => e.stopPropagation()}>
@@ -192,16 +205,13 @@ function SeriesChoiceModal({ type, onChoice, onClose, t }) {
             {isDelete ? t.deleteRecurring : t.editRecurring}
           </h3>
           <div className="space-y-2">
-            <button onClick={() => onChoice('this')}
-              className="w-full text-left px-4 py-3 rounded-lg border hover:bg-gray-50 text-sm font-medium"
-              style={{ borderColor: '#dadce0', color: '#202124' }}>
-              {isDelete ? t.deleteThis : t.editThis}
-            </button>
-            <button onClick={() => onChoice('all')}
-              className="w-full text-left px-4 py-3 rounded-lg border hover:bg-gray-50 text-sm font-medium"
-              style={{ borderColor: '#dadce0', color: '#202124' }}>
-              {isDelete ? t.deleteAll : t.editAll}
-            </button>
+            {opts.map(o => (
+              <button key={o.key} onClick={() => onChoice(o.key)}
+                className="w-full text-left px-4 py-3 rounded-lg border hover:bg-gray-50 text-sm font-medium"
+                style={{ borderColor: '#dadce0', color: '#202124' }}>
+                {o.label}
+              </button>
+            ))}
           </div>
         </div>
         <div className="px-5 pb-4">
@@ -442,7 +452,7 @@ function SendFormModal({ send, onSave, onClose, currentUser, teamMembers, t, lan
 
 // ── Send Detail Panel ────────────────────────────────
 
-function SendDetail({ send, onUpdate, onDelete, onEdit, onClose, onSelectSend, allSends, teamMembers, t, lang }) {
+function SendDetail({ send, onUpdate, onDelete, onEdit, onDuplicate, onClose, onSelectSend, allSends, teamMembers, t, lang }) {
   const ch = CHANNELS.find(c => c.id === send.channel);
   const tools = (send.tools||[]).map(id => TOOLS.find(t => t.id === id)).filter(Boolean);
   const mk = MARKETS.find(m => m.id === send.market);
@@ -460,6 +470,7 @@ function SendDetail({ send, onUpdate, onDelete, onEdit, onClose, onSelectSend, a
         </div>
         <div className="flex items-center gap-1">
           <button onClick={() => onEdit(send)} className="p-1.5 rounded-full hover:bg-gray-100" style={{ color: '#5f6368' }}><Edit3 size={16} /></button>
+          <button onClick={() => onDuplicate(send)} title={t.duplicate} className="p-1.5 rounded-full hover:bg-gray-100" style={{ color: '#5f6368' }}><Copy size={16} /></button>
           <button onClick={() => onDelete(send)} className="p-1.5 rounded-full hover:bg-red-50" style={{ color: '#5f6368' }}><Trash2 size={16} /></button>
           <button onClick={onClose} className="p-1.5 rounded-full hover:bg-gray-100" style={{ color: '#5f6368' }}><X size={16} /></button>
         </div>
@@ -682,13 +693,41 @@ function SendsHistory({ sends, currentSend, onSelect, onUpdate, t, lang }) {
 
 // ── Calendar View ────────────────────────────────────
 
-function CalendarView({ sends, year, month, onSelectDay, onAddSend, onSelectSend, selectedDate, lang, copiedSend, onCopySend, onPasteSend, onClearCopy }) {
+function CalendarView({ sends, year, month, onSelectDay, onAddSend, onSelectSend, selectedDate, lang, copiedSend, onCopySend, onPasteSend, onClearCopy, onMoveSend }) {
   const days = getMonthDays(year, month);
   const dayNames = lang==='en' ? DAYS_EN : DAYS_PL;
   const todayStr = fmt(new Date());
   const byDate = useMemo(() => { const m = {}; sends.forEach(s => { (m[s.sendDate]||(m[s.sendDate]=[])).push(s); }); return m; }, [sends]);
   const [popupDate, setPopupDate] = useState(null);
   const popupRef = useRef(null);
+
+  // Drag & drop – przeciąganie wysyłki na inny dzień.
+  // Ref zamiast state, żeby nie przerysowywać kalendarza w trakcie ciągnięcia.
+  const dragSendRef = useRef(null);
+  const [dragOverDate, setDragOverDate] = useState(null);
+  const [draggingId, setDraggingId] = useState(null);
+
+  const handleDragStart = (e, s) => {
+    e.stopPropagation();
+    dragSendRef.current = s;
+    setDraggingId(s.id);
+    e.dataTransfer.effectAllowed = 'move';
+    try { e.dataTransfer.setData('text/plain', s.id); } catch (_) {}
+  };
+  const handleDragEnd = () => { dragSendRef.current = null; setDraggingId(null); setDragOverDate(null); };
+  const handleDragOverDay = (e, ds) => {
+    if (!dragSendRef.current) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (dragOverDate !== ds) setDragOverDate(ds);
+  };
+  const handleDropDay = (e, ds) => {
+    if (!dragSendRef.current) return;
+    e.preventDefault(); e.stopPropagation();
+    const s = dragSendRef.current;
+    dragSendRef.current = null; setDraggingId(null); setDragOverDate(null);
+    if (s.sendDate !== ds) onMoveSend(s, ds);
+  };
 
   useEffect(() => {
     if (!popupDate) return;
@@ -729,9 +768,18 @@ function CalendarView({ sends, year, month, onSelectDay, onAddSend, onSelectSend
       <div className="grid grid-cols-7">
         {days.map((day, i) => {
           const ds = fmt(day.date); const ss = byDate[ds]||[]; const it = ds===todayStr; const iSel = ds===selectedDate;
+          const isDragOver = dragOverDate === ds;
           return (
-            <div key={i} onClick={() => onSelectDay(ds)} className="group min-h-[90px] p-1 border-b border-r cursor-pointer transition-colors hover:bg-blue-50/30"
-              style={{ borderColor: '#f1f3f4', background: iSel?'#e8f0fe':it?'#fefce8':!day.cur?'#fafafa':'white' }}>
+            <div key={i} onClick={() => onSelectDay(ds)}
+              onDragOver={e => handleDragOverDay(e, ds)}
+              onDragLeave={() => setDragOverDate(d => d === ds ? null : d)}
+              onDrop={e => handleDropDay(e, ds)}
+              className="group min-h-[90px] p-1 border-b border-r cursor-pointer transition-colors hover:bg-blue-50/30"
+              style={{
+                borderColor: '#f1f3f4',
+                background: isDragOver?'#d2e3fc':iSel?'#e8f0fe':it?'#fefce8':!day.cur?'#fafafa':'white',
+                boxShadow: isDragOver ? 'inset 0 0 0 2px #1a73e8' : 'none',
+              }}>
               <div className="flex items-center justify-between px-1 mb-0.5">
                 <span className={`text-xs font-medium ${it?'w-5 h-5 rounded-full flex items-center justify-center':''}`}
                   style={{ color: !day.cur?'#dadce0':it?'white':'#202124', background: it?'#1a73e8':'transparent' }}>
@@ -752,8 +800,12 @@ function CalendarView({ sends, year, month, onSelectDay, onAddSend, onSelectSend
                   const st = STATUSES.find(x => x.id === s.status);
                   return (
                     <div key={s.id} onClick={e => {e.stopPropagation();onSelectSend(s);}}
-                      className="group/send relative flex items-center gap-1 px-1 py-0.5 rounded text-xs truncate cursor-pointer hover:bg-blue-50"
-                      style={{ color: s.status==='done'?'#80868b':st?.color }}>
+                      draggable
+                      onDragStart={e => handleDragStart(e, s)}
+                      onDragEnd={handleDragEnd}
+                      title={t_dragTitle(lang)}
+                      className="group/send relative flex items-center gap-1 px-1 py-0.5 rounded text-xs truncate cursor-grab active:cursor-grabbing hover:bg-blue-50"
+                      style={{ color: s.status==='done'?'#80868b':st?.color, opacity: draggingId===s.id?0.4:1 }}>
                       <span className="truncate" style={{ fontSize: '10px', textDecoration: s.status==='done'?'line-through':'none' }}>
                         {MARKETS.find(m=>m.id===s.market)?.icon} {s.title}
                       </span>
@@ -1228,8 +1280,13 @@ export default function PlannerPage() {
 
   const handleSaveSend = async (data) => {
     if (editSend?.id) {
-      if (editSend._editAll) {
+      const scope = editSend._scope || 'this';
+      if (scope === 'all') {
         await updateSeries(getSeriesRoot(editSend), data);
+        await loadSends();
+        setSelectedSend(null);
+      } else if (scope === 'future') {
+        await updateSeriesFromDate(editSend, data);
         await loadSends();
         setSelectedSend(null);
       } else {
@@ -1297,7 +1354,7 @@ export default function PlannerPage() {
     if (isPartOfSeries(send)) {
       setSeriesModal({ type: 'edit', send });
     } else {
-      setEditSend(send); setShowForm(true);
+      setEditSend({ ...send, _scope: 'this' }); setShowForm(true);
     }
   };
 
@@ -1318,24 +1375,49 @@ export default function PlannerPage() {
     const pid = getSeriesRoot(send);
 
     if (type === 'edit') {
-      if (choice === 'this') {
-        setEditSend({ ...send, _editAll: false });
-      } else {
-        setEditSend({ ...send, _editAll: true });
-      }
+      setEditSend({ ...send, _scope: choice });
       setShowForm(true);
     } else if (type === 'delete') {
       if (choice === 'this') {
-        await deleteScheduledSend(send.id);
-        setSends(p => p.filter(s => s.id !== send.id));
-        if (selectedSend?.id === send.id) setSelectedSend(null);
+        // Tylko to jedno wystąpienie – reszta serii zostaje nietknięta
+        await deleteSingleOccurrence(send);
+      } else if (choice === 'future') {
+        await deleteThisAndFuture(send);
       } else {
         await deleteSeries(pid);
-        setSends(p => p.filter(s => s.id !== pid && s.parentId !== pid));
-        setSelectedSend(null);
       }
+      if (selectedSend && (selectedSend.id === send.id || getSeriesRoot(selectedSend) === pid)) setSelectedSend(null);
+      await loadSends();
     }
     setSeriesModal(null);
+  };
+
+  // Przeniesienie wysyłki na inny dzień (drag & drop w kalendarzu).
+  // Zawsze dotyczy tylko przeciąganej wysyłki – także gdy należy do serii.
+  const handleMoveSend = async (send, newDate) => {
+    if (!send || send.sendDate === newDate) return;
+    const prevDate = send.sendDate;
+    setSends(p => p.map(s => s.id === send.id ? { ...s, sendDate: newDate } : s));
+    setSelectedSend(p => p?.id === send.id ? { ...p, sendDate: newDate } : p);
+    const up = await moveScheduledSend(send.id, newDate);
+    if (up) {
+      setSends(p => p.map(s => s.id === up.id ? up : s));
+      setSelectedSend(p => p?.id === up.id ? up : p);
+    } else {
+      // rollback przy błędzie zapisu
+      setSends(p => p.map(s => s.id === send.id ? { ...s, sendDate: prevDate } : s));
+      setSelectedSend(p => p?.id === send.id ? { ...p, sendDate: prevDate } : p);
+    }
+  };
+
+  // Duplikat – niezależna kopia na tym samym dniu, od razu otwarta w panelu
+  const handleDuplicateSend = async (send) => {
+    if (!send) return;
+    const cr = await duplicateScheduledSend(send, send.sendDate, currentUser, ` (${t.duplicated})`);
+    if (cr) {
+      setSends(p => [...p, cr]);
+      setSelectedSend(cr);
+    }
   };
 
   const prevMonth = () => { if (calMonth===0){setCalMonth(11);setCalYear(y=>y-1);}else setCalMonth(m=>m-1); };
@@ -1465,14 +1547,14 @@ export default function PlannerPage() {
           {/* Desktop: calendar/list toggle */}
           <div className="hidden lg:block">
             {view==='calendar'
-              ? <CalendarView sends={calendarSends} year={calYear} month={calMonth} onSelectDay={d => {setSelectedDate(d);setSelectedSend(null);}} onAddSend={d => {setEditSend({ _prefillDate: d });setShowForm(true);}} onSelectSend={setSelectedSend} selectedDate={selectedDate} lang={lang} copiedSend={copiedSend} onCopySend={handleCopySend} onPasteSend={handlePasteSend} onClearCopy={() => setCopiedSend(null)} />
+              ? <CalendarView sends={calendarSends} year={calYear} month={calMonth} onSelectDay={d => {setSelectedDate(d);setSelectedSend(null);}} onAddSend={d => {setEditSend({ _prefillDate: d });setShowForm(true);}} onSelectSend={setSelectedSend} selectedDate={selectedDate} lang={lang} copiedSend={copiedSend} onCopySend={handleCopySend} onPasteSend={handlePasteSend} onClearCopy={() => setCopiedSend(null)} onMoveSend={handleMoveSend} />
               : <div className="max-w-4xl mx-auto"><ListView sends={filteredSends} onSelectSend={setSelectedSend} selectedId={selectedSend?.id} teamMembers={teamMembers} t={t} lang={lang} onBulkMarkSent={handleBulkMarkSent} /></div>
             }
           </div>
         </div>
       </main>
 
-      {selectedSend && <SendDetail send={selectedSend} onUpdate={handleUpdateSend} onDelete={handleDeleteSend} onEdit={handleEditSend} onClose={() => setSelectedSend(null)} onSelectSend={setSelectedSend} allSends={historySends} teamMembers={teamMembers} t={t} lang={lang} />}
+      {selectedSend && <SendDetail send={selectedSend} onUpdate={handleUpdateSend} onDelete={handleDeleteSend} onEdit={handleEditSend} onDuplicate={handleDuplicateSend} onClose={() => setSelectedSend(null)} onSelectSend={setSelectedSend} allSends={historySends} teamMembers={teamMembers} t={t} lang={lang} />}
       {showForm && <SendFormModal send={editSend} onSave={handleSaveSend} onClose={() => {setShowForm(false);setEditSend(null);}} currentUser={currentUser} teamMembers={teamMembers} t={t} lang={lang} />}
       {seriesModal && <SeriesChoiceModal type={seriesModal.type} onChoice={handleSeriesChoice} onClose={() => setSeriesModal(null)} t={t} />}
       {showExport && <ExportModal sends={sends} onClose={() => setShowExport(false)} t={t} lang={lang} />}
