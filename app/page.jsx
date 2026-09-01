@@ -34,6 +34,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { Plus, Check, X, Edit3, Trash2, CheckCircle, Circle, Send, MessageSquare, ChevronDown, ChevronRight, Clock, AlertCircle, ExternalLink, Copy, Languages, Loader2, ListTodo, Square, CheckSquare, Bold, Italic, List, ListOrdered, LogOut, Lock, Filter, Underline, Link2, Undo, Redo, Inbox, Mail, MailCheck, MailX, RefreshCw, Paperclip, File, FileText, Image, FileSpreadsheet, Download, Flag, Users, UserPlus, Globe, EyeOff, ArrowUpDown, ArrowDown, ArrowUp, Activity, Bell, AtSign, Volume2, Pause, Eye, Menu, ThumbsUp, BarChart3, TrendingUp, TrendingDown, Calendar, ChevronUp, Tag, Lightbulb, CalendarClock, ClipboardCheck, Phone, Search, Eraser } from 'lucide-react';
 import { getTasks, createTask, updateTask as updateTaskDb, deleteTask as deleteTaskDb, getQuickLinks, createQuickLink, deleteQuickLink, uploadFile, getTeamMembers, getAllTeamMembers, createTeamMember, updateTeamMember, getCustomTags, createCustomTag, updateCustomTag, deleteCustomTag as deleteCustomTagDb, getReadTimestampsFromDb, setTaskReadInDb, setTaskUnreadInDb, setAllTasksReadInDb } from '../lib/supabase';
 import { getScheduledSends, updateScheduledSend } from '../lib/supabase-planner';
+import { appendComment, patchComment, removeComment, toggleCommentReaction } from '../lib/supabase-comments';
 
 // XSS sanitizer – strips dangerous tags/attributes without external dependency
 function sanitizeHtml(html) {
@@ -564,9 +565,12 @@ function SendDetail({ send, updateSend, onClose, currentUser, lang, t, teamMembe
       mentions: parseMentions(comment.trim()),
       reactions: []
     };
-    await updateSend(send.id, { comments: [...(send.comments || []), nc] });
     setComment('');
     setCommentAttachments([]);
+    // Atomowy zapis w bazie (RPC), zeby rownolegle komentarze sie nie nadpisywaly
+    const fresh = await appendComment('send', send.id, nc);
+    if (fresh) await updateSend(send.id, { comments: fresh }, { skipDb: true });
+    else await updateSend(send.id, { comments: [...(send.comments || []), nc] });
   };
   const handleCommentAttachmentUpload = async (files) => {
     setUploadingComment(true);
@@ -577,27 +581,24 @@ function SendDetail({ send, updateSend, onClose, currentUser, lang, t, teamMembe
     setUploadingComment(false);
   };
   const toggleReaction = async (cid, emoji = '👍') => {
-    const uc = (send.comments || []).map(c => {
-      if (c.id !== cid) return c;
-      const rx = c.reactions || [];
-      const isOldFormat = rx.length > 0 && typeof rx[0] === 'string';
-      const normalized = isOldFormat ? rx.map(uid => ({ emoji: '👍', userId: uid })) : rx;
-      const existing = normalized.find(r => r.emoji === emoji && r.userId === currentUser);
-      return { ...c, reactions: existing ? normalized.filter(r => !(r.emoji === emoji && r.userId === currentUser)) : [...normalized, { emoji, userId: currentUser }] };
-    });
-    await updateSend(send.id, { comments: uc });
+    const fresh = await toggleCommentReaction('send', send.id, cid, emoji, currentUser);
+    if (fresh) await updateSend(send.id, { comments: fresh }, { skipDb: true });
   };
   const deleteComment = async (cid) => {
-    await updateSend(send.id, { comments: (send.comments || []).filter(c => c.id !== cid) });
+    const fresh = await removeComment('send', send.id, cid);
+    if (fresh) await updateSend(send.id, { comments: fresh }, { skipDb: true });
+    else await updateSend(send.id, { comments: (send.comments || []).filter(c => c.id !== cid) });
   };
   const startEditComment = (c) => { setEditingCommentId(c.id); setEditingCommentText(c.text); };
   const saveEditComment = async () => {
     if (!editingCommentText.trim()) return;
-    await updateSend(send.id, {
-      comments: (send.comments || []).map(c => c.id !== editingCommentId ? c : { ...c, text: editingCommentText.trim(), editedAt: new Date().toISOString() })
-    });
+    const cid = editingCommentId;
+    const patch = { text: editingCommentText.trim(), editedAt: new Date().toISOString() };
     setEditingCommentId(null);
     setEditingCommentText('');
+    const fresh = await patchComment('send', send.id, cid, patch);
+    if (fresh) await updateSend(send.id, { comments: fresh }, { skipDb: true });
+    else await updateSend(send.id, { comments: (send.comments || []).map(c => c.id !== cid ? c : { ...c, ...patch }) });
   };
   const cancelEditComment = () => { setEditingCommentId(null); setEditingCommentText(''); };
 
@@ -976,11 +977,36 @@ function TaskDetail({ task, updateTask, deleteTask, onClose, currentUser, isMana
   const handleTaskAttachmentUpload = async (files) => { setUploading(true); const up = []; for (const file of files) { const r = await uploadFile(file, `tasks/${task.id}`); if (r) { r.uploadedBy = currentUser; up.push(r); } } if (up.length > 0) await updateTask(task.id, { attachments: [...(task.attachments || []), ...up] }); setUploading(false); };
   const handleRemoveTaskAttachment = async (aid) => { await updateTask(task.id, { attachments: (task.attachments || []).filter(a => a.id !== aid) }); };
   const handleCommentAttachmentUpload = async (files) => { setUploadingComment(true); for (const file of files) { const r = await uploadFile(file, `comments/${task.id}`); if (r) { r.uploadedBy = currentUser; setCommentAttachments(prev => [...prev, r]); } } setUploadingComment(false); };
-  const addComment = async () => { if (!comment.trim() && commentAttachments.length === 0) return; const nc = { id: generateId(), text: comment.trim(), author: currentUser, createdAt: new Date().toISOString(), attachments: commentAttachments.length > 0 ? commentAttachments : undefined, mentions: parseMentions(comment.trim()), reactions: [] }; updateTask(task.id, { comments: [...(task.comments || []), nc] }); setComment(''); setCommentAttachments([]); };
-  const toggleReaction = (cid, emoji = '👍') => { const uc = (task.comments || []).map(c => { if (c.id !== cid) return c; const rx = c.reactions || []; const isOldFormat = rx.length > 0 && typeof rx[0] === 'string'; const normalized = isOldFormat ? rx.map(uid => ({ emoji: '👍', userId: uid })) : rx; const existing = normalized.find(r => r.emoji === emoji && r.userId === currentUser); return { ...c, reactions: existing ? normalized.filter(r => !(r.emoji === emoji && r.userId === currentUser)) : [...normalized, { emoji, userId: currentUser }] }; }); updateTask(task.id, { comments: uc }); };
-  const deleteComment = (cid) => { updateTask(task.id, { comments: (task.comments || []).filter(c => c.id !== cid) }); };
+  const addComment = async () => {
+    if (!comment.trim() && commentAttachments.length === 0) return;
+    const nc = { id: generateId(), text: comment.trim(), author: currentUser, createdAt: new Date().toISOString(), attachments: commentAttachments.length > 0 ? commentAttachments : undefined, mentions: parseMentions(comment.trim()), reactions: [] };
+    setComment('');
+    setCommentAttachments([]);
+    // Atomowy zapis w bazie (RPC), zeby rownolegle komentarze sie nie nadpisywaly
+    const fresh = await appendComment('task', task.id, nc);
+    if (fresh) updateTask(task.id, { comments: fresh }, { skipDb: true });
+    else updateTask(task.id, { comments: [...(task.comments || []), nc] });
+  };
+  const toggleReaction = async (cid, emoji = '👍') => {
+    const fresh = await toggleCommentReaction('task', task.id, cid, emoji, currentUser);
+    if (fresh) updateTask(task.id, { comments: fresh }, { skipDb: true });
+  };
+  const deleteComment = async (cid) => {
+    const fresh = await removeComment('task', task.id, cid);
+    if (fresh) updateTask(task.id, { comments: fresh }, { skipDb: true });
+    else updateTask(task.id, { comments: (task.comments || []).filter(c => c.id !== cid) });
+  };
   const startEditComment = (c) => { setEditingCommentId(c.id); setEditingCommentText(c.text); };
-  const saveEditComment = () => { if (!editingCommentText.trim()) return; updateTask(task.id, { comments: (task.comments || []).map(c => c.id !== editingCommentId ? c : { ...c, text: editingCommentText.trim(), editedAt: new Date().toISOString() }) }); setEditingCommentId(null); setEditingCommentText(''); };
+  const saveEditComment = async () => {
+    if (!editingCommentText.trim()) return;
+    const cid = editingCommentId;
+    const patch = { text: editingCommentText.trim(), editedAt: new Date().toISOString() };
+    setEditingCommentId(null);
+    setEditingCommentText('');
+    const fresh = await patchComment('task', task.id, cid, patch);
+    if (fresh) updateTask(task.id, { comments: fresh }, { skipDb: true });
+    else updateTask(task.id, { comments: (task.comments || []).map(c => c.id !== cid ? c : { ...c, ...patch }) });
+  };
   const cancelEditComment = () => { setEditingCommentId(null); setEditingCommentText(''); };
   const save = () => { updateTask(task.id, { title: form.title, description: form.description }); setEditing(false); };
   const addSubtask = () => { if (!newSubtask.trim()) return; updateTask(task.id, { subtasks: [...subtasks, { id: generateId(), title: newSubtask.trim(), assignee: subtaskAssignee || null, status: 'open', createdAt: new Date().toISOString() }] }); setNewSubtask(''); setSubtaskAssignee(''); setShowSubtaskForm(false); };
@@ -1591,14 +1617,23 @@ export default function TaskApp() {
   const withDeadlineCount = visibleTasks.filter(t => !!t.deadline && t.status !== 'closed').length;
 
   const updateTask = async (id, updates, options = {}) => { const old = tasks.find(t => t.id === id); const nt = {...old, ...updates}; setTasks(prev => prev.map(t => t.id === id ? nt : t)); if (selectedTask?.id === id) setSelectedTask(nt); if (updates.status === 'closed' && old?.status !== 'closed' && old?.isExternal && old?.submitterEmail && !options.skipEmail) { const r = await sendCompletedEmail(old, currentMember?.name); const ee = { id: generateId(), type: 'completed', sentAt: new Date().toISOString(), sentBy: currentUser, sentTo: old.submitterEmail, success: r.sent }; updates.emailHistory = [...(old.emailHistory||[]), ee]; nt.emailHistory = updates.emailHistory; setTasks(prev => prev.map(t => t.id === id ? nt : t)); if (selectedTask?.id === id) setSelectedTask(nt); }
-    await updateTaskDb(id, updates); };
+    // skipDb = zapis poszedl juz przez atomowy RPC (komentarze), nie nadpisuj bazy drugi raz
+    if (!options.skipDb) await updateTaskDb(id, updates);
+  };
   const deleteTask = async (id) => { if (confirm(t.deleteTask)) { setTasks(prev => prev.filter(t => t.id !== id)); setSelectedTask(null); await deleteTaskDb(id); } };
   const approveTask = async (task, assignees) => { await updateTask(task.id, { status: 'open', assignees, approvedAt: new Date().toISOString(), approvedBy: currentUser }); for (const aId of assignees) { const m = teamMembers.find(x => x.id === aId); if (m) await sendEmailNotification(m.email, m.name, task.title, currentMember?.name); } setActiveTab('tasks'); };
   const addTask = async (task) => { const nt = {...task, createdAt: new Date().toISOString(), createdBy: currentUser, isExternal: false, subtasks: []}; const c = await createTask(nt); if (c) { await loadTasks(); } setShowNewTask(false); for (const aId of task.assignees||[]) { const m = teamMembers.find(x => x.id === aId); if (m && m.id !== currentUser) await sendEmailNotification(m.email, m.name, task.title, currentMember?.name); } };
 
   // Update a scheduled send directly from Tasker (when user clicks on send in accordion and edits it)
-  const updateSend = async (id, updates) => {
-    const up = await updateScheduledSend(id, updates);
+  const updateSend = async (id, updates, options = {}) => {
+    let up;
+    if (options.skipDb) {
+      // stan przyszedl juz z atomowego RPC - nie nadpisuj bazy drugi raz
+      const cur = allSends.find(s => s.id === id) || (selectedSend?.id === id ? selectedSend : null);
+      up = cur ? { ...cur, ...updates } : null;
+    } else {
+      up = await updateScheduledSend(id, updates);
+    }
     if (up) {
       setWeeklySends(prev => prev.map(s => s.id === id ? up : s));
       setNextWeekSends(prev => prev.map(s => s.id === id ? up : s));
