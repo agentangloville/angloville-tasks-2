@@ -31,7 +31,7 @@ if (typeof document !== 'undefined') {
 
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { Plus, Check, X, Edit3, Trash2, CheckCircle, Circle, Send, MessageSquare, ChevronDown, ChevronRight, Clock, AlertCircle, ExternalLink, Copy, Languages, Loader2, ListTodo, Square, CheckSquare, Bold, Italic, List, ListOrdered, LogOut, Lock, Filter, Underline, Link2, Undo, Redo, Inbox, Mail, MailCheck, MailX, RefreshCw, Paperclip, File, FileText, Image, FileSpreadsheet, Download, Flag, Users, UserPlus, Globe, EyeOff, ArrowUpDown, ArrowDown, ArrowUp, Activity, Bell, AtSign, Volume2, Pause, Eye, Menu, ThumbsUp, BarChart3, TrendingUp, TrendingDown, Calendar, ChevronUp, Tag, Lightbulb, CalendarClock, ClipboardCheck, Phone, Search, Eraser } from 'lucide-react';
+import { Plus, Check, X, Edit3, Trash2, CheckCircle, Circle, Send, MessageSquare, ChevronDown, ChevronRight, Clock, AlertCircle, ExternalLink, Copy, Languages, Loader2, ListTodo, Square, CheckSquare, Bold, Italic, List, ListOrdered, LogOut, Lock, Filter, Underline, Link2, Undo, Redo, Inbox, Mail, MailCheck, MailX, RefreshCw, Paperclip, File, FileText, Image, FileSpreadsheet, Download, Flag, Users, UserPlus, Globe, EyeOff, ArrowUpDown, ArrowDown, ArrowUp, Activity, Bell, AtSign, Volume2, Pause, Eye, Menu, ThumbsUp, BarChart3, TrendingUp, TrendingDown, Calendar, ChevronUp, Tag, Lightbulb, CalendarClock, ClipboardCheck, Phone, Search, Eraser, Hourglass } from 'lucide-react';
 import { getTasks, createTask, updateTask as updateTaskDb, deleteTask as deleteTaskDb, getQuickLinks, createQuickLink, deleteQuickLink, uploadFile, getTeamMembers, getAllTeamMembers, createTeamMember, updateTeamMember, getCustomTags, createCustomTag, updateCustomTag, deleteCustomTag as deleteCustomTagDb, getReadTimestampsFromDb, setTaskReadInDb, setTaskUnreadInDb, setAllTasksReadInDb } from '../lib/supabase';
 import { getScheduledSends, updateScheduledSend } from '../lib/supabase-planner';
 
@@ -92,15 +92,70 @@ const STATUSES = [
 
 const COLORS = ['#3b82f6', '#7c3aed', '#16a34a', '#f59e0b', '#ef4444', '#ec4899', '#0891b2', '#ea580c', '#8d6e63', '#607d8b'];
 
+// === DESIGN TOKENS ===
+// Jedno miejsce na paletę. Taski = niebieski, wysyłki = fioletowy, bez ruchu = stalowy.
+const UI = {
+  bg: '#f6f8fc',
+  surface: '#ffffff',
+  border: '#e6e8eb',
+  borderStrong: '#dadce0',
+  text: '#202124',
+  textSoft: '#3c4043',
+  muted: '#5f6368',
+  faint: '#80868b',
+  label: '#9aa0a6',
+  task: '#1a73e8',
+  taskSoft: '#e8f0fe',
+  send: '#7c3aed',
+  sendSoft: '#f5f3ff',
+  sendBorder: '#e4dcff',
+  stale: '#64748b',
+  staleSoft: '#f1f5f9',
+  staleBorder: '#e2e8f0',
+  radius: '10px',
+  radiusLg: '14px',
+  shadowCard: '0 1px 2px rgba(60,64,67,0.06)',
+  shadowHover: '0 1px 3px rgba(60,64,67,0.12)',
+  shadowPanel: '0 1px 2px rgba(60,64,67,0.10), 0 2px 8px rgba(60,64,67,0.06)',
+};
+
+// === STALE TASKS ("Bez ruchu") ===
+// Zadanie otwarte/oczekujące/pod obserwacją, w którym od STALE_DAYS nic się nie dzieje.
+// Aktywność liczymy z tego, co jest dostępne na froncie: utworzenie, akceptacja,
+// najnowszy komentarz, najnowszy subtask. Brak kolumny updated_at w obiekcie taska.
+const STALE_DAYS = 14;
+const STALE_STATUSES = ['open', 'waiting', 'monitoring'];
+const getLastActivityAt = (task) => {
+  let ts = new Date(task.createdAt || 0).getTime();
+  if (!ts || isNaN(ts)) ts = 0;
+  const bump = (d) => { if (!d) return; const v = new Date(d).getTime(); if (!isNaN(v) && v > ts) ts = v; };
+  bump(task.approvedAt);
+  (task.comments || []).forEach(c => bump(c.createdAt || c.editedAt));
+  (task.subtasks || []).forEach(s => bump(s.createdAt || s.completedAt));
+  (task.emailHistory || []).forEach(e => bump(e.sentAt));
+  return ts;
+};
+const getDaysSinceActivity = (task) => Math.floor((Date.now() - getLastActivityAt(task)) / 86400000);
+const isStaleTask = (task) => STALE_STATUSES.includes(task.status) && getDaysSinceActivity(task) >= STALE_DAYS;
+
+function StaleBadge({ task, size = 'small', lang = 'pl' }) {
+  if (!isStaleTask(task)) return null;
+  const d = getDaysSinceActivity(task);
+  const isSmall = size === 'small';
+  return <span className="inline-flex items-center gap-0.5 rounded-full" title={lang === 'en' ? `No activity for ${d} days` : `Brak aktywności od ${d} dni`} style={{ padding: isSmall ? '1px 7px' : '3px 10px', fontSize: isSmall ? '10.5px' : '12px', fontWeight: 500, background: UI.staleSoft, color: UI.stale, border: `1px solid ${UI.staleBorder}` }}><Hourglass size={isSmall ? 9 : 12} />{d}{lang === 'en' ? 'd' : ' dni'}</span>;
+}
+
 const TRANSLATIONS = {
   pl: {
     marketingTasks: 'Marketing Tasks', loginTitle: 'Zaloguj się do panelu', person: 'Osoba', select: 'Wybierz...', pin: 'PIN', login: 'Zaloguj się', incorrectPin: 'Nieprawidłowy PIN', selectPerson: 'Wybierz osobę', allMarkets: 'Wszystkie rynki', everyone: 'Wszyscy', pending: 'Oczekujące akceptacji', active: 'Aktywne', open: 'Otwarte', waiting: 'Oczekujące', paused: 'Wstrzymane', monitoring: 'Pod obserwacją', ideas: 'Pomysły', closed: 'Zamknięte', formEn: 'Formularz EN:', myLinks: '📌 Moje linki', addLink: 'Dodaj link', noLinks: 'Brak linków', manager: 'Manager', managerView: 'Manager', managerOnly: 'Tylko dla mnie', managerOnlyHint: 'Task widoczny tylko dla managera', pendingApproval: 'Oczekujące na akceptację', activeTasks: 'Aktywne zadania', openTasks: 'Otwarte zadania', waitingTasks: 'Oczekujące', pausedTasks: 'Wstrzymane', monitoringTasks: 'Pod obserwacją', ideasTasks: 'Pomysły', closedTasks: 'Zamknięte zadania', managerTasks: 'Manager', allTasks: 'Wszystkie zadania', filter: 'Filtr', newTask: 'Nowe zadanie', noTasksToShow: 'Brak zadań do wyświetlenia', noPending: 'Brak oczekujących', external: 'Zewnętrzne', assignTo: 'Przypisz:', approve: 'Zatwierdź', title: 'Tytuł', description: 'Opis', attachments: 'Załączniki', noAttachments: 'Brak załączników', subtasks: 'Subtaski', add: 'Dodaj', subtaskName: 'Nazwa subtaska...', noAssignment: 'Bez przypisania', cancel: 'Anuluj', status: 'Status', subcategory: 'Podkategoria', none: 'Brak', assigned: 'Przypisani', addPerson: '+ Dodaj', comments: 'Komentarze', markUnread: 'Oznacz nieprzeczytane', edit: 'Edytuj', delete: 'Usuń', writeComment: 'Napisz komentarz... (@ aby oznaczyć, Shift+Enter = nowy wiersz)', emailNotifications: 'Powiadomienia email', submittedBy: 'Zgłaszający', unknown: 'Nieznany', noEmail: 'Brak adresu email', history: 'Historia:', by: 'przez', system: 'System', resend: 'Wyślij ponownie', sendEmail: 'Wyślij email', created: 'Utworzono', byPerson: 'Przez', save: 'Zapisz', taskDetails: 'Szczegóły zadania...', whatToDo: 'Co trzeba zrobić?', market: 'Rynek', type: 'Typ', assignToPerson: 'Przypisz do', createTask: 'Utwórz zadanie', links: 'Linki', copyLink: 'Kopiuj link', copied: 'Skopiowano', from: 'Od', priority: 'Priorytet', clickToAddAttachments: 'Kliknij 📎 aby dodać załączniki', loading: 'Ładowanie...', deleteTask: 'Usunąć zadanie?', lt: 'LT', new: 'Nowy', users: 'Użytkownicy', usersPanel: 'Zarządzanie użytkownikami', addUser: 'Dodaj użytkownika', editUser: 'Edytuj użytkownika', name: 'Imię i nazwisko', email: 'Email', role: 'Rola', language: 'Język', polish: 'Polski', english: 'Angielski', restrictedMarket: 'Ograniczenie do rynku', allMarketsAccess: 'Wszystkie rynki', seeOnlyAssigned: 'Widzi tylko przypisane', seeAll: 'Widzi wszystkie zadania', isManager: 'Administrator', deactivate: 'Dezaktywuj', activate: 'Aktywuj', color: 'Kolor', unread: 'Nieodczytane', newTasks: 'Nowe zadania', sortBy: 'Sortuj', sortNewest: 'Od najnowszych', sortOldest: 'Od najstarszych', sortPriority: 'Po priorytecie', sortActivity: 'Po aktywności', sortDeadline: 'Po terminie', sortComments: 'Wg komentarzy', onlyLinkedPlanner: 'Z Plannerem', notifications: 'Powiadomienia', noNotifications: 'Brak powiadomień', newComment: 'Nowy komentarz', mentionedYou: 'oznaczył(a) Cię', assignedYou: 'przypisał(a) Ci zadanie', inTask: 'w zadaniu', markAllRead: 'Oznacz wszystkie jako przeczytane', soundOn: 'Dźwięk włączony', soundOff: 'Dźwięk wyłączony', dashboard: 'Dashboard', dashboardTitle: 'Dashboard zespołu', tasksCreated: 'Utworzone', tasksClosed: 'Zamknięte', tasksOpen: 'Otwarte', period: 'Okres', last7days: 'Ostatnie 7 dni', last14days: 'Ostatnie 14 dni', last30days: 'Ostatnie 30 dni', total: 'Łącznie', perDay: '/dzień', team: 'Zespół', noData: 'Brak danych', editComment: 'Edytuj', saveComment: 'Zapisz', cancelEdit: 'Anuluj', edited: 'edytowano', moveUp: 'W górę', moveDown: 'W dół', tags: 'Tagi', manageTags: 'Zarządzaj', addTag: 'Dodaj tag', tagName: 'Nazwa tagu', noTags: 'Brak tagów', deadline: 'Deadline', withDeadline: 'Z deadline', deadlineToday: 'Dziś!', noDeadline: 'Brak', withDeadlineTasks: 'Z terminem', forgottenTasks: 'Zapomniane', needsReview: 'Do sprawdzenia', markReview: 'Oznacz do sprawdzenia', unmarkReview: 'Cofnij oznaczenie', reviewOn: 'Sprawdź w dniu', noReviewDate: 'Brak daty',
+    stale: 'Bez ruchu', staleTasks: 'Bez ruchu', staleHint: `Otwarte, oczekujące i pod obserwacją bez aktywności od ${STALE_DAYS} dni`, staleEmpty: 'Wszystko się rusza – brak zaległości', viewsLabel: 'Widoki', shortcutsLabel: 'Skróty', lastActivity: 'Ostatnia aktywność',
     dateFrom: 'Od', dateTo: 'Do', dateFilter: 'Filtr dat', clearDates: 'Wyczyść daty', dateFilterActive: 'Filtr dat aktywny', createdInRange: 'Utworzone w zakresie', closedInRange: 'Zamknięte w zakresie',
     tasksLabel: 'Taski', sendsLabel: 'Wysyłki', defaultTasksView: 'Domyślnie widzi taski', defaultSendsView: 'Domyślnie widzi wysyłki', viewMine: 'Moje', viewAll: 'Wszystkich',
     search: 'Szukaj', searchPlaceholder: 'Szukaj w taskach...', searchNoResults: 'Brak wyników', searchInTitle: 'tytuł', searchInDescription: 'opis', searchInComment: 'komentarz', searchInSubtask: 'subtask', searchResults: 'wyników',
   },
   en: {
     marketingTasks: 'Marketing Tasks', loginTitle: 'Login to panel', person: 'Person', select: 'Select...', pin: 'PIN', login: 'Login', incorrectPin: 'Incorrect PIN', selectPerson: 'Select person', allMarkets: 'All markets', everyone: 'Everyone', pending: 'Pending approval', active: 'Active', open: 'Open', waiting: 'Waiting', paused: 'Paused', monitoring: 'Watching', ideas: 'Ideas', closed: 'Closed', formEn: 'EN Form:', myLinks: '📌 My links', addLink: 'Add link', noLinks: 'No links', manager: 'Manager', managerView: 'Manager', managerOnly: 'Manager only', managerOnlyHint: 'Visible only to manager', pendingApproval: 'Pending approval', activeTasks: 'Active tasks', openTasks: 'Open tasks', waitingTasks: 'Waiting', pausedTasks: 'Paused', monitoringTasks: 'Watching', ideasTasks: 'Ideas', closedTasks: 'Closed tasks', managerTasks: 'Manager', allTasks: 'All tasks', filter: 'Filter', newTask: 'New task', noTasksToShow: 'No tasks to display', noPending: 'No pending tasks', external: 'External', assignTo: 'Assign to:', approve: 'Approve', title: 'Title', description: 'Description', attachments: 'Attachments', noAttachments: 'No attachments', subtasks: 'Subtasks', add: 'Add', subtaskName: 'Subtask name...', noAssignment: 'Unassigned', cancel: 'Cancel', status: 'Status', subcategory: 'Subcategory', none: 'None', assigned: 'Assigned', addPerson: '+ Add', comments: 'Comments', markUnread: 'Mark as unread', edit: 'Edit', delete: 'Delete', writeComment: 'Write a comment... (@ to mention, Shift+Enter = new line)', emailNotifications: 'Email notifications', submittedBy: 'Submitted by', unknown: 'Unknown', noEmail: 'No email address', history: 'History:', by: 'by', system: 'System', resend: 'Resend', sendEmail: 'Send email', created: 'Created', byPerson: 'By', save: 'Save', taskDetails: 'Task details...', whatToDo: 'What needs to be done?', market: 'Market', type: 'Type', assignToPerson: 'Assign to', createTask: 'Create task', links: 'Links', copyLink: 'Copy link', copied: 'Copied', from: 'From', priority: 'Priority', clickToAddAttachments: 'Click 📎 to add attachments', loading: 'Loading...', deleteTask: 'Delete task?', lt: 'LT', new: 'New', users: 'Users', usersPanel: 'User management', addUser: 'Add user', editUser: 'Edit user', name: 'Full name', email: 'Email', role: 'Role', language: 'Language', polish: 'Polish', english: 'English', restrictedMarket: 'Restricted to market', allMarketsAccess: 'All markets', seeOnlyAssigned: 'See only assigned', seeAll: 'See all tasks', isManager: 'Administrator', deactivate: 'Deactivate', activate: 'Activate', color: 'Color', unread: 'Unread', newTasks: 'New tasks', sortBy: 'Sort', sortNewest: 'Newest first', sortOldest: 'Oldest first', sortPriority: 'By priority', sortActivity: 'By activity', sortDeadline: 'By deadline', sortComments: 'By comments', onlyLinkedPlanner: 'With Planner', notifications: 'Notifications', noNotifications: 'No notifications', newComment: 'New comment', mentionedYou: 'mentioned you', assignedYou: 'assigned you a task', inTask: 'in task', markAllRead: 'Mark all as read', soundOn: 'Sound on', soundOff: 'Sound off', dashboard: 'Dashboard', dashboardTitle: 'Team Dashboard', tasksCreated: 'Created', tasksClosed: 'Closed', tasksOpen: 'Open', period: 'Period', last7days: 'Last 7 days', last14days: 'Last 14 days', last30days: 'Last 30 days', total: 'Total', perDay: '/day', team: 'Team', noData: 'No data', editComment: 'Edit', saveComment: 'Save', cancelEdit: 'Cancel', edited: 'edited', moveUp: 'Move up', moveDown: 'Move down', tags: 'Tags', manageTags: 'Manage', addTag: 'Add tag', tagName: 'Tag name', noTags: 'No tags', deadline: 'Deadline', withDeadline: 'With deadline', deadlineToday: 'Today!', noDeadline: 'None', withDeadlineTasks: 'With deadline', forgottenTasks: 'Forgotten', needsReview: 'Needs review', markReview: 'Mark for review', unmarkReview: 'Remove review flag', reviewOn: 'Check on', noReviewDate: 'No date',
+    stale: 'Stale', staleTasks: 'Stale tasks', staleHint: `Open, waiting and watched tasks with no activity for ${STALE_DAYS} days`, staleEmpty: 'Everything is moving – nothing stuck', viewsLabel: 'Views', shortcutsLabel: 'Shortcuts', lastActivity: 'Last activity',
     dateFrom: 'From', dateTo: 'To', dateFilter: 'Date filter', clearDates: 'Clear dates', dateFilterActive: 'Date filter active', createdInRange: 'Created in range', closedInRange: 'Closed in range',
     tasksLabel: 'Tasks', sendsLabel: 'Sends', defaultTasksView: 'Default tasks view', defaultSendsView: 'Default sends view', viewMine: 'Mine', viewAll: 'Everyone',
     search: 'Search', searchPlaceholder: 'Search tasks...', searchNoResults: 'No results', searchInTitle: 'title', searchInDescription: 'description', searchInComment: 'comment', searchInSubtask: 'subtask', searchResults: 'results',
@@ -216,6 +271,7 @@ function sortTasks(tasks, sortBy) {
     case 'oldest': return sorted.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
     case 'priority': return sorted.sort((a, b) => { const orderA = PRIORITY_ORDER[a.priority] ?? 4; const orderB = PRIORITY_ORDER[b.priority] ?? 4; if (orderA !== orderB) return orderA - orderB; return new Date(b.createdAt) - new Date(a.createdAt); });
     case 'activity': return sorted.sort((a, b) => { const lastActivityA = a.comments?.length > 0 ? Math.max(...a.comments.map(c => new Date(c.createdAt).getTime())) : new Date(a.createdAt).getTime(); const lastActivityB = b.comments?.length > 0 ? Math.max(...b.comments.map(c => new Date(c.createdAt).getTime())) : new Date(b.createdAt).getTime(); return lastActivityB - lastActivityA; });
+    case 'staleFirst': return sorted.sort((a, b) => getLastActivityAt(a) - getLastActivityAt(b));
     case 'deadline': return sorted.sort((a, b) => { if (!a.deadline && !b.deadline) return new Date(b.createdAt) - new Date(a.createdAt); if (!a.deadline) return 1; if (!b.deadline) return -1; return a.deadline.localeCompare(b.deadline); });
     case 'comments': return sorted.sort((a, b) => { const lastA = a.comments?.length > 0 ? Math.max(...a.comments.map(c => new Date(c.createdAt).getTime())) : 0; const lastB = b.comments?.length > 0 ? Math.max(...b.comments.map(c => new Date(c.createdAt).getTime())) : 0; return lastB - lastA; });
     default: return sorted;
@@ -378,7 +434,10 @@ function TaskItem({ task, isSelected, onClick, onStatusChange, currentUser, read
   const uc = getUnreadCount(task, currentUser, readTimestamps); const mc = getMentionsForUser(task, currentUser, readTimestamps, teamMembers).length;
   const hasEP = task.isExternal && task.submitterEmail && task.status === 'closed' && !(task.emailHistory || []).some(e => e.type === 'completed' && e.success);
   const tTags = (task.tags || []).map(tid => (customTags || []).find(ct => ct.id === tid)).filter(Boolean);
-  return <div onClick={onClick} className="rounded-lg px-3 py-1.5 cursor-pointer transition-all duration-100" style={{ borderWidth: '0.5px', borderStyle: 'solid', borderColor: isSelected ? '#3b82f6' : '#e8eaed', background: isSelected ? '#fafbff' : 'white', boxShadow: isSelected ? '0 0 0 1px rgba(59,130,246,0.1)' : 'none' }} onMouseEnter={e => { if (!isSelected) { e.currentTarget.style.borderColor = '#d5d9dd'; e.currentTarget.style.background = '#fafbfc'; }}} onMouseLeave={e => { if (!isSelected) { e.currentTarget.style.borderColor = '#e8eaed'; e.currentTarget.style.background = 'white'; }}}><div className="flex items-center gap-2">
+  const railColor = st?.color || UI.task;
+  return <div onClick={onClick} className="relative cursor-pointer transition-all duration-100 overflow-hidden" style={{ borderRadius: UI.radius, borderWidth: '1px', borderStyle: 'solid', borderColor: isSelected ? '#a8c7fa' : UI.border, background: isSelected ? '#f8fbff' : UI.surface, boxShadow: isSelected ? '0 0 0 2px rgba(26,115,232,0.12)' : UI.shadowCard, paddingLeft: '14px', paddingRight: '12px', paddingTop: '7px', paddingBottom: '7px' }} onMouseEnter={e => { if (!isSelected) { e.currentTarget.style.borderColor = '#d5d9dd'; e.currentTarget.style.boxShadow = UI.shadowHover; }}} onMouseLeave={e => { if (!isSelected) { e.currentTarget.style.borderColor = UI.border; e.currentTarget.style.boxShadow = UI.shadowCard; }}}>
+    <span aria-hidden="true" style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: '3px', background: railColor, opacity: task.status === 'closed' ? 0.25 : 0.7 }} />
+    <div className="flex items-center gap-2">
     <button onClick={cycle} className="hover:scale-110 flex-shrink-0"><Icon size={16} style={{ color: st?.color }} className={task.status === 'closed' ? 'fill-current' : ''} /></button>
     <span className="flex-shrink-0 text-sm">{mk?.icon}</span>
     {task.managerOnly && <Lock size={11} style={{ color: '#0d9488', flexShrink: 0 }} aria-label="Manager only" />}
@@ -387,6 +446,7 @@ function TaskItem({ task, isSelected, onClick, onStatusChange, currentUser, read
       {task.needsReview && task.status === 'open' && <span className="flex items-center gap-0.5 rounded-full" style={{ fontSize: '10.5px', padding: '1px 7px', background: '#fef3c7', color: '#b45309', fontWeight: 500 }}><ClipboardCheck size={10} />{t.needsReview}</span>}
       <PriorityBadge priority={task.priority} size="small" lang={lang} />
       <DeadlineBadge deadline={task.deadline} size="small" lang={lang} t={t} />
+      <StaleBadge task={task} size="small" lang={lang} />
       {task.status !== 'closed' && <TaskAge createdAt={task.createdAt} size="small" lang={lang} />}
       {tTags.map(tg => <span key={tg.id} className="rounded-full" style={{ fontSize: '10.5px', padding: '1px 7px', background: tg.color + '15', color: tg.color, fontWeight: 500 }}>{tg.name}</span>)}
       {mc > 0 && <span className="flex items-center gap-0.5 rounded-full" style={{ fontSize: '10.5px', padding: '1px 7px', background: '#ef4444', color: 'white', fontWeight: 500 }}><AtSign size={9} />{mc}</span>}
@@ -416,8 +476,8 @@ function WeeklySendsAccordion({ sends, isOpen, onToggle, onSelectSend, onSendSta
 
   if (!filteredSends.length) return null;
 
-  const borderColor = '#ddd6fe';
-  const accentColor = '#7c3aed';
+  const borderColor = UI.sendBorder;
+  const accentColor = UI.send;
   const todoCount = filteredSends.filter(s => s.status === 'todo').length;
   const fmtD = (ds) => new Date(ds+'T00:00:00').toLocaleDateString(lang==='en'?'en-US':'pl-PL',{weekday:'short',day:'numeric',month:'short'});
 
@@ -433,13 +493,19 @@ function WeeklySendsAccordion({ sends, isOpen, onToggle, onSelectSend, onSendSta
     return (
       <div key={`send-${send.id}`}
         onClick={() => onSelectSend(send)}
-        className="rounded-lg px-3 py-1.5 cursor-pointer transition-all duration-100 hover:bg-gray-50"
+        className="relative overflow-hidden cursor-pointer transition-all duration-100"
         style={{
-          borderWidth: '0.5px',
+          borderRadius: UI.radius,
+          borderWidth: '1px',
           borderStyle: 'solid',
-          borderColor: isSelected ? accentColor : '#e8eaed',
-          background: isSelected ? '#faf5ff' : 'white'
-        }}>
+          borderColor: isSelected ? '#c4b5fd' : UI.border,
+          background: isSelected ? '#faf5ff' : UI.surface,
+          boxShadow: isSelected ? '0 0 0 2px rgba(124,58,237,0.12)' : UI.shadowCard,
+          paddingLeft: '14px', paddingRight: '12px', paddingTop: '7px', paddingBottom: '7px'
+        }}
+        onMouseEnter={e => { if (!isSelected) { e.currentTarget.style.borderColor = '#d8cdfa'; e.currentTarget.style.boxShadow = UI.shadowHover; } }}
+        onMouseLeave={e => { if (!isSelected) { e.currentTarget.style.borderColor = UI.border; e.currentTarget.style.boxShadow = UI.shadowCard; } }}>
+        <span aria-hidden="true" style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: '3px', background: accentColor, opacity: isDone ? 0.25 : 0.7 }} />
         <div className="flex items-center gap-2">
           <button onClick={toggleStatus} className="flex-shrink-0" title={isDone ? (lang==='en'?'Mark as todo':'Oznacz jako do zrobienia') : (lang==='en'?'Mark as done':'Oznacz jako gotowe')}>
             {isDone ? <CheckCircle size={16} style={{ color: '#16a34a' }} /> : <Circle size={16} style={{ color: '#80868b' }} />}
@@ -467,8 +533,8 @@ function WeeklySendsAccordion({ sends, isOpen, onToggle, onSelectSend, onSendSta
   return (
     <div className="max-w-4xl mx-auto mb-3">
       <button onClick={onToggle}
-        className="w-full flex items-center justify-between px-3 py-2 transition-colors"
-        style={{ fontSize: '12px', fontWeight: 500, background: 'white', color: accentColor, border: `1px solid ${borderColor}`, borderBottom: isOpen ? `1px solid ${borderColor}` : `1px solid ${borderColor}`, borderRadius: isOpen ? '10px 10px 0 0' : '10px' }}>
+        className="w-full flex items-center justify-between px-3 py-2.5 transition-colors"
+        style={{ fontSize: '12px', fontWeight: 500, background: UI.sendSoft, color: accentColor, border: `1px solid ${UI.sendBorder}`, borderRadius: isOpen ? `${UI.radiusLg} ${UI.radiusLg} 0 0` : UI.radiusLg, boxShadow: UI.shadowCard }}>
         <div className="flex items-center gap-2">
           <CalendarClock size={14} />
           <span>{label}</span>
@@ -480,8 +546,8 @@ function WeeklySendsAccordion({ sends, isOpen, onToggle, onSelectSend, onSendSta
         {isOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
       </button>
       {isOpen && (
-        <div className="rounded-b-lg overflow-hidden px-2 py-2" style={{ background: 'white', border: `1px solid ${borderColor}`, borderTop: 'none' }}>
-          <div className="space-y-0.5">
+        <div className="overflow-hidden px-2 py-2" style={{ background: UI.surface, border: `1px solid ${UI.sendBorder}`, borderTop: 'none', borderRadius: `0 0 ${UI.radiusLg} ${UI.radiusLg}`, boxShadow: UI.shadowCard }}>
+          <div className="space-y-1">
             {filteredSends.map(renderSend)}
           </div>
           <a href="/planner" target="_blank" rel="noopener noreferrer"
@@ -993,8 +1059,8 @@ function TaskDetail({ task, updateTask, deleteTask, onClose, currentUser, isMana
   const fd = lang === 'en' ? formatDateTimeEn : formatDateTime;
 
   return (
-    <aside className="w-full lg:w-[640px] bg-white border-l flex flex-col overflow-hidden flex-shrink-0 fixed lg:static inset-0 z-40 lg:z-auto" style={{ borderColor: '#dadce0' }}>
-      <div className="p-3 border-b flex items-center justify-between" style={{ borderColor: '#dadce0' }}>
+    <aside className="w-full lg:w-[640px] bg-white border-l flex flex-col overflow-hidden flex-shrink-0 fixed lg:static inset-0 z-40 lg:z-auto" style={{ borderColor: UI.borderStrong, boxShadow: UI.shadowPanel }}>
+      <div className="px-4 py-3 border-b flex items-center justify-between flex-shrink-0" style={{ borderColor: UI.border, background: UI.surface }}>
         <div className="flex items-center gap-2"><span className="text-lg">{market?.icon}</span><span className="text-sm font-medium" style={{ color: '#202124' }}>{lang === 'en' ? market?.nameEn : market?.name}</span>{task.isExternal && <ExternalLink size={14} style={{ color: '#f59e0b' }} />}{task.language === 'en' && <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: '#e8f0fe', color: '#1a73e8' }}>🇬🇧</span>}</div>
         <div className="flex items-center gap-1">{task.language === 'en' && <TranslateButton task={task} />}{internalLink && <button onClick={copyPublicLink} className="p-1.5 rounded-full hover:bg-purple-50" style={{ color: linkCopied ? '#16a34a' : '#7c3aed' }} title={lang==='en'?'Copy internal link (for team)':'Kopiuj link wewnętrzny (dla zespołu)'}>{linkCopied ? <Check size={16} /> : <Link2 size={16} />}</button>}{canEdit && <><button onClick={() => setEditing(!editing)} className="p-1.5 rounded-full hover:bg-gray-100" style={{ color: '#5f6368' }}><Edit3 size={16} /></button><button onClick={() => deleteTask(task.id)} className="p-1.5 rounded-full hover:bg-red-50" style={{ color: '#5f6368' }}><Trash2 size={16} /></button></>}<button onClick={onClose} className="p-1.5 rounded-full hover:bg-gray-100" style={{ color: '#5f6368' }}><X size={16} /></button></div>
       </div>
@@ -1007,7 +1073,7 @@ function TaskDetail({ task, updateTask, deleteTask, onClose, currentUser, isMana
 
         {(() => { const ls = task.linkedSendId && allSends?.find(s => s.id === task.linkedSendId); return ls?.subjectLine ? <div className="rounded-lg p-2.5" style={{ background: '#f5f3ff', border: '1px solid #e9d5ff' }}><div className="flex items-center gap-1.5"><span style={{ color: '#7c3aed', fontSize: '13px', fontWeight: 600 }}>✉ {lang === 'en' ? 'Subject:' : 'Temat:'}</span><span className="text-sm" style={{ color: '#3c4043' }}>{ls.subjectLine}</span></div></div> : null; })()}
 
-        <div className="flex flex-wrap gap-2 items-center p-3 rounded-lg" style={{ background: '#f6f8fc', border: '1px solid #dadce0' }}>
+        <div className="flex flex-wrap gap-2 items-center p-3" style={{ background: UI.bg, border: `1px solid ${UI.border}`, borderRadius: UI.radiusLg }}>
           <select value={task.market} onChange={e => updateTask(task.id, { market: e.target.value, subcategory: e.target.value === 'pl' ? task.subcategory : null })} className="text-xs px-2 py-1.5 border rounded-lg font-medium" style={{ borderColor: '#dadce0', color: '#5f6368' }}>
             {MARKETS.map(m => <option key={m.id} value={m.id}>{m.icon} {lang === 'en' ? m.nameEn : m.name}</option>)}
           </select>
@@ -1081,7 +1147,7 @@ function TaskDetail({ task, updateTask, deleteTask, onClose, currentUser, isMana
           </div>
         )}
         
-        <div className="pt-3 border-t text-xs" style={{ borderColor: '#dadce0', color: '#80868b' }}><p>{t.created}: {fd(task.createdAt)}</p>{task.createdBy && <p>{t.byPerson}: {teamMembers.find(m => m.id === task.createdBy)?.name}</p>}</div>
+        <div className="pt-3 border-t text-xs" style={{ borderColor: UI.border, color: UI.faint }}><p>{t.created}: {fd(task.createdAt)}</p>{task.createdBy && <p>{t.byPerson}: {teamMembers.find(m => m.id === task.createdBy)?.name}</p>}{STALE_STATUSES.includes(task.status) && <p style={{ color: isStaleTask(task) ? UI.stale : UI.faint, fontWeight: isStaleTask(task) ? 500 : 400 }}>{t.lastActivity}: {fd(new Date(getLastActivityAt(task)).toISOString())} ({getDaysSinceActivity(task)} {lang === 'en' ? 'days ago' : 'dni temu'})</p>}</div>
       </div>
     </aside>
   );
@@ -1572,8 +1638,9 @@ export default function TaskApp() {
   const visibleNextWeekSends = nextWeekSends.filter(s => !restrictedMarket || s.market === restrictedMarket);
   const visibleWeek3Sends = week3Sends.filter(s => !restrictedMarket || s.market === restrictedMarket);
   const ACTIVE_STATUSES = ['open', 'waiting', 'monitoring', 'paused', 'ideas'];
-  const getFilteredByStatus = (sf) => { switch(sf) { case 'active': return visibleTasks.filter(t => ACTIVE_STATUSES.includes(t.status)); case 'open': return visibleTasks.filter(t => t.status === 'open'); case 'waiting': return visibleTasks.filter(t => t.status === 'waiting'); case 'paused': return visibleTasks.filter(t => t.status === 'paused'); case 'monitoring': return visibleTasks.filter(t => t.status === 'monitoring'); case 'ideas': return visibleTasks.filter(t => t.status === 'ideas'); case 'closed': return visibleTasks.filter(t => t.status === 'closed'); case 'manager': return visibleTasks.filter(t => t.managerOnly && t.status !== 'closed'); default: return visibleTasks; } };
-  let filteredTasks = sortTasks(getFilteredByStatus(filterStatus), sortBy);
+  const staleTasks = visibleTasks.filter(isStaleTask);
+  const getFilteredByStatus = (sf) => { switch(sf) { case 'active': return visibleTasks.filter(t => ACTIVE_STATUSES.includes(t.status)); case 'stale': return staleTasks; case 'open': return visibleTasks.filter(t => t.status === 'open'); case 'waiting': return visibleTasks.filter(t => t.status === 'waiting'); case 'paused': return visibleTasks.filter(t => t.status === 'paused'); case 'monitoring': return visibleTasks.filter(t => t.status === 'monitoring'); case 'ideas': return visibleTasks.filter(t => t.status === 'ideas'); case 'closed': return visibleTasks.filter(t => t.status === 'closed'); case 'manager': return visibleTasks.filter(t => t.managerOnly && t.status !== 'closed'); default: return visibleTasks; } };
+  let filteredTasks = sortTasks(getFilteredByStatus(filterStatus), filterStatus === 'stale' ? 'staleFirst' : sortBy);
   if (filterDeadline) filteredTasks = filteredTasks.filter(t => !!t.deadline);
   if (filterLinkedPlanner) filteredTasks = filteredTasks.filter(t => !!t.linkedSendId);
   
@@ -1615,44 +1682,48 @@ export default function TaskApp() {
   return (
     <div className="min-h-screen flex" style={{ background: '#f6f8fc' }}>
       {sidebarOpen && <div className="fixed inset-0 bg-black/50 z-30 lg:hidden" onClick={() => setSidebarOpen(false)} />}
-      <aside className={`w-52 flex flex-col min-h-screen flex-shrink-0 bg-white fixed lg:static z-30 transition-transform lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`} style={{ borderRight: '1px solid #dadce0' }}>
-        <div className="px-4 py-3.5 flex items-center justify-between" style={{ borderBottom: '1px solid #dadce0' }}><div><img src="https://angloville.com/wp-content/themes/angloville/assets/images/logo.svg" alt="Angloville" className="h-6" /><p className="mt-0.5 text-xs" style={{ color: '#80868b', letterSpacing: '0.02em' }}>{t.marketingTasks}</p></div><button onClick={() => setSidebarOpen(false)} className="p-1 rounded hover:bg-gray-100 lg:hidden" style={{ color: '#80868b' }}><X size={16} /></button></div>
-        <div className="px-3 py-2.5 space-y-1.5" style={{ borderBottom: '1px solid #dadce0' }}>
+      <aside className={`w-52 flex flex-col min-h-screen flex-shrink-0 bg-white fixed lg:static z-30 transition-transform lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`} style={{ borderRight: `1px solid ${UI.border}` }}>
+        <div className="px-4 py-3.5 flex items-center justify-between" style={{ borderBottom: `1px solid ${UI.border}` }}><div><img src="https://angloville.com/wp-content/themes/angloville/assets/images/logo.svg" alt="Angloville" className="h-6" /><p className="mt-0.5 text-xs" style={{ color: '#80868b', letterSpacing: '0.02em' }}>{t.marketingTasks}</p></div><button onClick={() => setSidebarOpen(false)} className="p-1 rounded hover:bg-gray-100 lg:hidden" style={{ color: '#80868b' }}><X size={16} /></button></div>
+        <div className="px-3 py-2.5 space-y-1.5" style={{ borderBottom: `1px solid ${UI.border}` }}>
           {!restrictedMarket && <MarketMultiSelect selected={filterMarkets} onChange={setFilterMarkets} t={t} lang={lang} />}
           <PersonMultiSelect selected={filterPerson} onChange={setFilterPerson} teamMembers={teamMembers} t={t} label={t.tasksLabel} />
           <PersonMultiSelect selected={filterSendsPerson} onChange={setFilterSendsPerson} teamMembers={teamMembers} t={t} label={t.sendsLabel} />
         </div>
-        <div className="p-2 flex-1 overflow-y-auto"><div className="space-y-0.5">
+        <div className="p-2 flex-1 overflow-y-auto">
+        <p className="px-2.5 pb-1.5" style={{ fontSize: '10px', fontWeight: 600, letterSpacing: '0.07em', textTransform: 'uppercase', color: UI.label }}>{t.viewsLabel}</p>
+        <div className="space-y-0.5">
           {[
             ...(pendingTasks.length > 0 ? [{ key: 'pending', label: t.pending, icon: AlertCircle, color: '#f59e0b', bg: '#fefce8', count: pendingTasks.length, pl: 0 }] : []),
-            { key: 'active', label: t.active, icon: Filter, color: '#1a73e8', bg: '#e8f0fe', count: activeTasksCount, pl: 0 },
-            { key: 'open', label: t.open, icon: Circle, color: '#3b82f6', bg: '#e8f0fe', count: openTasks.length, pl: 2 },
-            { key: 'waiting', label: t.waiting, icon: Clock, color: '#7c3aed', bg: '#f5f3ff', count: waitingTasks.length, pl: 2 },
+            { key: 'active', label: t.active, icon: Filter, color: UI.task, bg: UI.taskSoft, count: activeTasksCount, pl: 0 },
+            { key: 'open', label: t.open, icon: Circle, color: '#3b82f6', bg: UI.taskSoft, count: openTasks.length, pl: 2 },
+            { key: 'waiting', label: t.waiting, icon: Clock, color: UI.send, bg: UI.sendSoft, count: waitingTasks.length, pl: 2 },
             { key: 'monitoring', label: t.monitoring, icon: Eye, color: '#0891b2', bg: '#ecfeff', count: monitoringTasks.length, pl: 2 },
             { key: 'paused', label: t.paused, icon: Pause, color: '#ea580c', bg: '#fff7ed', count: pausedTasks.length, pl: 2 },
             { key: 'ideas', label: t.ideas, icon: Lightbulb, color: '#ca8a04', bg: '#fefce8', count: ideasTasks.length, pl: 2 },
+            { key: 'stale', label: t.stale, icon: Hourglass, color: UI.stale, bg: UI.staleSoft, count: staleTasks.length, pl: 0, title: t.staleHint, divider: true },
             ...(isManager ? [{ key: 'manager', label: t.managerView, icon: Lock, color: '#0d9488', bg: '#f0fdfa', count: managerOnlyCount, pl: 0 }] : []),
-            { key: 'closed', label: t.closed, icon: CheckCircle, color: '#16a34a', bg: '#f0fdf4', count: closedTasks.length, pl: 2 },
-          ].map(item => { const I = item.icon; const isActive = (item.key === 'pending' ? activeTab === 'pending' : activeTab === 'tasks' && filterStatus === item.key) && !showUsersPanel && !filterDeadline && !filterLinkedPlanner; return <button key={item.key} onClick={() => { if (item.key === 'pending') { setActiveTab('pending'); } else { setActiveTab('tasks'); setFilterStatus(item.key); } setFilterDeadline(false); setFilterLinkedPlanner(false); setShowUsersPanel(false); setSidebarOpen(false); }} className="w-full flex items-center justify-between px-2.5 py-1 rounded-md text-xs" style={{ background: isActive ? item.bg : 'transparent', color: isActive ? item.color : '#374151', fontWeight: isActive ? 500 : 400 }}><div className={`flex items-center gap-1.5 ${item.pl ? 'pl-1.5' : ''}`}>{item.pl ? <div style={{ width: 5, height: 5, borderRadius: '50%', background: item.color, flexShrink: 0, opacity: isActive ? 1 : 0.5 }} /> : <I size={13} style={{ color: item.color }} />}<span>{item.label}</span></div><span className="text-xs tabular-nums" style={{ color: isActive ? item.color : '#80868b', fontWeight: item.key === 'pending' ? 600 : 400, fontSize: '11px' }}>{item.count}</span></button>; })}
+            { key: 'closed', label: t.closed, icon: CheckCircle, color: '#16a34a', bg: '#f0fdf4', count: closedTasks.length, pl: 0 },
+          ].map(item => { const I = item.icon; const isActive = (item.key === 'pending' ? activeTab === 'pending' : activeTab === 'tasks' && filterStatus === item.key) && !showUsersPanel && !filterDeadline && !filterLinkedPlanner; return <div key={item.key} style={item.divider ? { marginTop: '10px', paddingTop: '10px', borderTop: `1px solid ${UI.border}` } : undefined}><button title={item.title} onClick={() => { if (item.key === 'pending') { setActiveTab('pending'); } else { setActiveTab('tasks'); setFilterStatus(item.key); } setFilterDeadline(false); setFilterLinkedPlanner(false); setShowUsersPanel(false); setSidebarOpen(false); }} className="relative w-full flex items-center justify-between pl-3 pr-2 py-1.5 text-xs transition-colors" style={{ borderRadius: '8px', background: isActive ? item.bg : 'transparent', color: isActive ? item.color : '#374151', fontWeight: isActive ? 500 : 400 }} onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = '#f5f6f8'; }} onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = 'transparent'; }}>{isActive && <span aria-hidden="true" style={{ position: 'absolute', left: 0, top: '5px', bottom: '5px', width: '3px', borderRadius: '0 3px 3px 0', background: item.color }} />}<div className={`flex items-center gap-1.5 ${item.pl ? 'pl-1.5' : ''}`}>{item.pl ? <div style={{ width: 5, height: 5, borderRadius: '50%', background: item.color, flexShrink: 0, opacity: isActive ? 1 : 0.5 }} /> : <I size={13} style={{ color: item.color }} />}<span>{item.label}</span></div><span className="tabular-nums" style={{ color: isActive ? item.color : UI.faint, fontWeight: (item.key === 'pending' || (item.key === 'stale' && item.count > 0)) ? 600 : 400, fontSize: '11px' }}>{item.count}</span></button></div>; })}
         </div>
-        <div className="mt-4 space-y-0.5">
-  <a href="/planner" target="_blank" className="w-full flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs" style={{ color: '#3c4043' }}><CalendarClock size={13} style={{ color: '#7c3aed' }} /><span>Planner</span><ExternalLink size={10} style={{ color: '#80868b' }} /></a>
-  <a href="/collabs" target="_blank" className="w-full flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs" style={{ color: '#3c4043' }}><UserPlus size={13} style={{ color: '#ec4899' }} /><span>Collabs</span><ExternalLink size={10} style={{ color: '#80868b' }} /></a>
-  {isManager && <><a href="/dashboard" target="_blank" className="w-full flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs" style={{ color: '#3c4043' }}><BarChart3 size={13} style={{ color: '#1a73e8' }} /><span>{t.dashboard}</span><ExternalLink size={10} style={{ color: '#80868b' }} /></a><button onClick={() => { setShowUsersPanel(true); setSelectedTask(null); setSelectedSend(null); setFilterDeadline(false); setFilterLinkedPlanner(false); setSidebarOpen(false); }} className="w-full flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs" style={{ background: showUsersPanel ? '#e8f0fe' : 'transparent', color: showUsersPanel ? '#1a73e8' : '#374151', fontWeight: showUsersPanel ? 500 : 400 }}><Users size={13} style={{ color: '#1a73e8' }} /><span>{t.users}</span></button></>}
+        <p className="px-2.5 pt-4 pb-1.5" style={{ fontSize: '10px', fontWeight: 600, letterSpacing: '0.07em', textTransform: 'uppercase', color: UI.label }}>{t.shortcutsLabel}</p>
+        <div className="space-y-0.5">
+  <a href="/planner" target="_blank" className="w-full flex items-center gap-1.5 pl-3 pr-2 py-1.5 rounded-lg text-xs hover:bg-gray-100" style={{ color: '#3c4043' }}><CalendarClock size={13} style={{ color: '#7c3aed' }} /><span>Planner</span><ExternalLink size={10} style={{ color: '#80868b' }} /></a>
+  <a href="/collabs" target="_blank" className="w-full flex items-center gap-1.5 pl-3 pr-2 py-1.5 rounded-lg text-xs hover:bg-gray-100" style={{ color: '#3c4043' }}><UserPlus size={13} style={{ color: '#ec4899' }} /><span>Collabs</span><ExternalLink size={10} style={{ color: '#80868b' }} /></a>
+  {isManager && <><a href="/dashboard" target="_blank" className="w-full flex items-center gap-1.5 pl-3 pr-2 py-1.5 rounded-lg text-xs hover:bg-gray-100" style={{ color: '#3c4043' }}><BarChart3 size={13} style={{ color: '#1a73e8' }} /><span>{t.dashboard}</span><ExternalLink size={10} style={{ color: '#80868b' }} /></a><button onClick={() => { setShowUsersPanel(true); setSelectedTask(null); setSelectedSend(null); setFilterDeadline(false); setFilterLinkedPlanner(false); setSidebarOpen(false); }} className="w-full flex items-center gap-1.5 pl-3 pr-2 py-1.5 rounded-lg text-xs hover:bg-gray-100" style={{ background: showUsersPanel ? '#e8f0fe' : 'transparent', color: showUsersPanel ? '#1a73e8' : '#374151', fontWeight: showUsersPanel ? 500 : 400 }}><Users size={13} style={{ color: '#1a73e8' }} /><span>{t.users}</span></button></>}
 </div>
           <div className="mt-4 mx-2 p-3 rounded-lg text-xs hidden lg:block" style={{ background: '#f1f3f4' }}><p className="mb-1.5" style={{ color: '#5f6368' }}>{t.formEn}</p><button onClick={copyLink} className="w-full flex items-center gap-2 px-2 py-1.5 rounded hover:bg-gray-200"><code className="flex-1 text-xs truncate" style={{ color: '#1a73e8' }}>/request</code>{copied ? <Check size={14} style={{ color: '#16a34a' }} /> : <Copy size={14} style={{ color: '#5f6368' }} />}</button></div>
           <QuickLinksSection currentUser={currentUser} t={t} />
         </div>
-        <div className="px-3 py-2.5" style={{ borderTop: '0.5px solid #dadce0' }}><div className="flex items-center gap-2"><div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-medium" style={{ background: currentMember?.color, fontSize: '9px' }}>{getInitials(currentMember?.name || '')}</div><div className="flex-1 min-w-0"><div className="text-xs font-medium truncate" style={{ color: '#3c4043' }}>{currentMember?.name?.split(' ')[0]}</div>{isManager && <div style={{ fontSize: '10px', color: '#80868b' }}>{t.manager}</div>}</div><button onClick={handleLogout} className="p-1 rounded-full hover:bg-gray-100" style={{ color: '#80868b' }}><LogOut size={15} /></button></div></div>
+        <div className="px-3 py-2.5" style={{ borderTop: `1px solid ${UI.border}` }}><div className="flex items-center gap-2"><div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-medium" style={{ background: currentMember?.color, fontSize: '9px' }}>{getInitials(currentMember?.name || '')}</div><div className="flex-1 min-w-0"><div className="text-xs font-medium truncate" style={{ color: '#3c4043' }}>{currentMember?.name?.split(' ')[0]}</div>{isManager && <div style={{ fontSize: '10px', color: '#80868b' }}>{t.manager}</div>}</div><button onClick={handleLogout} className="p-1 rounded-full hover:bg-gray-100" style={{ color: '#80868b' }}><LogOut size={15} /></button></div></div>
       </aside>
 
       <main className="flex-1 flex flex-col overflow-hidden min-w-0">
-        <header className="bg-white px-4 lg:px-6 py-2.5 flex items-center justify-between gap-2" style={{ borderBottom: '1px solid #dadce0' }}>
-          <div className="flex items-center gap-2 min-w-0"><button onClick={() => setSidebarOpen(true)} className="p-2 rounded-full hover:bg-gray-100 lg:hidden flex-shrink-0" style={{ color: '#80868b' }}><Menu size={20} /></button><div className="min-w-0"><h2 className="text-sm lg:text-base font-medium truncate" style={{ color: '#202124' }}>{showUsersPanel ? t.usersPanel : activeTab === 'pending' ? t.pendingApproval : filterDeadline ? t.withDeadlineTasks : filterStatus === 'active' ? t.activeTasks : filterStatus === 'open' ? t.openTasks : filterStatus === 'waiting' ? t.waitingTasks : filterStatus === 'paused' ? t.pausedTasks : filterStatus === 'monitoring' ? t.monitoringTasks : filterStatus === 'manager' ? t.managerTasks : filterStatus === 'ideas' ? t.ideasTasks : t.closedTasks}</h2>{filterPerson.length > 0 && !showUsersPanel && <p style={{ fontSize: '11px', color: '#80868b' }}>{t.filter}: {filterPerson.map(fp => teamMembers.find(m => m.id === fp)?.name?.split(' ')[0]).filter(Boolean).join(', ')}</p>}</div></div>
+        <header className="bg-white px-4 lg:px-6 py-3 flex items-center justify-between gap-2 flex-shrink-0" style={{ borderBottom: `1px solid ${UI.border}` }}>
+          <div className="flex items-center gap-2 min-w-0"><button onClick={() => setSidebarOpen(true)} className="p-2 rounded-full hover:bg-gray-100 lg:hidden flex-shrink-0" style={{ color: '#80868b' }}><Menu size={20} /></button><div className="min-w-0"><h2 className="text-sm lg:text-base font-medium truncate" style={{ color: '#202124' }}>{showUsersPanel ? t.usersPanel : activeTab === 'pending' ? t.pendingApproval : filterDeadline ? t.withDeadlineTasks : filterStatus === 'active' ? t.activeTasks : filterStatus === 'open' ? t.openTasks : filterStatus === 'waiting' ? t.waitingTasks : filterStatus === 'paused' ? t.pausedTasks : filterStatus === 'monitoring' ? t.monitoringTasks : filterStatus === 'manager' ? t.managerTasks : filterStatus === 'ideas' ? t.ideasTasks : filterStatus === 'stale' ? t.staleTasks : t.closedTasks}</h2>{filterStatus === 'stale' && activeTab === 'tasks' && !showUsersPanel && <p style={{ fontSize: '11px', color: UI.faint }}>{t.staleHint}</p>}{filterPerson.length > 0 && !showUsersPanel && <p style={{ fontSize: '11px', color: '#80868b' }}>{t.filter}: {filterPerson.map(fp => teamMembers.find(m => m.id === fp)?.name?.split(' ')[0]).filter(Boolean).join(', ')}</p>}</div></div>
           <div className="flex items-center gap-2 flex-shrink-0">
             <NotificationBell tasks={tasks} currentUser={currentUser} readTimestamps={readTimestamps} teamMembers={teamMembers} onSelectTask={handleSelectTask} onMarkAllRead={async () => { const taskIds = tasks.map(t => t.id); const now = await setAllTasksReadInDb(currentUser, taskIds); const newTs = {}; taskIds.forEach(id => { newTs[id] = now; }); setReadTimestamps(newTs); }} t={t} lang={lang} />
             {!showUsersPanel && <GlobalSearch tasks={tasks} onSelectTask={handleSelectTask} teamMembers={teamMembers} customTags={customTags} t={t} lang={lang} />}
-            {!showUsersPanel && activeTab === 'tasks' && <SortDropdown value={sortBy} onChange={setSortBy} t={t} />}
+            {!showUsersPanel && activeTab === 'tasks' && filterStatus !== 'stale' && <SortDropdown value={sortBy} onChange={setSortBy} t={t} />}
             {!showUsersPanel && <><button onClick={loadTasks} className="p-2 rounded-full hover:bg-gray-100" style={{ color: '#5f6368' }}><Loader2 size={18} className={loading ? 'animate-spin' : ''} /></button>{activeTab === 'tasks' && <button onClick={() => setShowNewTask(true)} className="flex items-center gap-1.5 px-4 lg:px-5 py-2 rounded-full font-medium text-sm shadow-sm hover:shadow-md transition-shadow" style={{ background: '#1a73e8', color: 'white' }}><Plus size={16} /> <span className="hidden sm:inline">{t.newTask}</span></button>}</>}
           </div>
         </header>
@@ -1706,7 +1777,7 @@ export default function TaskApp() {
                 filterSendsPerson={filterSendsPerson}
               />
             </>)}
-            <div className="max-w-4xl mx-auto">{filteredTasks.length === 0 ? <div className="text-center py-16"><CheckCircle size={48} className="mx-auto mb-4" style={{ color: '#16a34a', opacity: 0.4 }} /><p style={{ color: '#5f6368' }}>{t.noTasksToShow}</p></div> : <div className="space-y-px">{filteredTasks.map(task => <TaskItem key={task.id} task={task} isSelected={selectedTask?.id === task.id} onClick={() => handleSelectTask(task)} onStatusChange={s => updateTask(task.id, { status: s })} currentUser={currentUser} readTimestamps={readTimestamps} lang={lang} t={t} teamMembers={teamMembers} customTags={customTags} />)}</div>}</div></>
+            <div className="max-w-4xl mx-auto">{filteredTasks.length === 0 ? <div className="text-center py-16">{filterStatus === 'stale' ? <><Hourglass size={44} className="mx-auto mb-4" style={{ color: UI.stale, opacity: 0.35 }} /><p style={{ color: UI.muted }}>{t.staleEmpty}</p></> : <><CheckCircle size={48} className="mx-auto mb-4" style={{ color: '#16a34a', opacity: 0.4 }} /><p style={{ color: '#5f6368' }}>{t.noTasksToShow}</p></>}</div> : <div className="space-y-1">{filteredTasks.map(task => <TaskItem key={task.id} task={task} isSelected={selectedTask?.id === task.id} onClick={() => handleSelectTask(task)} onStatusChange={s => updateTask(task.id, { status: s })} currentUser={currentUser} readTimestamps={readTimestamps} lang={lang} t={t} teamMembers={teamMembers} customTags={customTags} />)}</div>}</div></>
           )}
         </div>
       </main>
