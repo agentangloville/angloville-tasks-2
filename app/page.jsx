@@ -110,7 +110,9 @@ const getLastActivityAt = (task) => {
   return ts;
 };
 const getDaysSinceActivity = (task) => Math.floor((Date.now() - getLastActivityAt(task)) / 86400000);
-const isStaleTask = (task) => task.status === 'open' && getDaysSinceActivity(task) >= STALE_DAYS;
+// Wysylki (taski z linkedSendId) nie wchodza do "Bez ruchu" - one zyja w Plannerze,
+// ich rytm wyznacza data wysylki, nie aktywnosc w Taskerze.
+const isStaleTask = (task) => task.status === 'open' && !task.linkedSendId && getDaysSinceActivity(task) >= STALE_DAYS;
 
 function StaleBadge({ task, size = 'small', lang = 'pl' }) {
   if (!isStaleTask(task)) return null;
