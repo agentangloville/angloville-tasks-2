@@ -31,7 +31,7 @@ if (typeof document !== 'undefined') {
 
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { Plus, Check, X, Edit3, Trash2, CheckCircle, Circle, Send, MessageSquare, ChevronDown, ChevronRight, ChevronLeft, Clock, AlertCircle, ExternalLink, Copy, Languages, Loader2, ListTodo, Square, CheckSquare, Bold, Italic, List, ListOrdered, LogOut, Lock, Filter, Underline, Link2, Undo, Redo, Inbox, Mail, MailCheck, MailX, RefreshCw, Paperclip, File, FileText, Image, FileSpreadsheet, Download, Flag, Users, UserPlus, Globe, EyeOff, ArrowUpDown, ArrowDown, ArrowUp, Activity, Bell, AtSign, Volume2, Pause, Eye, Menu, MoreVertical, ThumbsUp, BarChart3, TrendingUp, TrendingDown, Calendar, ChevronUp, Tag, Lightbulb, CalendarClock, ClipboardCheck, Phone, Search, Eraser } from 'lucide-react';
+import { Plus, Check, X, Edit3, Trash2, CheckCircle, Circle, Send, MessageSquare, ChevronDown, ChevronRight, Clock, AlertCircle, ExternalLink, Copy, Languages, Loader2, ListTodo, Square, CheckSquare, Bold, Italic, List, ListOrdered, LogOut, Lock, Filter, Underline, Link2, Undo, Redo, Inbox, Mail, MailCheck, MailX, RefreshCw, Paperclip, File, FileText, Image, FileSpreadsheet, Download, Flag, Users, UserPlus, Globe, EyeOff, ArrowUpDown, ArrowDown, ArrowUp, Activity, Bell, AtSign, Volume2, Pause, Eye, Menu, ThumbsUp, BarChart3, TrendingUp, TrendingDown, Calendar, ChevronUp, Tag, Lightbulb, CalendarClock, ClipboardCheck, Phone, Search, Eraser } from 'lucide-react';
 import { getTasks, createTask, updateTask as updateTaskDb, deleteTask as deleteTaskDb, getQuickLinks, createQuickLink, deleteQuickLink, uploadFile, getTeamMembers, getAllTeamMembers, createTeamMember, updateTeamMember, getCustomTags, createCustomTag, updateCustomTag, deleteCustomTag as deleteCustomTagDb, getReadTimestampsFromDb, setTaskReadInDb, setTaskUnreadInDb, setAllTasksReadInDb } from '../lib/supabase';
 import { getScheduledSends, updateScheduledSend } from '../lib/supabase-planner';
 import { appendComment, patchComment, removeComment, toggleCommentReaction } from '../lib/supabase-comments';
@@ -372,220 +372,127 @@ function SortDropdown({ value, onChange, t }) { const [op, setOp] = useState(fal
 // === PENDING VIEW ===
 function PendingView({ tasks, approveTask, deleteTask, currentUser, t, lang, teamMembers, isManager }) { const [sel, setSel] = useState({}); const tog = (tid, mid) => { setSel(p => { const c = p[tid] || []; return { ...p, [tid]: c.includes(mid) ? c.filter(x => x !== mid) : [...c, mid] }; }); }; if (!tasks.length) return <div className="max-w-3xl mx-auto text-center py-16"><CheckCircle size={48} className="mx-auto mb-4" style={{ color: '#16a34a', opacity: 0.4 }} /><p style={{ color: '#5f6368' }}>{t.noPending}</p></div>; return <div className="max-w-3xl mx-auto space-y-4">{tasks.map(task => { const mk = MARKETS.find(m => m.id === task.market); const as = sel[task.id] || task.assignees || []; return <div key={task.id} className="bg-white rounded-xl p-5 border" style={{ borderColor: '#dadce0' }}>{task.isExternal && <div className="flex items-center gap-2 mb-3 pb-3 border-b flex-wrap" style={{ borderColor: '#dadce0' }}><ExternalLink size={14} style={{ color: '#f59e0b' }} /><span className="text-xs font-medium" style={{ color: '#b45309' }}>{t.external}</span>{task.language === 'en' && <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: '#e8f0fe', color: '#1a73e8' }}>🇬🇧</span>}<span className="text-xs" style={{ color: '#80868b' }}>{t.from} {task.submittedBy}</span></div>}<div className="flex items-start gap-3 mb-4"><span className="text-xl">{mk?.icon}</span><div className="flex-1"><div className="flex items-center gap-2 flex-wrap"><h3 className="font-medium text-lg" style={{ color: '#202124' }}>{task.title}</h3><TranslateButton task={task} /><PriorityBadge priority={task.priority} lang={lang} /></div>{task.description && <div className="mt-2"><RichTextDisplay html={task.description} /></div>}{task.links && <div className="mt-3 p-3 rounded-lg" style={{ background: '#f6f8fc' }}><ClickableLinks text={task.links} /></div>}<AttachmentList attachments={task.attachments} showRemove={false} /></div></div><div className="mb-4"><p className="text-xs font-medium mb-2" style={{ color: '#5f6368' }}>{t.assignTo}</p><div className="flex flex-wrap gap-2">{teamMembers.filter(m => m.isActive !== false).map(m => <button key={m.id} onClick={() => tog(task.id, m.id)} className="flex items-center gap-2 px-3 py-2 rounded-full border text-sm" style={{ borderColor: as.includes(m.id) ? '#1a73e8' : '#dadce0', background: as.includes(m.id) ? '#e8f0fe' : 'white', color: as.includes(m.id) ? '#1a73e8' : '#202124' }}><div className="w-5 h-5 rounded-full flex items-center justify-center text-white text-xs font-medium" style={{ background: m.color }}>{getInitials(m.name)}</div><span>{m.name.split(' ')[0]}</span>{as.includes(m.id) && <Check size={14} />}</button>)}</div></div><div className="flex gap-2 pt-4 border-t" style={{ borderColor: '#dadce0' }}><button onClick={() => approveTask(task, as)} disabled={!as.length} className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg font-medium disabled:opacity-50" style={{ background: as.length ? '#1a73e8' : '#f1f3f4', color: as.length ? 'white' : '#80868b' }}><Check size={18} /> {t.approve}</button>{isManager && <button onClick={() => deleteTask(task.id)} className="px-4 py-2.5 rounded-lg hover:bg-red-50" style={{ color: '#ef4444', border: '1px solid #f5c6cb' }}><X size={18} /></button>}</div></div>; })}</div>; }
 
-// === TASK ITEM (table row) ===
-function TaskRowMenu({ task, onStatusChange, lang }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef(null);
-  useEffect(() => {
-    if (!open) return;
-    const h = e => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
-    document.addEventListener('mousedown', h);
-    return () => document.removeEventListener('mousedown', h);
-  }, [open]);
-  return <div className="relative" ref={ref} onClick={e => e.stopPropagation()}>
-    <button onClick={() => setOpen(o => !o)} className="p-1 rounded-full hover:bg-gray-200 flex items-center justify-center" style={{ color: open ? '#5f6368' : '#b0b5bc' }} aria-label="Menu">
-      <MoreVertical size={15} />
-    </button>
-    {open && <div className="absolute right-0 top-full mt-1 bg-white rounded-lg py-1 z-30 min-w-[180px]" style={{ boxShadow: '0 1px 2px 0 rgba(60,64,67,.3), 0 2px 6px 2px rgba(60,64,67,.15)', border: '1px solid #dadce0' }}>
-      <div className="px-3 py-1" style={{ fontSize: '10px', fontWeight: 600, letterSpacing: '0.06em', color: '#9aa0a6' }}>{lang === 'en' ? 'CHANGE STATUS' : 'ZMIEŃ STATUS'}</div>
-      {STATUSES.filter(s => s.id !== 'pending').map(s => {
-        const I = s.icon; const isCur = task.status === s.id;
-        return <button key={s.id} onClick={() => { setOpen(false); if (!isCur) onStatusChange(s.id); }} className="w-full flex items-center gap-2.5 px-3 py-1.5 text-left hover:bg-gray-50" style={{ fontSize: '13px', color: isCur ? s.color : '#3c4043', background: isCur ? s.bg : 'transparent', fontWeight: isCur ? 500 : 400 }}>
-          <I size={14} style={{ color: s.color }} />
-          <span className="flex-1">{lang === 'en' ? s.nameEn : s.name}</span>
-          {isCur && <Check size={13} />}
-        </button>;
-      })}
-    </div>}
-  </div>;
-}
-
-function TaskListHeader({ t, lang }) {
-  const cell = { fontSize: '10.5px', fontWeight: 600, letterSpacing: '0.06em', color: '#9aa0a6', textTransform: 'uppercase' };
-  return <div className="hidden sm:flex items-center gap-2 px-3 py-2" style={{ borderBottom: '1px solid #e8eaed', background: '#fbfcfd', borderRadius: '12px 12px 0 0' }}>
-    <span className="flex-shrink-0" style={{ width: 18 }} />
-    <div className="flex-1 min-w-0 flex items-center gap-1.5" style={cell}><Circle size={10} />{lang === 'en' ? 'TASK' : 'ZADANIE'}</div>
-    <div className="flex items-center gap-1.5 flex-shrink-0 justify-end" style={{ ...cell, width: 96 }}><AtSign size={10} />{lang === 'en' ? 'ASSIGNED' : 'PRZYPISANI'}</div>
-    <div className="flex items-center gap-1.5 flex-shrink-0 justify-end" style={{ ...cell, width: 52 }}><MessageSquare size={10} />{lang === 'en' ? 'MSG' : 'KOM.'}</div>
-    <div className="flex items-center gap-1.5 flex-shrink-0 justify-end" style={{ ...cell, width: 92 }}><Calendar size={10} />{lang === 'en' ? 'DUE' : 'TERMIN'}</div>
-    <span className="flex-shrink-0" style={{ width: 23 }} />
-  </div>;
-}
-
-function TaskItem({ task, isSelected, onClick, onStatusChange, currentUser, readTimestamps, lang, t, teamMembers, customTags, isLast }) {
-  const mk = MARKETS.find(m => m.id === task.market);
-  const st = STATUSES.find(s => s.id === task.status);
-  const Icon = st?.icon || Circle;
+// === TASK ITEM ===
+function TaskItem({ task, isSelected, onClick, onStatusChange, currentUser, readTimestamps, lang, t, teamMembers, customTags }) {
+  const mk = MARKETS.find(m => m.id === task.market); const st = STATUSES.find(s => s.id === task.status); const Icon = st?.icon || Circle;
   const cycle = (e) => { e.stopPropagation(); onStatusChange(task.status === 'open' ? 'closed' : 'open'); };
-  const uc = getUnreadCount(task, currentUser, readTimestamps);
-  const mc = getMentionsForUser(task, currentUser, readTimestamps, teamMembers).length;
+  const uc = getUnreadCount(task, currentUser, readTimestamps); const mc = getMentionsForUser(task, currentUser, readTimestamps, teamMembers).length;
   const hasEP = task.isExternal && task.submitterEmail && task.status === 'closed' && !(task.emailHistory || []).some(e => e.type === 'completed' && e.success);
   const tTags = (task.tags || []).map(tid => (customTags || []).find(ct => ct.id === tid)).filter(Boolean);
-  const cCount = task.comments?.length || 0;
-  const sc = task.market === 'pl' && task.subcategory ? PL_SUBCATEGORIES.find(s => s.id === task.subcategory) : null;
-
-  return <div onClick={onClick}
-    className="group flex items-center gap-2 px-3 cursor-pointer relative"
-    style={{ minHeight: '46px', paddingTop: '6px', paddingBottom: '6px', borderBottom: isLast ? 'none' : '1px solid #f1f3f4', background: isSelected ? '#eef4ff' : 'white', transition: 'background 0.1s ease' }}
-    onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = '#f8f9fa'; }}
-    onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = 'white'; }}>
-
-    {isSelected && <span style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: '3px', background: '#1a73e8' }} />}
-
-    <button onClick={cycle} className="flex-shrink-0 flex items-center justify-center hover:scale-110 transition-transform" style={{ width: 18 }} title={st?.name}>
-      <Icon size={16} style={{ color: st?.color }} className={task.status === 'closed' ? 'fill-current' : ''} />
-    </button>
-
-    <div className="flex-1 min-w-0 flex items-center gap-2">
-      <span className="flex-shrink-0" style={{ fontSize: '14px', lineHeight: 1 }}>{mk?.icon}</span>
-      {task.managerOnly && <Lock size={11} style={{ color: '#0d9488', flexShrink: 0 }} aria-label="Manager only" />}
-      <span className="truncate" style={{ fontSize: '13.5px', fontWeight: isSelected ? 500 : 450, letterSpacing: '-0.01em', color: task.status === 'closed' ? '#9aa0a6' : isSelected ? '#1a73e8' : '#202124', textDecoration: task.status === 'closed' ? 'line-through' : 'none' }}>{task.title}</span>
-      <div className="flex items-center gap-1 flex-shrink-0">
-        {task.needsReview && task.status === 'open' && <span className="flex items-center gap-0.5 rounded-full" style={{ fontSize: '10.5px', padding: '1px 7px', background: '#fef3c7', color: '#b45309', fontWeight: 500 }}><ClipboardCheck size={10} />{t.needsReview}</span>}
-        <PriorityBadge priority={task.priority} size="small" lang={lang} />
-        {tTags.map(tg => <span key={tg.id} className="rounded-full hidden md:inline" style={{ fontSize: '10.5px', padding: '1px 7px', background: tg.color + '15', color: tg.color, fontWeight: 500 }}>{tg.name}</span>)}
-        {sc && <span className="rounded-full hidden lg:inline" style={{ fontSize: '10.5px', padding: '1px 7px', background: sc.bg, color: sc.color, fontWeight: 500 }}>{sc.name}</span>}
-        {hasEP && <MailX size={11} style={{ color: '#ef4444' }} />}
-        {task.isExternal && <ExternalLink size={11} style={{ color: '#f59e0b' }} />}
-        {task.status === 'ideas' && <span style={{ fontSize: '11px' }}>💡</span>}
-        {task.language === 'en' && <TranslateButton task={task} size="small" />}
-      </div>
-    </div>
-
-    <div className="flex items-center gap-1.5 flex-shrink-0 justify-end" style={{ width: 96 }}>
+  return <div onClick={onClick} className="rounded-lg px-3 py-1.5 cursor-pointer transition-all duration-100" style={{ borderWidth: '0.5px', borderStyle: 'solid', borderColor: isSelected ? '#3b82f6' : '#e8eaed', background: isSelected ? '#fafbff' : 'white', boxShadow: isSelected ? '0 0 0 1px rgba(59,130,246,0.1)' : 'none' }} onMouseEnter={e => { if (!isSelected) { e.currentTarget.style.borderColor = '#d5d9dd'; e.currentTarget.style.background = '#fafbfc'; }}} onMouseLeave={e => { if (!isSelected) { e.currentTarget.style.borderColor = '#e8eaed'; e.currentTarget.style.background = 'white'; }}}><div className="flex items-center gap-2">
+    <button onClick={cycle} className="hover:scale-110 flex-shrink-0"><Icon size={16} style={{ color: st?.color }} className={task.status === 'closed' ? 'fill-current' : ''} /></button>
+    <span className="flex-shrink-0 text-sm">{mk?.icon}</span>
+    {task.managerOnly && <Lock size={11} style={{ color: '#0d9488', flexShrink: 0 }} aria-label="Manager only" />}
+    <h4 className="flex-1 min-w-0 truncate" style={{ fontSize: '13px', fontWeight: 450, letterSpacing: '-0.01em', color: task.status === 'closed' ? '#80868b' : '#202124', textDecoration: task.status === 'closed' ? 'line-through' : 'none' }}>{task.title}</h4>
+    <div className="flex items-center gap-1 flex-shrink-0 flex-wrap justify-end">
+      {task.needsReview && task.status === 'open' && <span className="flex items-center gap-0.5 rounded-full" style={{ fontSize: '10.5px', padding: '1px 7px', background: '#fef3c7', color: '#b45309', fontWeight: 500 }}><ClipboardCheck size={10} />{t.needsReview}</span>}
+      <PriorityBadge priority={task.priority} size="small" lang={lang} />
+      <DeadlineBadge deadline={task.deadline} size="small" lang={lang} t={t} />
       {task.status !== 'closed' && <TaskAge createdAt={task.createdAt} size="small" lang={lang} />}
-      <div className="flex -space-x-1">
-        {task.assignees?.slice(0, 3).map(aId => { const m = teamMembers.find(x => x.id === aId); return m && <div key={aId} className="rounded-full flex items-center justify-center text-white" style={{ width: 20, height: 20, background: m.color, fontSize: '9px', fontWeight: 600, border: '1.5px solid white' }} title={m.name}>{getInitials(m.name)}</div>; })}
-        {task.assignees?.length > 3 && <div className="rounded-full flex items-center justify-center" style={{ width: 20, height: 20, background: '#e8eaed', color: '#5f6368', fontSize: '9px', fontWeight: 600, border: '1.5px solid white' }}>+{task.assignees.length - 3}</div>}
-      </div>
+      {tTags.map(tg => <span key={tg.id} className="rounded-full" style={{ fontSize: '10.5px', padding: '1px 7px', background: tg.color + '15', color: tg.color, fontWeight: 500 }}>{tg.name}</span>)}
+      {mc > 0 && <span className="flex items-center gap-0.5 rounded-full" style={{ fontSize: '10.5px', padding: '1px 7px', background: '#ef4444', color: 'white', fontWeight: 500 }}><AtSign size={9} />{mc}</span>}
+      {uc > 0 && mc === 0 && <span className="flex items-center gap-0.5 rounded-full" style={{ fontSize: '10.5px', padding: '1px 7px', background: '#f59e0b', color: 'white', fontWeight: 500 }}><MessageSquare size={9} />{uc}</span>}
+      {hasEP && <MailX size={10} style={{ color: '#ef4444' }} />}
+      {task.isExternal && <ExternalLink size={11} style={{ color: '#f59e0b' }} />}
+      {task.language === 'en' && <TranslateButton task={task} size="small" />}
+      {task.status === 'ideas' && <span className="hidden sm:inline" style={{ fontSize: '11px' }}>💡</span>}
+      {task.market === 'pl' && task.subcategory && (() => { const sc = PL_SUBCATEGORIES.find(s => s.id === task.subcategory); return sc && <span className="rounded-full hidden sm:inline" style={{ fontSize: '10.5px', padding: '1px 7px', background: sc.bg, color: sc.color, fontWeight: 500 }}>{sc.name}</span>; })()}
+      <div className="flex -space-x-1">{task.assignees?.slice(0, 3).map(aId => { const m = teamMembers.find(x => x.id === aId); return m && <div key={aId} className="w-[18px] h-[18px] rounded-full flex items-center justify-center text-white border border-white" style={{ background: m.color, fontSize: '9px', fontWeight: 600 }} title={m.name}>{getInitials(m.name)}</div>; })}{task.assignees?.length > 3 && <div className="w-[18px] h-[18px] rounded-full flex items-center justify-center border border-white" style={{ background: '#dadce0', color: '#5f6368', fontSize: '9px', fontWeight: 500 }}>+{task.assignees.length - 3}</div>}</div>
+      {task.comments?.length > 0 && !uc && <div className="flex items-center gap-0.5 hidden sm:flex" style={{ color: '#b0b5bc' }}><MessageSquare size={11} /><span style={{ fontSize: '10.5px' }}>{task.comments.length}</span></div>}
+      <SubtaskProgress subtasks={task.subtasks} />
+      <ChevronRight size={14} style={{ color: '#dadce0' }} />
     </div>
-
-    <div className="flex items-center justify-end flex-shrink-0" style={{ width: 52 }}>
-      {mc > 0 ? <span className="flex items-center gap-0.5 rounded-full" style={{ fontSize: '10.5px', padding: '1px 7px', background: '#ef4444', color: 'white', fontWeight: 600 }}><AtSign size={9} />{mc}</span>
-        : uc > 0 ? <span className="flex items-center gap-0.5 rounded-full" style={{ fontSize: '10.5px', padding: '1px 7px', background: '#f59e0b', color: 'white', fontWeight: 600 }}><MessageSquare size={9} />{uc}</span>
-        : <span className="flex items-center gap-1" style={{ color: cCount > 0 ? '#1a73e8' : '#c8ccd1' }}><MessageSquare size={12} /><span style={{ fontSize: '11.5px', fontWeight: 450 }}>{cCount}</span></span>}
-    </div>
-
-    <div className="flex items-center justify-end flex-shrink-0" style={{ width: 92 }}>
-      {task.deadline ? <DeadlineBadge deadline={task.deadline} size="small" lang={lang} t={t} /> : <SubtaskProgress subtasks={task.subtasks} />}
-    </div>
-
-    <div className="flex-shrink-0 flex items-center justify-center" style={{ width: 23 }}>
-      <TaskRowMenu task={task} onStatusChange={onStatusChange} lang={lang} />
-    </div>
-  </div>;
+  </div></div>;
 }
 
-// === SENDS BAR (horizontal buckets + expanded list) ===
-function SendRow({ send, isSelected, onSelect, onStatusChange, lang, teamMembers, isLast }) {
-  const mk = MARKETS.find(m => m.id === send.market);
-  const assigned = (send.assignees || []).map(id => teamMembers.find(m => m.id === id)).filter(Boolean);
-  const isDone = send.status === 'done';
-  const fmtD = (ds) => new Date(ds + 'T00:00:00').toLocaleDateString(lang === 'en' ? 'en-US' : 'pl-PL', { weekday: 'short', day: 'numeric', month: 'short' });
-  return <div onClick={() => onSelect(send)}
-    className="flex items-center gap-2 px-3 cursor-pointer relative"
-    style={{ minHeight: '42px', paddingTop: '5px', paddingBottom: '5px', borderBottom: isLast ? 'none' : '1px solid #f4f1fa', background: isSelected ? '#f7f2ff' : 'transparent', transition: 'background 0.1s ease' }}
-    onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = '#fbf9ff'; }}
-    onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = 'transparent'; }}>
-    {isSelected && <span style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: '3px', background: '#7c3aed' }} />}
-    <button onClick={e => { e.stopPropagation(); onStatusChange(send.id, isDone ? 'todo' : 'done'); }} className="flex-shrink-0 flex items-center justify-center hover:scale-110 transition-transform" style={{ width: 18 }} title={isDone ? (lang === 'en' ? 'Mark as todo' : 'Oznacz jako do zrobienia') : (lang === 'en' ? 'Mark as done' : 'Oznacz jako gotowe')}>
-      {isDone ? <CheckCircle size={16} style={{ color: '#16a34a' }} /> : <Circle size={16} style={{ color: '#a78bfa' }} />}
-    </button>
-    <span className="flex-shrink-0" style={{ fontSize: '14px', lineHeight: 1 }}>{mk?.icon}</span>
-    <span className="flex-1 min-w-0 truncate" style={{ fontSize: '13.5px', fontWeight: 450, letterSpacing: '-0.01em', color: isDone ? '#9aa0a6' : '#202124', textDecoration: isDone ? 'line-through' : 'none' }}>{send.title}</span>
-    <div className="flex items-center gap-1.5 flex-shrink-0 justify-end" style={{ width: 96 }}>
-      <div className="flex -space-x-1">
-        {assigned.slice(0, 3).map(m => <div key={m.id} className="rounded-full flex items-center justify-center text-white" style={{ width: 20, height: 20, background: m.color, fontSize: '9px', fontWeight: 600, border: '1.5px solid white' }} title={m.name}>{getInitials(m.name)}</div>)}
-        {assigned.length > 3 && <div className="rounded-full flex items-center justify-center" style={{ width: 20, height: 20, background: '#e8eaed', color: '#5f6368', fontSize: '9px', fontWeight: 600, border: '1.5px solid white' }}>+{assigned.length - 3}</div>}
+// === WEEKLY SENDS ACCORDION ===
+
+function WeeklySendsAccordion({ sends, isOpen, onToggle, onSelectSend, onSendStatusChange, currentUser, lang, t, teamMembers, selectedSend, label, variant = 'default', filterSendsPerson = [] }) {
+  // Filtr osób: pokazujemy wysyłkę jeśli przypisano do niej kogokolwiek z wybranych osób.
+  // Pusta lista = brak filtra = wszyscy.
+  const filteredSends = useMemo(() => {
+    if (!filterSendsPerson || filterSendsPerson.length === 0) return sends;
+    return sends.filter(s => filterSendsPerson.some(fp => (s.assignees || []).includes(fp)));
+  }, [sends, filterSendsPerson]);
+
+  if (!filteredSends.length) return null;
+
+  const borderColor = '#ddd6fe';
+  const accentColor = '#7c3aed';
+  const todoCount = filteredSends.filter(s => s.status === 'todo').length;
+  const fmtD = (ds) => new Date(ds+'T00:00:00').toLocaleDateString(lang==='en'?'en-US':'pl-PL',{weekday:'short',day:'numeric',month:'short'});
+
+  const renderSend = (send) => {
+    const mk = MARKETS.find(m => m.id === send.market);
+    const assigned = (send.assignees||[]).map(id => teamMembers.find(m => m.id === id)).filter(Boolean);
+    const isDone = send.status === 'done';
+    const isSelected = selectedSend?.id === send.id;
+    const toggleStatus = (e) => {
+      e.stopPropagation();
+      onSendStatusChange(send.id, isDone ? 'todo' : 'done');
+    };
+    return (
+      <div key={`send-${send.id}`}
+        onClick={() => onSelectSend(send)}
+        className="rounded-lg px-3 py-1.5 cursor-pointer transition-all duration-100 hover:bg-gray-50"
+        style={{
+          borderWidth: '0.5px',
+          borderStyle: 'solid',
+          borderColor: isSelected ? accentColor : '#e8eaed',
+          background: isSelected ? '#faf5ff' : 'white'
+        }}>
+        <div className="flex items-center gap-2">
+          <button onClick={toggleStatus} className="flex-shrink-0" title={isDone ? (lang==='en'?'Mark as todo':'Oznacz jako do zrobienia') : (lang==='en'?'Mark as done':'Oznacz jako gotowe')}>
+            {isDone ? <CheckCircle size={16} style={{ color: '#16a34a' }} /> : <Circle size={16} style={{ color: '#80868b' }} />}
+          </button>
+          <span className="flex-shrink-0 text-sm">{mk?.icon}</span>
+          <h4 className="flex-1 min-w-0 truncate" style={{
+            fontSize: '13px',
+            fontWeight: 450,
+            letterSpacing: '-0.01em',
+            color: isDone ? '#80868b' : '#202124',
+            textDecoration: isDone ? 'line-through' : 'none'
+          }}>{send.title}</h4>
+          <div className="flex items-center gap-1 flex-shrink-0">
+            <span style={{ fontSize: '10.5px', color: '#80868b' }}>{fmtD(send.sendDate)}</span>
+            <div className="flex -space-x-1">
+              {assigned.slice(0, 3).map(m => <div key={m.id} className="w-[18px] h-[18px] rounded-full flex items-center justify-center text-white border border-white" style={{ background: m.color, fontSize: '9px', fontWeight: 600 }}>{getInitials(m.name)}</div>)}
+            </div>
+            <ChevronRight size={14} style={{ color: '#dadce0' }} />
+          </div>
+        </div>
       </div>
-    </div>
-    <div className="flex items-center justify-end flex-shrink-0" style={{ width: 100 }}>
-      <span style={{ fontSize: '12px', color: '#7c3aed', fontWeight: 450, whiteSpace: 'nowrap' }}>{fmtD(send.sendDate)}</span>
-    </div>
-    <span className="flex-shrink-0" style={{ width: 23 }} />
-  </div>;
-}
-
-function SendsBar({ weekSends, nextWeekSends, week3Sends, onSelectSend, onSendStatusChange, currentUser, lang, t, teamMembers, selectedSend, filterSendsPerson = [] }) {
-  const [openKey, setOpenKey] = useState(null);
-  const scrollRef = useRef(null);
-  const [canLeft, setCanLeft] = useState(false);
-  const [canRight, setCanRight] = useState(false);
-
-  const applyFilter = (arr) => (!filterSendsPerson || filterSendsPerson.length === 0)
-    ? arr
-    : arr.filter(s => filterSendsPerson.some(fp => (s.assignees || []).includes(fp)));
-
-  const w1 = applyFilter(weekSends);
-  const w2 = applyFilter(nextWeekSends);
-  const w3 = applyFilter(week3Sends);
-  const all = [...w1, ...w2, ...w3].sort((a, b) => (a.sendDate || '').localeCompare(b.sendDate || ''));
-
-  const buckets = [
-    { key: 'all', label: lang === 'en' ? 'All sends' : 'Wszystkie wysyłki', icon: Inbox, sends: all, color: '#db2777', bg: '#fdf2f8', border: '#fbcfe8', iconBg: '#fce7f3' },
-    { key: 'w1', label: lang === 'en' ? 'This week' : 'Ten tydzień', icon: CalendarClock, sends: w1, color: '#7c3aed', bg: '#faf5ff', border: '#e9d5ff', iconBg: '#f3e8ff' },
-    { key: 'w2', label: lang === 'en' ? 'Next week' : 'Następny tydzień', icon: Calendar, sends: w2, color: '#1a73e8', bg: '#f2f7fe', border: '#d2e3fc', iconBg: '#e8f0fe' },
-    { key: 'w3', label: lang === 'en' ? 'In 2 weeks' : 'Za 2 tygodnie', icon: Calendar, sends: w3, color: '#0891b2', bg: '#f0fdff', border: '#cffafe', iconBg: '#ecfeff' },
-  ].filter(b => b.sends.length > 0);
-
-  const updateArrows = useCallback(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-    setCanLeft(el.scrollLeft > 4);
-    setCanRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 4);
-  }, []);
-
-  useEffect(() => {
-    updateArrows();
-    window.addEventListener('resize', updateArrows);
-    return () => window.removeEventListener('resize', updateArrows);
-  }, [updateArrows, buckets.length]);
-
-  if (!buckets.length) return null;
-
-  const active = buckets.find(b => b.key === openKey);
-  const scrollBy = (dir) => { scrollRef.current?.scrollBy({ left: dir * 260, behavior: 'smooth' }); };
+    );
+  };
 
   return (
     <div className="max-w-4xl mx-auto mb-3">
-      <div className="flex items-center gap-1.5 mb-1.5 px-0.5" style={{ fontSize: '10.5px', fontWeight: 600, letterSpacing: '0.06em', color: '#9aa0a6', textTransform: 'uppercase' }}>
-        <Send size={11} style={{ color: '#7c3aed' }} />
-        {lang === 'en' ? 'SENDS' : 'WYSYŁKI'}
-      </div>
-
-      <div className="relative">
-        <div ref={scrollRef} onScroll={updateArrows} className="flex gap-2.5 overflow-x-auto pb-0.5" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-          {buckets.map(b => {
-            const I = b.icon;
-            const todo = b.sends.filter(s => s.status === 'todo').length;
-            const isOpen = openKey === b.key;
-            return <button key={b.key} onClick={() => setOpenKey(isOpen ? null : b.key)}
-              className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl flex-shrink-0 text-left transition-all"
-              style={{ minWidth: 228, background: b.bg, border: `1px solid ${isOpen ? b.color : b.border}`, boxShadow: isOpen ? `0 0 0 1px ${b.color}` : 'none' }}>
-              <span className="flex items-center justify-center rounded-lg flex-shrink-0" style={{ width: 32, height: 32, background: b.iconBg }}>
-                <I size={16} style={{ color: b.color }} />
-              </span>
-              <span className="flex-1 min-w-0">
-                <span className="block truncate" style={{ fontSize: '12.5px', fontWeight: 500, color: '#202124' }}>{b.label}</span>
-                <span className="block truncate" style={{ fontSize: '11px', color: todo > 0 ? b.color : '#9aa0a6' }}>
-                  {todo > 0 ? `${todo} ${lang === 'en' ? 'to do' : 'do zrobienia'}` : (lang === 'en' ? 'all done' : 'wszystko gotowe')}
-                </span>
-              </span>
-              <span className="flex-shrink-0 tabular-nums" style={{ fontSize: '19px', fontWeight: 600, color: b.color, lineHeight: 1 }}>{b.sends.length}</span>
-            </button>;
-          })}
+      <button onClick={onToggle}
+        className="w-full flex items-center justify-between px-3 py-2 transition-colors"
+        style={{ fontSize: '12px', fontWeight: 500, background: 'white', color: accentColor, border: `1px solid ${borderColor}`, borderBottom: isOpen ? `1px solid ${borderColor}` : `1px solid ${borderColor}`, borderRadius: isOpen ? '10px 10px 0 0' : '10px' }}>
+        <div className="flex items-center gap-2">
+          <CalendarClock size={14} />
+          <span>{label}</span>
+          <span className="rounded-full" style={{ fontSize: '10.5px', padding: '1px 7px', background: '#f3f0ff', color: '#7c3aed', fontWeight: 500 }}>{filteredSends.length}</span>
+          {todoCount > 0 && <span className="rounded-full" style={{ fontSize: '10.5px', padding: '1px 7px', background: '#fef3c7', color: '#b45309' }}>
+            {todoCount} {lang === 'en' ? 'to do' : 'do zrobienia'}
+          </span>}
         </div>
-        {canLeft && <button onClick={() => scrollBy(-1)} className="absolute left-0 top-1/2 -translate-y-1/2 rounded-full flex items-center justify-center" style={{ width: 26, height: 26, background: 'white', border: '1px solid #dadce0', boxShadow: '0 1px 3px rgba(60,64,67,.2)', color: '#5f6368' }}><ChevronLeft size={15} /></button>}
-        {canRight && <button onClick={() => scrollBy(1)} className="absolute right-0 top-1/2 -translate-y-1/2 rounded-full flex items-center justify-center" style={{ width: 26, height: 26, background: 'white', border: '1px solid #dadce0', boxShadow: '0 1px 3px rgba(60,64,67,.2)', color: '#5f6368' }}><ChevronRight size={15} /></button>}
-      </div>
-
-      {active && <div className="mt-2 bg-white rounded-xl" style={{ border: `1px solid ${active.border}`, boxShadow: '0 1px 2px rgba(60,64,67,0.06)' }}>
-        {active.sends.map((s, i) => <SendRow key={`send-${s.id}`} send={s} isSelected={selectedSend?.id === s.id} onSelect={onSelectSend} onStatusChange={onSendStatusChange} lang={lang} teamMembers={teamMembers} isLast={i === active.sends.length - 1} />)}
-        <a href="/planner" target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-1.5 py-2 text-xs hover:underline" style={{ color: '#9aa0a6', borderTop: '1px solid #f4f1fa' }}>
-          <CalendarClock size={12} />
-          {lang === 'en' ? 'Open Planner' : 'Otwórz Planner'} →
-        </a>
-      </div>}
+        {isOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+      </button>
+      {isOpen && (
+        <div className="rounded-b-lg overflow-hidden px-2 py-2" style={{ background: 'white', border: `1px solid ${borderColor}`, borderTop: 'none' }}>
+          <div className="space-y-0.5">
+            {filteredSends.map(renderSend)}
+          </div>
+          <a href="/planner" target="_blank" rel="noopener noreferrer"
+            className="flex items-center justify-center gap-1.5 px-4 py-1.5 text-xs hover:underline rounded-lg transition-colors mt-1"
+            style={{ color: '#80868b' }}>
+            <CalendarClock size={12} />
+            {lang === 'en' ? 'Open Planner' : 'Otwórz Planner'} →
+          </a>
+        </div>
+      )}
     </div>
   );
 }
@@ -1775,23 +1682,23 @@ export default function TaskApp() {
       </aside>
 
       <main className="flex-1 flex flex-col overflow-hidden min-w-0">
-        <header className="bg-white px-4 lg:px-6 py-3 flex items-center justify-between gap-2" style={{ borderBottom: '1px solid #dadce0' }}>
-          <div className="flex items-center gap-2 min-w-0"><button onClick={() => setSidebarOpen(true)} className="p-2 rounded-full hover:bg-gray-100 lg:hidden flex-shrink-0" style={{ color: '#80868b' }}><Menu size={20} /></button><div className="min-w-0"><h2 className="truncate" style={{ color: '#202124', fontSize: '19px', fontWeight: 600, letterSpacing: '-0.01em' }}>{showUsersPanel ? t.usersPanel : activeTab === 'pending' ? t.pendingApproval : filterDeadline ? t.withDeadlineTasks : filterStatus === 'active' ? t.activeTasks : filterStatus === 'open' ? t.openTasks : filterStatus === 'waiting' ? t.waitingTasks : filterStatus === 'paused' ? t.pausedTasks : filterStatus === 'monitoring' ? t.monitoringTasks : filterStatus === 'manager' ? t.managerTasks : filterStatus === 'ideas' ? t.ideasTasks : t.closedTasks}</h2>{filterPerson.length > 0 && !showUsersPanel && <p style={{ fontSize: '11px', color: '#80868b' }}>{t.filter}: {filterPerson.map(fp => teamMembers.find(m => m.id === fp)?.name?.split(' ')[0]).filter(Boolean).join(', ')}</p>}</div></div>
+        <header className="bg-white px-4 lg:px-6 py-2.5 flex items-center justify-between gap-2" style={{ borderBottom: '1px solid #dadce0' }}>
+          <div className="flex items-center gap-2 min-w-0"><button onClick={() => setSidebarOpen(true)} className="p-2 rounded-full hover:bg-gray-100 lg:hidden flex-shrink-0" style={{ color: '#80868b' }}><Menu size={20} /></button><div className="min-w-0"><h2 className="text-sm lg:text-base font-medium truncate" style={{ color: '#202124' }}>{showUsersPanel ? t.usersPanel : activeTab === 'pending' ? t.pendingApproval : filterDeadline ? t.withDeadlineTasks : filterStatus === 'active' ? t.activeTasks : filterStatus === 'open' ? t.openTasks : filterStatus === 'waiting' ? t.waitingTasks : filterStatus === 'paused' ? t.pausedTasks : filterStatus === 'monitoring' ? t.monitoringTasks : filterStatus === 'manager' ? t.managerTasks : filterStatus === 'ideas' ? t.ideasTasks : t.closedTasks}</h2>{filterPerson.length > 0 && !showUsersPanel && <p style={{ fontSize: '11px', color: '#80868b' }}>{t.filter}: {filterPerson.map(fp => teamMembers.find(m => m.id === fp)?.name?.split(' ')[0]).filter(Boolean).join(', ')}</p>}</div></div>
           <div className="flex items-center gap-2 flex-shrink-0">
             <NotificationBell tasks={tasks} currentUser={currentUser} readTimestamps={readTimestamps} teamMembers={teamMembers} onSelectTask={handleSelectTask} onMarkAllRead={async () => { const taskIds = tasks.map(t => t.id); const now = await setAllTasksReadInDb(currentUser, taskIds); const newTs = {}; taskIds.forEach(id => { newTs[id] = now; }); setReadTimestamps(newTs); }} t={t} lang={lang} />
             {!showUsersPanel && <GlobalSearch tasks={tasks} onSelectTask={handleSelectTask} teamMembers={teamMembers} customTags={customTags} t={t} lang={lang} />}
             {!showUsersPanel && activeTab === 'tasks' && <SortDropdown value={sortBy} onChange={setSortBy} t={t} />}
-            {!showUsersPanel && <><button onClick={loadTasks} className="p-2 rounded-full hover:bg-gray-100" style={{ color: '#5f6368' }}><Loader2 size={18} className={loading ? 'animate-spin' : ''} /></button>{activeTab === 'tasks' && <button onClick={() => setShowNewTask(true)} className="flex items-center gap-1.5 px-4 lg:px-5 py-2.5 rounded-xl font-medium text-sm shadow-sm hover:shadow-md transition-shadow" style={{ background: '#1a73e8', color: 'white' }}><Plus size={16} /> <span className="hidden sm:inline">{t.newTask}</span></button>}</>}
+            {!showUsersPanel && <><button onClick={loadTasks} className="p-2 rounded-full hover:bg-gray-100" style={{ color: '#5f6368' }}><Loader2 size={18} className={loading ? 'animate-spin' : ''} /></button>{activeTab === 'tasks' && <button onClick={() => setShowNewTask(true)} className="flex items-center gap-1.5 px-4 lg:px-5 py-2 rounded-full font-medium text-sm shadow-sm hover:shadow-md transition-shadow" style={{ background: '#1a73e8', color: 'white' }}><Plus size={16} /> <span className="hidden sm:inline">{t.newTask}</span></button>}</>}
           </div>
         </header>
 
         <div className="flex-1 overflow-y-auto p-3 lg:p-4">
           {showUsersPanel ? null : activeTab === 'pending' ? <PendingView tasks={pendingTasks} approveTask={approveTask} deleteTask={deleteTask} currentUser={currentUser} t={t} lang={lang} teamMembers={teamMembers} isManager={isManager} /> : (
-            <>{showAccordion && (
-              <SendsBar
-                weekSends={visibleWeeklySends}
-                nextWeekSends={visibleNextWeekSends}
-                week3Sends={visibleWeek3Sends}
+            <>{showAccordion && (<>
+              <WeeklySendsAccordion
+                sends={visibleWeeklySends}
+                isOpen={weekSendsOpen}
+                onToggle={() => setWeekSendsOpen(o => !o)}
                 onSelectSend={handleSelectSend}
                 onSendStatusChange={(id, s) => updateSend(id, { status: s })}
                 currentUser={currentUser}
@@ -1799,10 +1706,42 @@ export default function TaskApp() {
                 t={t}
                 teamMembers={teamMembers}
                 selectedSend={selectedSend}
+                label={lang === 'en' ? 'Sends this week' : 'Wysyłki ten tydzień'}
+                variant="default"
                 filterSendsPerson={filterSendsPerson}
               />
-            )}
-            <div className="max-w-4xl mx-auto">{filteredTasks.length === 0 ? <div className="text-center py-16 bg-white rounded-xl" style={{ border: '1px solid #e8eaed' }}><CheckCircle size={48} className="mx-auto mb-4" style={{ color: '#16a34a', opacity: 0.4 }} /><p style={{ color: '#5f6368' }}>{t.noTasksToShow}</p></div> : <div className="bg-white rounded-xl" style={{ border: '1px solid #e8eaed', boxShadow: '0 1px 2px rgba(60,64,67,0.06)' }}><TaskListHeader t={t} lang={lang} />{filteredTasks.map((task, i) => <TaskItem key={task.id} task={task} isLast={i === filteredTasks.length - 1} isSelected={selectedTask?.id === task.id} onClick={() => handleSelectTask(task)} onStatusChange={s => updateTask(task.id, { status: s })} currentUser={currentUser} readTimestamps={readTimestamps} lang={lang} t={t} teamMembers={teamMembers} customTags={customTags} />)}</div>}</div></>
+              <WeeklySendsAccordion
+                sends={visibleNextWeekSends}
+                isOpen={nextWeekSendsOpen}
+                onToggle={() => setNextWeekSendsOpen(o => !o)}
+                onSelectSend={handleSelectSend}
+                onSendStatusChange={(id, s) => updateSend(id, { status: s })}
+                currentUser={currentUser}
+                lang={lang}
+                t={t}
+                teamMembers={teamMembers}
+                selectedSend={selectedSend}
+                label={lang === 'en' ? 'Next week' : 'Następny tydzień'}
+                variant="next"
+                filterSendsPerson={filterSendsPerson}
+              />
+              <WeeklySendsAccordion
+                sends={visibleWeek3Sends}
+                isOpen={week3SendsOpen}
+                onToggle={() => setWeek3SendsOpen(o => !o)}
+                onSelectSend={handleSelectSend}
+                onSendStatusChange={(id, s) => updateSend(id, { status: s })}
+                currentUser={currentUser}
+                lang={lang}
+                t={t}
+                teamMembers={teamMembers}
+                selectedSend={selectedSend}
+                label={lang === 'en' ? 'In 2 weeks' : 'Za 2 tygodnie'}
+                variant="week3"
+                filterSendsPerson={filterSendsPerson}
+              />
+            </>)}
+            <div className="max-w-4xl mx-auto">{filteredTasks.length === 0 ? <div className="text-center py-16"><CheckCircle size={48} className="mx-auto mb-4" style={{ color: '#16a34a', opacity: 0.4 }} /><p style={{ color: '#5f6368' }}>{t.noTasksToShow}</p></div> : <div className="space-y-px">{filteredTasks.map(task => <TaskItem key={task.id} task={task} isSelected={selectedTask?.id === task.id} onClick={() => handleSelectTask(task)} onStatusChange={s => updateTask(task.id, { status: s })} currentUser={currentUser} readTimestamps={readTimestamps} lang={lang} t={t} teamMembers={teamMembers} customTags={customTags} />)}</div>}</div></>
           )}
         </div>
       </main>
